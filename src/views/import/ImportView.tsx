@@ -1,7 +1,7 @@
 /* ============================================================
    VUE — IMPORT LETTERBOXD
    ============================================================ */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Upload } from "lucide-react";
 import { C, F } from "../../theme/tokens";
@@ -9,6 +9,9 @@ import { underlineInput, tap } from "../../theme/styles";
 import { Label, Tally, InkStars } from "../../components/ui";
 import { StampCorner } from "../../components/atmosphere";
 import { store } from "../../services/storage";
+import { keepTheVault } from "../../services/persistence";
+import { doorEvent } from "../../services/measure";
+import { importAllowance, spendImport, type ImportAllowance } from "../../services/server";
 import { writtenKey, setTmdbKey, useTmdbKey } from "../../services/tmdbKey";
 import { parseLetterboxdCsv, diffImport, filmKey } from "../../domain/importing";
 import {
@@ -19,10 +22,13 @@ import {
   RELAY_KEY,
   LetterboxdError,
 } from "../../services/letterboxd";
+import { loadWatch, onWatchChanged, patchWatch } from "../../services/letterboxdWatch";
+import { serverConfigured } from "../../services/server";
 import { enrichRows, checkApiKey } from "../../tmdb";
 import { BackupPanel } from "./BackupPanel";
 import { CompletePanel } from "./CompletePanel";
 import { RepairPanel } from "./RepairPanel";
+import { DuplicatePanel, type Pair } from "./DuplicatePanel";
 import { OrphanViews } from "./OrphanViews";
 import type {
   Divider,
@@ -36,10 +42,19 @@ import type {
 } from "../../types";
 import type { Thread } from "../../domain/threads";
 import type { StoredVocabulary as Vocabulary } from "../../domain/motifs";
+import type { Bond } from "../../domain/bonds";
+import type { Course } from "../../domain/course";
 
-/** The two kinds of import offered under the file's reading. */
+/* LES DEUX LIBELLÉS ÉTAIENT FAUX, CHACUN À SA FAÇON — et sur l'écran
+   d'import, c'est-à-dire sur la porte. « des films vus » était du
+   français en dur, invisible à qui lit le classeur en anglais ; et
+   « views.watchlist » était une CLÉ de catalogue rendue telle quelle,
+   parce que personne ne la passait à `t()`. Le bouton d'à côté affichait
+   donc littéralement « views.watchlist ».
+
+   Les deux sont désormais des clés, et les deux passent par `t()`. */
 const IMPORT_STATUSES: { k: FilmStatus; l: string }[] = [
-  { k: "watched", l: "des films vus" },
+  { k: "watched", l: "import.asWatched" },
   { k: "watchlist", l: "views.watchlist" },
 ];
 
@@ -51,6 +66,8 @@ interface ImportViewProps {
   views: ShelfViews | null;
   fils: Thread[];
   motifs: Vocabulary;
+  filiations: Bond[];
+  parcours: Course[];
   onRestore: (data: {
     films: Film[];
     notes: Note[];
@@ -58,7 +75,15 @@ interface ImportViewProps {
     views: ShelfViews | null;
     fils: Thread[];
     motifs: Vocabulary;
+    filiations: Bond[];
+    parcours: Course[];
   }) => void;
+  /* Retourner au mur depuis le bilan. Facultatif : sans lui le bilan
+     reste ce qu'il était, trois nombres et rien d'autre. */
+  onSeeWall?: () => void;
+  /* Fondre des doublons ÉCRIT et EFFACE : ça ne passe pas par le
+     tuyau d'import, qui ne sait que créer et mettre à jour. */
+  onMerge?: (pairs: Pair[]) => void;
 }
 
 export function ImportView({
@@ -69,7 +94,11 @@ export function ImportView({
   views,
   fils,
   motifs,
+  filiations,
+  parcours,
   onRestore,
+  onSeeWall,
+  onMerge,
 }: ImportViewProps) {
   const { t } = useTranslation();
 
@@ -122,6 +151,16 @@ export function ImportView({
      relay stays folded away: nobody should have to look at it as long as
      it works. */
   const [lbUser, setLbUser] = useState(() => store.get(USER_KEY, ""));
+  /* L'INTERRUPTEUR DE LA VEILLE. Il lit le document syncable et non une
+     clé locale : le réglage suit le compte d'un appareil à l'autre. */
+  const [watching, setWatching] = useState(() => loadWatch().on);
+  /* La date de la dernière lecture RÉUSSIE, relue à chaque montage : la
+     veille tourne ailleurs, cet écran ne fait que la regarder. */
+  const [lastRead, setLastRead] = useState(() => loadWatch().feedAt);
+  useEffect(() => {
+    const stop = onWatchChanged(() => setLastRead(loadWatch().feedAt));
+    return stop;
+  }, []);
   const [relay, setRelay] = useState(() => store.get(RELAY_KEY, DEFAULT_RELAY));
   const [showRelay, setShowRelay] = useState(false);
   const [feeding, setFeeding] = useState(false);
@@ -134,6 +173,15 @@ export function ImportView({
      watchlist read says what it contains today, not what should be
      thrown away. */
   const [dropped, setDropped] = useState<Film[]>([]);
+
+  /* CE QU'IL RESTE D'IMPORTS, demandé À L'ENTRÉE et non à la validation.
+     Le coût est dans l'enrichissement — six cents films, six cents
+     interrogations du relais — et il part avant qu'on valide : refuser
+     à la fin ferait travailler quelqu'un pour lui dire non après coup. */
+  const [allowance, setAllowance] = useState<ImportAllowance | null>(null);
+  useEffect(() => {
+    importAllowance().then(setAllowance);
+  }, []);
 
   const reset = () => {
     setRows([]);
@@ -151,6 +199,12 @@ export function ImportView({
     setDropped([]);
     setDone(null);
     setFileName(file.name);
+    /* LANCÉ, ET PAS ENCORE ABOUTI. C'est l'écart entre les deux qui dit
+       quelque chose : un import déposé mais jamais confirmé est un
+       bordereau qu'on n'a pas su lire, et c'est ce qu'on veut voir.
+       Le NOM DU FICHIER ne part pas — il n'est pas dans l'événement, et
+       la liste des événements est fermée pour que ça reste vrai. */
+    doorEvent("porte:import-lance");
     try {
       const { rows: parsed, stats: s, kind } = await parseLetterboxdCsv(file);
       setRows(parsed);
@@ -174,6 +228,10 @@ export function ImportView({
     try {
       const { rows: parsed, stats: s, kind } = await fetchLetterboxdFeed(lbUser, relay);
       store.set(USER_KEY, lbUser.trim().replace(/^@/, ""));
+      /* LE PSEUDO SUIT, SI LA VEILLE EST ALLUMÉE. Sans cette ligne, on
+         change de compte ici et la veille continue de relever l'ancien —
+         en silence, puisqu'elle ne dit jamais rien. */
+      if (watching) patchWatch({ handle: lbUser.trim().replace(/^@/, "") });
       store.set(RELAY_KEY, relay.trim() || DEFAULT_RELAY);
       setRows(parsed);
       setStats(s);
@@ -217,6 +275,7 @@ export function ImportView({
         onProgress: (done, total) => setPages({ done, total }),
       });
       store.set(USER_KEY, pseudo);
+      if (watching) patchWatch({ handle: pseudo });
       store.set(RELAY_KEY, relay.trim() || DEFAULT_RELAY);
       setRows(parsed);
       setStats(s);
@@ -267,9 +326,29 @@ export function ImportView({
      file carries screenings: only diary.csv and the feed have any. */
   const hasScreenings = rows.some((r) => r.watches?.length);
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!diff) return;
+    /* ON CONSOMME AVANT D'ÉCRIRE. Le serveur est seul juge : il compte
+       dans la même requête qu'il écrit, donc deux onglets ne peuvent pas
+       passer ensemble. Un refus arrête tout — écrire quand même
+       laisserait la collection en avance sur ce qu'on a le droit de
+       faire. */
+    try {
+      setAllowance(await spendImport());
+    } catch (e) {
+      setError((e as Error).message || t("import.refused"));
+      return;
+    }
     onImport(diff);
+    /* LE MOMENT DE DEMANDER LE REMPART. Quelqu'un qui vient de verser
+       sa collection entière a donné au navigateur exactement le signal
+       d'engagement que `persist()` attend, et a de quoi comprendre la
+       question si Firefox la pose. Au chargement, ni l'un ni l'autre.
+
+       Sans `await`, et sans que le résultat compte : l'import est fait,
+       il est écrit, et rien de ce qui suit ne doit retenir la main. */
+    if (diff.toCreate.length) void keepTheVault();
+    doorEvent("porte:import-abouti");
     setDone({
       created: diff.toCreate.length,
       updated: diff.toUpdate.length,
@@ -282,7 +361,7 @@ export function ImportView({
 
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 680, position: "relative" }}>
-      <StampCorner text="ARCHIVES" />
+      <StampCorner text={t("import.stamp")} />
       <div
         style={{
           fontFamily: F.title,
@@ -292,7 +371,7 @@ export function ImportView({
           color: C.ink,
         }}
       >
-        Bordereau d'import
+        {t("import.heading")}
       </div>
       <div
         style={{
@@ -305,6 +384,30 @@ export function ImportView({
       >
         {t("import.oneFileAtATime")}
       </div>
+
+      {/* CE QU'IL RESTE, DIT AVANT DE COMMENCER. Un plafond invisible se
+          découvre en le heurtant, c'est-à-dire après avoir déposé son
+          fichier et attendu six cents interrogations du relais. On ne
+          montre RIEN quand le palier ne compte pas : « imports
+          illimités » est une phrase qui n'apprend rien et qui occupe la
+          place où une vraie nouvelle devrait tenir. */}
+      {allowance?.ceiling != null && (
+        <div
+          style={{
+            marginBottom: 22,
+            padding: "9px 12px",
+            border: `1px solid ${allowance.allowed ? C.line : C.burgundy}`,
+            fontFamily: F.hand,
+            fontSize: 16,
+            color: allowance.allowed ? C.inkFaded : C.burgundy,
+            lineHeight: 1.35,
+          }}
+        >
+          {allowance.allowed
+            ? t("import.left", { count: allowance.ceiling - allowance.used })
+            : t("import.none")}
+        </div>
+      )}
 
       {/* The Letterboxd export is a zip of several CSVs: each holds only
           part of the story, hence the recommended order. */}
@@ -467,6 +570,69 @@ export function ImportView({
           ))}
         </div>
 
+        {/* LA VEILLE, LÀ OÙ LE PSEUDO SE TAPE DÉJÀ.
+
+            Pas d'écran de réglages neuf : c'est ici la maison de
+            Letterboxd dans ce produit, et un réglage rangé ailleurs que
+            devant la chose qu'il commande est un réglage qu'on ne
+            retrouve pas.
+
+            IL FAUT UN SERVEUR, et l'interrupteur ne se montre pas sans
+            lui : c'est par le relais maison que la veille lit, et c'est
+            le document synchronisé qui retient ce qu'on a écarté. Sans
+            compte, les deux boutons ci-dessus continuent de marcher —
+            l'import à la main n'a jamais rien demandé. */}
+        {serverConfigured() && (
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 12,
+              fontFamily: F.body,
+              fontSize: 13,
+              color: C.inkFaded,
+              cursor: lbUser.trim() ? "pointer" : "not-allowed",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={watching}
+              disabled={!lbUser.trim()}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setWatching(on);
+                patchWatch({ on, handle: lbUser.trim().replace(/^@/, "") });
+              }}
+            />
+            {t("letterboxdWatch.setting")}
+          </label>
+        )}
+
+        {/* CE QU'ELLE A FAIT, EN TOUTES LETTRES.
+
+            L'échec de la veille est MUET par construction — c'est une
+            décoration, pas un chargement de page — et sans cette ligne,
+            « elle n'a rien trouvé » et « elle n'a jamais réussi à lire »
+            étaient rigoureusement le même écran : rien. On ne pouvait
+            pas savoir si elle tournait. Une date répond à la question
+            sans réveiller personne. */}
+        {serverConfigured() && watching && (
+          <div
+            style={{
+              fontFamily: F.mono,
+              fontSize: 10.5,
+              color: C.inkFaded,
+              marginTop: 6,
+              paddingLeft: 22,
+            }}
+          >
+            {lastRead
+              ? t("letterboxdWatch.lastRead", { when: new Date(lastRead).toLocaleString() })
+              : t("letterboxdWatch.neverRead")}
+          </div>
+        )}
+
         {/* The relay, folded away. Letterboxd does not allow its feed
             to be read from another site: an intermediary is needed, and
             the default one is a public service. Whoever prefers their
@@ -489,7 +655,7 @@ export function ImportView({
         </button>
         {showRelay && (
           <div style={{ marginTop: 8 }}>
-            <Label>Adresse du relais</Label>
+            <Label>{t("import.relayAddress")}</Label>
             <input
               style={underlineInput}
               value={relay}
@@ -522,7 +688,7 @@ export function ImportView({
       >
         <Upload size={24} color={C.burgundy} style={{ marginBottom: 10 }} />
         <div style={{ color: C.ink, fontFamily: F.body, fontSize: 14, marginBottom: 14 }}>
-          letterboxd.com → Settings → Import &amp; Export → Export your data
+          {t("import.letterboxdPath")}
         </div>
         <input
           ref={fileRef}
@@ -544,7 +710,7 @@ export function ImportView({
             fontSize: 11.5,
           }}
         >
-          CHOISIR UN FICHIER
+          {t("import.chooseAFile")}
         </button>
         {fileName && (
           <div
@@ -596,6 +762,34 @@ export function ImportView({
           <Tally label={t("import.created")} value={done.created} ink={C.pine} />
           <Tally label={t("import.updated")} value={done.updated} ink={C.ochre} />
           <Tally label={t("import.unchanged")} value={done.unchanged} />
+          {/* LE BILAN MENAIT NULLE PART. Trois nombres, et l'écran
+              d'import restait ouvert : quelqu'un qui vient de verser six
+              cents films doit aller LES VOIR, et c'est le seul moment du
+              produit où l'on sait avec certitude ce qu'il veut faire
+              ensuite. Rien ne s'ouvre tout seul pour autant — on propose
+              la porte, on ne pousse personne dedans. */}
+          {onSeeWall && (done.created > 0 || done.updated > 0) && (
+            <button
+              onClick={onSeeWall}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                marginTop: 12,
+                padding: "8px 14px",
+                background: C.pine,
+                color: C.card,
+                fontFamily: F.mono,
+                fontSize: 10.5,
+                letterSpacing: 1,
+              }}
+            >
+              {t("import.seeThem")}
+            </button>
+          )}
         </div>
       )}
 
@@ -618,7 +812,7 @@ export function ImportView({
               marginBottom: 10,
             }}
           >
-            CE QUE CONTIENT LE FICHIER
+            {t("import.whatTheFileHolds")}
           </div>
           <Tally label={t("import.linesRead")} value={stats.lines} />
           <Tally label={t("import.distinctFilms")} value={stats.total} />
@@ -644,7 +838,7 @@ export function ImportView({
           )}
 
           <div style={{ marginTop: 16 }}>
-            <Label>Ces films sont</Label>
+            <Label>{t("import.theseFilmsAre")}</Label>
             <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
               {IMPORT_STATUSES.map((o) => (
                 <button
@@ -662,7 +856,7 @@ export function ImportView({
                     border: `1px solid ${importStatus === o.k ? C.cobalt : C.line}`,
                   }}
                 >
-                  {o.l}
+                  {t(o.l)}
                 </button>
               ))}
             </div>
@@ -695,7 +889,7 @@ export function ImportView({
                   style={{ marginTop: 3 }}
                 />
                 <span>
-                  Ce relevé fait autorité sur les séances
+                  {t("import.thisLogIsAuthoritative")}
                   <span
                     style={{
                       display: "block",
@@ -732,7 +926,7 @@ export function ImportView({
               letterSpacing: 1,
             }}
           >
-            RÉALISATEUR·RICE, GENRES ET AFFICHES
+            {t("import.directorGenresPosters")}
           </div>
           <div
             style={{
@@ -791,7 +985,22 @@ export function ImportView({
 
           {progress ? (
             <div style={{ marginTop: 14 }}>
-              <div style={{ height: 6, background: C.line, position: "relative" }}>
+              {/* UNE BARRE QUI SE VOIT DOIT AUSSI S'ENTENDRE. Elle n'était
+                  qu'un rectangle qui rétrécit : une synthèse vocale n'en
+                  tirait rien, sur la seule attente longue du produit.
+                  `aria-valuetext` porte la phrase déjà écrite en dessous,
+                  plutôt qu'un pourcentage nu. */}
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={progress.total}
+                aria-valuenow={progress.done}
+                aria-valuetext={t("import.queried", {
+                  done: progress.done,
+                  total: progress.total,
+                })}
+                style={{ height: 6, background: C.line, position: "relative" }}
+              >
                 <div
                   style={{
                     position: "absolute",
@@ -810,7 +1019,7 @@ export function ImportView({
                   marginTop: 6,
                 }}
               >
-                {progress.done} / {progress.total} interrogés…
+                {t("import.queried", { done: progress.done, total: progress.total })}
               </div>
             </div>
           ) : (
@@ -862,7 +1071,7 @@ export function ImportView({
       {/* ---- the diff, before writing ---- */}
       {diff && (
         <div style={{ marginTop: 22 }}>
-          <Label>Ce qui va être écrit</Label>
+          <Label>{t("import.whatWillBeWritten")}</Label>
           <div
             style={{
               display: "flex",
@@ -897,7 +1106,7 @@ export function ImportView({
                   marginBottom: 4,
                 }}
               >
-                fiches existantes retouchées (vos critiques et notes libres sont conservées)
+                {t("import.existingCardsTouched")}
               </div>
               <div
                 style={{
@@ -1056,7 +1265,7 @@ export function ImportView({
               marginBottom: 4,
             }}
           >
-            PLUS DANS VOTRE WATCHLIST LETTERBOXD
+            {t("import.noLongerInWatchlist")}
           </div>
           <div
             style={{
@@ -1108,6 +1317,11 @@ export function ImportView({
           measurable target, and the tour stopped on an invisible strip
           instead of skipping the step. */}
       <RepairPanel films={films} onImport={onImport} />
+      {/* APRÈS LA RÉPARATION ET AVANT LA SAUVEGARDE, comme le panneau
+          au-dessus : on répare ce qui se répare, puis on fond ce qui
+          reste en double, et on sauvegarde une fois le classeur propre.
+          L'ordre des sections EST la marche à suivre. */}
+      {onMerge && <DuplicatePanel films={films} apiKey={wherewithal} onMerge={onMerge} />}
       {/* Les vues d'étagère que l'index ne nomme plus. Le rechargement
           est le plus court chemin pour que le mur les reprenne : l'index
           est lu au montage, et rien n'écoute son changement. */}
@@ -1121,6 +1335,8 @@ export function ImportView({
           views={views}
           fils={fils}
           motifs={motifs}
+          filiations={filiations}
+          parcours={parcours}
           onRestore={onRestore}
         />
       </div>

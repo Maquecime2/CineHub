@@ -119,6 +119,7 @@ export const FilmBox = React.memo(function FilmBox({
   onDragOverBox,
   dim,
 }) {
+  const { t } = useTranslation();
   const [hover, setHover] = useState(false);
   /* Read here rather than threaded down `Row` → `Line` → here: those are
      memoised and rebuilt dozens of times a second under a drag, and one
@@ -419,7 +420,7 @@ export const FilmBox = React.memo(function FilmBox({
               }}
             >
               <span
-                aria-label={`${film.rating || 0} sur 5`}
+                aria-label={t("common.ratingOutOf", { rating: film.rating || 0 })}
                 style={{
                   position: "relative",
                   display: "inline-block",
@@ -452,7 +453,7 @@ export const FilmBox = React.memo(function FilmBox({
                   one rewatches. */}
               {seenFilms > 1 && (
                 <span
-                  aria-label={`vu ${seenFilms} fois`}
+                  aria-label={t("common.seenTimes", { count: seenFilms })}
                   style={{ fontSize: 9, letterSpacing: 0, opacity: 0.85, flexShrink: 0 }}
                 >
                   ×{seenFilms}
@@ -836,7 +837,7 @@ export const DecorItem = React.memo(function DecorItem({
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
-                aria-label="Nom de l'intercalaire"
+                aria-label={t("shelf.dividerName")}
                 style={{
                   all: "unset",
                   boxSizing: "border-box",
@@ -897,8 +898,8 @@ export const DecorItem = React.memo(function DecorItem({
                 e.stopPropagation();
                 onEdit(item.id);
               }}
-              title="Couleur, taille, retrait"
-              aria-label={`Réglages de « ${item.label || "sans nom"} »`}
+              title={t("shelf.colourSizeIndent")}
+              aria-label={t("shelf.itemSettings", { name: item.label || t("common.unnamed") })}
               style={{
                 all: "unset",
                 cursor: "pointer",
@@ -1325,7 +1326,7 @@ export const CategoryBox = React.memo(function CategoryBox({
                 alignSelf: "flex-end",
               }}
             >
-              glissez-y des films
+              {t("shelf.dropFilmsHere")}
             </div>
           )}
           {boxes}

@@ -14,18 +14,21 @@
    a panel one opens twice costs far more than what the preview gains by
    it. The colours, for their part, are right the first time, and they
    are what one looks at. */
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { Lock, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { tap } from "../../theme/styles";
+import { tap, bare, chip } from "../../theme/styles";
 import { DEFAULT_SKIN, SKINS, type Skin } from "../../theme/skins";
 import { ownedItems } from "../../theme/owned";
-import { accountOpen } from "../../services/server";
+import { HANDS, readHand, setHand, watchHand, type Hand } from "../../theme/handwriting";
+import { accountOpen, wear } from "../../services/server";
 import { usePurse } from "../../hooks/usePurse";
 import { BuyChip } from "../play/Buy";
 import { refreshOwned } from "../../theme/owned";
+import { useEscape } from "../../hooks/useEscape";
+import { useDialog } from "../../hooks/useDialog";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -192,9 +195,35 @@ export function SkinPicker({
   onPick: (key: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   usePurse();
+  useEscape(onClose);
+  /* LE FOCUS ENTRE, TOURNE, ET REVIENT. `useEscape` ne fait que la
+     touche ; ouvrir ce panneau au clavier laissait le curseur DERRIÈRE
+     le voile, dans une page qu'on ne voit plus. Voir `useDialog`. */
+  const box = useDialog();
   const [, again] = useState(0);
   const mine = accountOpen() ? ownedItems() : [];
+
+  /* ON LE DIT AU COMPTOIR, EN MEILLEUR EFFORT.
+     Choisir une peau ici n'en informait personne : la table `worn` du
+     serveur restait sur l'ancienne, donc le comptoir cochait « porté »
+     sur une peau qu'on ne voyait pas, et `GET /shop/worn` mentait. Deux
+     vérités pour une seule chose.
+
+     `Skin.locked` EST l'identifiant d'article — `skins.test.ts` le tient
+     — donc la correspondance se lit ici, hors ligne et sans la bourse.
+     La peau DONNÉE n'est pas un article : `null` est sa traduction
+     exacte, « je ne porte aucun article », et c'est déjà ce que le
+     comptoir envoie quand on retire.
+
+     LE REFUS EST AVALÉ, ET C'EST ASSUMÉ : choisir une peau hors ligne
+     ou sans compte doit rester silencieux — le classeur s'habille tout
+     seul, il n'a rien à demander à personne. */
+  const tellTheCounter = (s: Skin) => {
+    if (!accountOpen()) return;
+    void wear({ skin: s.locked ?? null }).catch(() => {});
+  };
 
   /* Une peau achetée doit apparaître déverrouillée SANS RECHARGER : ce
      qu'on possède vit en mémoire locale, rafraîchie depuis le serveur,
@@ -221,7 +250,7 @@ export function SkinPicker({
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div style={PANEL}>
+      <div ref={box} role="dialog" aria-modal="true" aria-label={t("skins.siteSkin")} style={PANEL}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
           <div
             style={{
@@ -231,12 +260,12 @@ export function SkinPicker({
               color: C.inkFaded,
             }}
           >
-            PEAU DU SITE
+            {t("skins.siteSkinStamp")}
           </div>
           <div style={{ flex: 1 }} />
           <button
             onClick={onClose}
-            aria-label="Fermer le choix des peaux"
+            aria-label={t("skins.closeThePicker")}
             style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}
           >
             <X size={13} />
@@ -250,23 +279,23 @@ export function SkinPicker({
             marginBottom: 10,
           }}
         >
-          elle change tout — le fond, les couleurs, les polices, les onglets
+          {t("skins.itChangesAll")}
         </div>
 
-        {/* CE QU'ON NE PEUT PAS AVOIR N'EST PAS DESSINÉ.
+        <HandChoice />
 
-            Une peau verrouillée qu'on n'a pas achetée n'apparaît pas —
-            pas grisée, pas barrée, pas accompagnée d'un prix. C'est la
-            règle de tout ce qui dépend du dehors dans ce classeur, et
-            elle vaut ici plus qu'ailleurs : sans compte, la grille doit
-            être exactement celle qu'elle a toujours été, quatorze peaux
-            et rien qui laisse deviner qu'il en existe d'autres.
+        {/* TOUTES SONT DESSINÉES, VERROUILLÉES COMPRISES — voir
+            `isLocked` plus haut pour le pourquoi. Ce commentaire disait
+            l'inverse, « ce qu'on ne peut pas avoir n'est pas dessiné,
+            pas grisé, pas barré, pas accompagné d'un prix », et parlait
+            d'une grille de quatorze peaux libres. Il en reste une.
 
-            Le filtre est ICI et non dans `applySkin`, qui continue de
-            servir sans poser de question la peau qu'on lui demande. Une
-            peau achetée puis le réseau coupé reste appliquée : la clé
-            est en mémoire locale, et le classeur ne se déguise pas tout
-            seul au rechargement. */}
+            Ce qui vaut d'être répété ici : le verrou est DANS CETTE
+            GRILLE et non dans `applySkin`, qui continue de servir sans
+            poser de question la peau qu'on lui demande. Une peau achetée
+            puis le réseau coupé reste appliquée : la clé est en mémoire
+            locale, et le classeur ne se déguise pas tout seul au
+            rechargement. */}
         {SKINS.map((s) => (
           <SkinCard
             key={s.key}
@@ -274,7 +303,10 @@ export function SkinPicker({
             on={s.key === skin}
             locked={isLocked(s)}
             onBought={reread}
-            onPick={() => onPick(s.key)}
+            onPick={() => {
+              onPick(s.key);
+              tellTheCounter(s);
+            }}
           />
         ))}
 
@@ -291,10 +323,72 @@ export function SkinPicker({
             paddingTop: 8,
           }}
         >
-          vos cartons et le décor de vos étagères gardent leurs couleurs : ce sont vos choix, pas
-          l&apos;habillage du site
+          {t("skins.notTouched")}
         </div>
       </div>
     </>
+  );
+}
+
+/* ============================================================
+   LA MAIN, OU LA MACHINE
+   ============================================================
+
+   Ce n'est pas une peau et cela ne pouvait pas en devenir une : une peau
+   choisit SA cursive parmi les siennes, ce bouton-ci dit si l'on veut
+   une cursive DU TOUT. Le ranger dans la grille aurait obligé à
+   dédoubler les dix-sept.
+
+   Il est ici parce que c'est l'écran de l'apparence, et parce que le
+   comparer demande de basculer plusieurs fois de suite : depuis un menu
+   enfoui, on essaie une fois et on n'y revient pas. */
+function HandChoice() {
+  const { t } = useTranslation();
+  const hand = useSyncExternalStore(watchHand, readHand, () => "plume" as Hand);
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          fontFamily: F.mono,
+          fontSize: 9,
+          letterSpacing: 1,
+          color: C.inkFaded,
+          marginBottom: 5,
+        }}
+      >
+        {t("skins.handwriting")}
+      </div>
+      <div
+        role="radiogroup"
+        aria-label={t("skins.handwriting")}
+        style={{ display: "flex", gap: 6 }}
+      >
+        {HANDS.map((h) => {
+          const here = hand === h;
+          return (
+            <button
+              key={h}
+              role="radio"
+              aria-checked={here}
+              onClick={() => setHand(h)}
+              style={{
+                ...bare,
+                ...chip,
+                /* CHAQUE CHOIX EST ÉCRIT DANS LA POLICE QU'IL DÉSIGNE :
+                   on voit ce qu'on prend avant de le prendre. */
+                fontFamily: h === "plume" ? F.hand : F.body,
+                fontSize: h === "plume" ? 15 : 11.5,
+                color: here ? C.card : C.inkFaded,
+                background: here ? C.ink : "transparent",
+                borderColor: here ? C.ink : C.line,
+              }}
+            >
+              {t(h === "plume" ? "skins.handPlume" : "skins.handPlain")}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

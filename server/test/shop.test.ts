@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testDb } from "./helpers.ts";
 import * as store from "../src/store.ts";
-import { STICKERS, draw } from "../src/shop.ts";
+import { draw } from "../src/shop.ts";
+import type { DecorDef } from "../src/shop.ts";
 import type { Db } from "../src/db.ts";
 
 /* ============================================================
@@ -16,8 +17,8 @@ import type { Db } from "../src/db.ts";
    while looking correct.
 
    THE CHANCE IS THE SERVER'S. A packet drawn in the browser would be
-   reopened by reloading the page until it pleased. Here the stickers are
-   in the database before the answer leaves.
+   reopened by reloading the page until it pleased. Here the object is in
+   the database before the answer leaves.
 
    AND `draw` TAKES ITS GENERATOR AS AN ARGUMENT, which is the only way
    anything built on chance can be tested at all.
@@ -96,36 +97,63 @@ describe("buying", () => {
   });
 });
 
-describe("a packet of stickers", () => {
-  it("comes out drawn, and counted", async () => {
+describe("une pochette", () => {
+  /* UN OBJET, ET UN SEUL. Elle en rendait trois, réglables par pochette ;
+     le produit a tranché pour un, toujours — d'où `DRAWS`, qui n'est plus
+     une colonne. Les doubles restent possibles, et voulus. */
+  it("rend un objet, et le compte", async () => {
     const me = await rich("denis", 100);
-    const { drawn } = await store.buy(db, me, "pack-trois", sequence(0, 0, 0));
-    expect(drawn).toHaveLength(3);
+    const { drawn } = await store.buy(db, me, "pack-trois", sequence(0, 0));
+    expect(drawn).toHaveLength(1);
 
-    const held = (await store.holdingsOf(db, me)).stickers;
-    /* Three of the same, on a generator that always says zero: a double
-       is a thing to count, not an error to swallow. */
+    /* Deux fois la même pochette, sur un générateur qui dit toujours
+       zéro : un double se compte, il ne se ravale pas. */
+    await store.buy(db, me, "pack-trois", sequence(0, 0));
+    const held = (await store.holdingsOf(db, me)).decors;
     expect(held).toHaveLength(1);
-    expect(held[0]!.copies).toBe(3);
+    expect(held[0]!.copies).toBe(2);
   });
 
   it("is already in the database when the answer leaves", async () => {
     const me = await rich("garrel", 100);
-    const { drawn } = await store.buy(db, me, "pack-trois", sequence(0, 400, 990));
-    const rows = await db.query<{ sticker_id: string }>(
-      "SELECT sticker_id FROM sticker WHERE person_id = $1",
+    const { drawn } = await store.buy(db, me, "pack-trois", sequence(0, 400));
+    const rows = await db.query<{ decor_id: string }>(
+      "SELECT decor_id FROM decor_won WHERE person_id = $1",
       [me]
     );
-    expect(rows.map((r) => r.sticker_id).sort()).toEqual([...new Set(drawn)].sort());
+    expect(rows.map((r) => r.decor_id).sort()).toEqual([...new Set(drawn)].sort());
   });
 });
 
 describe("the draw", () => {
+  /* LE BASSIN VIENT DE LA BASE MAINTENANT, et ces épreuves le lisent là
+     plutôt que d'en garder une copie : une liste recopiée dans un test
+     est une liste qui finit par décrire un stock qui n'existe plus. Les
+     onze objets d'origine sont posés par `002_collection.sql`. */
+  let stock: DecorDef[];
+  beforeEach(async () => {
+    stock = await store.listDecors(db, "pack-trois");
+  });
+
   it("follows the rarities it announces", async () => {
-    const rarityOf = (id: string) => STICKERS.find((s) => s.id === id)!.rarity;
-    expect(rarityOf(draw(sequence(0, 0), 1)[0]!)).toBe("common");
-    expect(rarityOf(draw(sequence(800, 0), 1)[0]!)).toBe("rare");
-    expect(rarityOf(draw(sequence(999, 0), 1)[0]!)).toBe("gold");
+    const rarityOf = (id: string) => stock.find((s) => s.id === id)!.rarity;
+    expect(rarityOf(draw(sequence(0, 0), 1, stock)[0]!)).toBe("common");
+    expect(rarityOf(draw(sequence(800, 0), 1, stock)[0]!)).toBe("rare");
+    expect(rarityOf(draw(sequence(999, 0), 1, stock)[0]!)).toBe("gold");
+  });
+
+  /* UNE POCHETTE PEUT ÊTRE VIDE, ce qui n'était pas possible quand les
+     objets étaient en dur. Elle ne doit pas lever : les jetons sont
+     déjà partis quand `draw` s'exécute. */
+  it("rend un paquet vide plutôt qu'une exception, sur une pochette vide", () => {
+    expect(draw(sequence(0, 0), 3, [])).toEqual([]);
+  });
+
+  /* Et un bassin absent redescend vers ce qui existe, au lieu de tirer
+     dans le vide : une pochette sans objet doré est légitime. */
+  it("retombe sur un bassin qui existe", async () => {
+    const common = stock.filter((s) => s.rarity === "common");
+    expect(draw(sequence(999, 0), 1, common)[0]).toBe(common[0]!.id);
   });
 
   it("never falls off the end of a pool", async () => {
@@ -138,9 +166,9 @@ describe("the draw", () => {
        below the bound, but it is somebody else's function, and by the
        time `draw` runs the tokens have ALREADY gone. Throwing here would
        mean somebody paid for an exception. */
-    expect(draw(sequence(1000, 0), 1)).toHaveLength(1);
-    expect(draw(sequence(0, 9999), 1)).toHaveLength(1);
-    expect(draw(sequence(0, -3), 1)).toHaveLength(1);
+    expect(draw(sequence(1000, 0), 1, stock)).toHaveLength(1);
+    expect(draw(sequence(0, 9999), 1, stock)).toHaveLength(1);
+    expect(draw(sequence(0, -3), 1, stock)).toHaveLength(1);
   });
 });
 

@@ -27,11 +27,16 @@ describe("what the binder remembers of the welcome", () => {
     expect(loadOnboarding().done).toEqual(["global"]);
   });
 
-  it("reminds of nothing as long as nothing has been dismissed", () => {
-    expect(shouldHint()).toBe(false);
+  /* LA RÈGLE A CHANGÉ. Le carton attendait un refus, parce que la visite
+     s'ouvrait d'elle-même à la première seconde — un voile opaque sur un
+     mur qu'on n'avait pas encore regardé. Elle ne s'ouvre plus toute
+     seule : le carton est devenu la seule façon dont elle s'annonce, et
+     il doit donc se poser dès la première visite. */
+  it("propose la visite dès la première fois, sans attendre un refus", () => {
+    expect(shouldHint()).toBe(true);
   });
 
-  it("reminds after a walk-out, and falls silent after three", () => {
+  it("propose après un refus, et se tait après trois", () => {
     markSkipped();
     expect(shouldHint()).toBe(true);
     for (let i = 0; i < HINT_MAX; i++) bumpHint();

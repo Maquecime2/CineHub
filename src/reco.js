@@ -25,6 +25,13 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
    anything: it is catalogue noise, not a gem. */
 export const DEFAULT_MIN_VOTES = 30;
 
+/* CE QUI SÉPARE UN LONG D'UN COURT, en minutes. Quarante est la
+   frontière d'usage — celle des académies et des festivals — et non un
+   chiffre choisi ici. Elle est exportée parce que la vue l'ANNONCE :
+   « écarte tout ce qui dure moins de quarante minutes » se lit, là où un
+   seuil caché se soupçonne. */
+export const FEATURE_MIN = 40;
+
 export const DEFAULT_QUERY = {
   yearFrom: "",
   yearTo: "",
@@ -36,6 +43,10 @@ export const DEFAULT_QUERY = {
   nichePref: 0.5, // 0 = mainstream · 1 = gem
   driftPref: 0.5, // 0 = within my taste · 1 = off the beaten track
   excludeWatchlist: true,
+  /* Les courts métrages sont légion sous le plancher de votes — c'est
+     là qu'ils vivent — et on ne cherche pas un film pour ce soir en
+     ouvrant une planche de bobines de huit minutes. */
+  noShorts: true,
   // the niche factors we actually want to bring into play
   niche: { obscurity: true, foreign: true, age: true },
 };
@@ -48,7 +59,10 @@ export const DEFAULT_QUERY = {
    by average rating brings up the confidential, sorting by popularity
    brings up the obvious — a "niche" slider with a single source of
    candidates could arbitrate nothing at all. */
-function discoverPlans(query, taste, genreMap) {
+/* Exportée pour être éprouvée, et pour cela seulement : ce qu'elle
+   compose part sur le réseau, donc une erreur de paramètre ne se voit
+   qu'au nombre de résultats — c'est-à-dire jamais. */
+export function discoverPlans(query, taste, genreMap) {
   const ids = (names) => names.map((n) => genreMap.byName.get(n.toLowerCase())).filter(Boolean);
 
   const base = {
@@ -58,6 +72,10 @@ function discoverPlans(query, taste, genreMap) {
   if (query.yearFrom) base["primary_release_date.gte"] = `${query.yearFrom}-01-01`;
   if (query.yearTo) base["primary_release_date.lte"] = `${query.yearTo}-12-31`;
   if (query.language) base.with_original_language = query.language;
+  /* `/discover` sait filtrer sur la durée, donc on ne ramène pas les
+     courts pour les jeter ensuite : les écarter au tri gâcherait des
+     pages entières de résultats — et donc du quota — pour rien. */
+  if (query.noShorts) base["with_runtime.gte"] = String(FEATURE_MIN);
 
   const withIds = ids(query.withGenres || []);
   const withoutIds = ids(query.withoutGenres || []);

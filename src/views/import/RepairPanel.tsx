@@ -102,11 +102,7 @@ export function RepairPanel({ films, onImport }: RepairPanelProps) {
         {t("repair.title")}
       </div>
 
-      <Tally
-        label="fiches « vues » sans aucune trace de visionnage"
-        value={suspects.length}
-        ink={C.ochre}
-      />
+      <Tally label={t("repair.seenWithoutTrace")} value={suspects.length} ink={C.ochre} />
       <Tally
         label={t("repair.ticked")}
         value={choisies.size}

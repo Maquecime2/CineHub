@@ -132,7 +132,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
   return (
     <div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <Label>Sa fiche TMDB</Label>
+        <Label>{t("link.itsTmdbCard")}</Label>
         <button
           onClick={() => {
             setOpen((o) => !o);
@@ -176,7 +176,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
                 borderBottom: `1px dotted ${C.pine}`,
               }}
             >
-              voir sur TMDB
+              {t("link.seeOnTmdb")}
             </a>
           </>
         ) : (
@@ -197,7 +197,7 @@ export function TmdbLink({ film, onUpdate }: { film: Film; onUpdate: (f: Film) =
             <button
               onClick={() => search()}
               disabled={busy}
-              title="chercher ce titre sur TMDB"
+              title={t("link.searchThisTitle")}
               style={{
                 all: "unset",
                 cursor: busy ? "default" : "pointer",

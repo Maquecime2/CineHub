@@ -68,6 +68,18 @@ export interface Person {
    * been on the shelf for three years.
    */
   lastAdded: number;
+  /**
+   * La date de la dernière SÉANCE sur un de leurs films, `""` si aucune.
+   *
+   * DISTINCTE DE `lastAdded`, et la distinction est tout l'intérêt :
+   * `lastAdded` dit quand on a rangé la fiche, celle-ci dit quand on a
+   * vu le film. Une collection importée d'un bloc a le même `lastAdded`
+   * partout — trier dessus rend l'ordre de l'import, c'est-à-dire rien.
+   *
+   * Une chaîne `AAAA-MM-JJ` et non un nombre : c'est ce que porte le
+   * journal des séances, et la comparer lexicographiquement suffit.
+   */
+  lastSeen: string;
 }
 
 /* THE THRESHOLD, AND WHAT IT REALLY AIMS AT.
@@ -159,6 +171,10 @@ const compose = ({ key, spellings, roles, films }: Draft): Person => {
       .sort((a, b) => b[1] - a[1])
       .map(([id]) => id),
     lastAdded: films.reduce((t, f) => Math.max(t, f.addedAt), 0),
+    lastSeen: films.reduce((d, f) => {
+      const seen = f.watchedAt || "";
+      return seen > d ? seen : d;
+    }, ""),
   };
 };
 
@@ -369,3 +385,52 @@ export const searchPeople = (people: Person[], q: string): Person[] => {
       a.name.localeCompare(b.name, "fr")
   );
 };
+
+/* ============================================================
+   DANS QUEL ORDRE ON LES MONTRE
+   ============================================================
+
+   `census` rend le mieux fourni d'abord, ce qui répond à « qui revient
+   le plus » — et à rien d'autre. Trois autres questions se posent devant
+   un répertoire, et aucune ne se lisait :
+
+   QUI J'AIME LE MIEUX (`rating`). La moyenne de VOS notes sur leurs
+   films notés. Ceux qu'on n'a pas notés du tout ne remontent pas en
+   tête faute de note : `null` part à la fin, toujours, quel que soit le
+   sens — une absence n'est pas une mauvaise note, et la faire passer
+   pour telle serait pire que de ne pas trier.
+
+   QUI J'AI VU LE PLUS RÉCEMMENT (`seen`). La date de la dernière
+   séance, et non celle de la fiche : une collection importée d'un bloc
+   a le même `addedAt` partout, et trier dessus rend l'ordre de l'import.
+
+   L'ORDRE ALPHABÉTIQUE (`name`), qui n'est pas un classement mais le
+   seul moyen de retrouver quelqu'un dont on a le nom sans le taper.
+
+   LE DÉPARTAGE EST TOUJOURS LE MÊME — le mieux fourni, puis le nom — et
+   il est écrit une fois : deux personnes à égalité qui changeraient de
+   place d'un rendu à l'autre feraient un répertoire qui gigote.
+   ============================================================ */
+
+export type SortKey = "films" | "rating" | "seen" | "name";
+
+export const SORT_KEYS: SortKey[] = ["films", "rating", "seen", "name"];
+
+const byName = (a: Person, b: Person) => a.name.localeCompare(b.name, "fr");
+
+const tieBreak = (a: Person, b: Person) => b.films.length - a.films.length || byName(a, b);
+
+export function sortPeople(people: Person[], key: SortKey): Person[] {
+  const out = [...people];
+  if (key === "name") return out.sort(byName);
+  if (key === "films") return out.sort(tieBreak);
+  if (key === "seen")
+    return out.sort((a, b) => (b.lastSeen || "").localeCompare(a.lastSeen || "") || tieBreak(a, b));
+  /* `rating` : les non notés à la fin, et pas au milieu. */
+  return out.sort((a, b) => {
+    if (a.rating == null && b.rating == null) return tieBreak(a, b);
+    if (a.rating == null) return 1;
+    if (b.rating == null) return -1;
+    return b.rating - a.rating || tieBreak(a, b);
+  });
+}

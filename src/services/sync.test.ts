@@ -30,6 +30,7 @@ class FakeServerError extends Error {
 vi.mock("./server", () => ({
   ServerError: FakeServerError,
   PER_SEND: 2,
+  PER_SEND_BYTES: 1024 * 1024,
   serverConfigured: () => true,
   whoAmI: async () => fake.person,
   pullFrom: async (since: number) => {
@@ -46,6 +47,7 @@ vi.mock("./server", () => ({
     return { filed: cards.length, stale: 0, unreadable: 0 };
   },
   DOCS_PER_SEND: 200,
+  DOCS_PER_SEND_BYTES: 1024 * 1024,
   pullDocsFrom: async (since: number) =>
     fake.docsReceived.shift() ?? { upTo: since, more: false, documents: [] },
   pushDocs: async (documents: unknown[]) => {
@@ -54,7 +56,7 @@ vi.mock("./server", () => ({
   },
 }));
 
-const { synchronise, forgetSync, pending } = await import("./sync");
+const { synchronise, forgetSync, pending, cutUp } = await import("./sync");
 const { loadFilms, saveFilms, forgetCache } = await import("./collection");
 const { makeFilm } = await import("../domain/film");
 
@@ -233,15 +235,29 @@ describe("the rest of the binder", () => {
     const { isSyncable } = await import("./documents");
     const { VIEW_INDEX, viewKey } = await import("./shelfViews");
     const { CUSTOM_DECOR_KEY, HIDDEN_DECOR_KEY } = await import("./customDecor");
+    const { THREADS_KEY } = await import("./threads");
+    const { BONDS_KEY, COURSES_KEY } = await import("./lineage");
+    const { WATCH_KEY } = await import("./letterboxdWatch");
     const { KEYS } = await import("./storage");
+    /* L'ASPECT DU CLASSEUR VOYAGE DEPUIS, et ces deux-là s'épellent dans
+       `theme/`, pas dans `services/` : c'est justement le genre de nom
+       qu'on recopie de mémoire. */
+    const { SKIN_KEY } = await import("../theme/applySkin");
+    const { HAND_KEY } = await import("../theme/handwriting");
 
     for (const key of [
       VIEW_INDEX,
       viewKey("abc"),
       CUSTOM_DECOR_KEY,
       HIDDEN_DECOR_KEY,
+      THREADS_KEY,
+      BONDS_KEY,
+      COURSES_KEY,
+      WATCH_KEY,
       KEYS.notes,
       KEYS.dividers,
+      SKIN_KEY,
+      HAND_KEY,
     ]) {
       expect(isSyncable(key), key).toBe(true);
     }
@@ -372,5 +388,49 @@ describe("the rest of the binder", () => {
     fake.docsPushed = [];
     await synchronise(() => {});
     expect(fake.docsPushed.flat()).toEqual([]);
+  });
+});
+
+/* ============================================================
+   LE DÉCOUPAGE
+
+   La panne réparée ici ne se voyait pas : découpé sur le seul nombre
+   d'entrées, un envoi de fiches bien remplies dépassait le poids que le
+   serveur accepte, et ce refus-là coupe la connexion au lieu de
+   répondre. Le navigateur annonçait une panne de réseau, et huit cent
+   vingt-quatre fiches ne partaient jamais.
+   ============================================================ */
+describe("cutting the sends up", () => {
+  it("cuts on the count", () => {
+    const slices = cutUp([1, 2, 3, 4, 5], 2, 1e9);
+    expect(slices).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it("cuts on the weight, well before the count", () => {
+    const fat = Array.from({ length: 6 }, (_, i) => ({ id: i, data: "x".repeat(100) }));
+    const slices = cutUp(fat, 500, 250);
+    expect(slices.length).toBeGreaterThan(1);
+    for (const slice of slices) {
+      expect(JSON.stringify(slice).length).toBeLessThanOrEqual(400);
+    }
+    expect(slices.flat()).toEqual(fat);
+  });
+
+  it("counts bytes and not signs", () => {
+    /* Un titre japonais pèse trois fois sa longueur : compté en signes,
+       la tranche passerait la borne sans qu'on le voie. */
+    const heavy = Array.from({ length: 4 }, () => ({ t: "東京物語".repeat(10) }));
+    const light = Array.from({ length: 4 }, () => ({ t: "Tokyo".repeat(8) }));
+    expect(cutUp(heavy, 500, 200).length).toBeGreaterThan(cutUp(light, 500, 200).length);
+  });
+
+  it("sends alone what is too heavy on its own, rather than holding it for ever", () => {
+    const slices = cutUp([{ t: "x".repeat(1000) }, { t: "court" }], 500, 100);
+    expect(slices).toHaveLength(2);
+    expect(slices[0]).toHaveLength(1);
+  });
+
+  it("gives nothing back for nothing", () => {
+    expect(cutUp([], 500, 100)).toEqual([]);
   });
 });

@@ -148,7 +148,7 @@ describe("ThreadBoard — editing a thread", () => {
       // the note, the link's kind and its strength say what happens BETWEEN the two
       expect(screen.getByLabelText("Pourquoi ce lien ?")).toBeInTheDocument();
       expect(screen.getByLabelText("Nature du lien")).toBeInTheDocument();
-      expect(screen.getByLabelText("Strength du lien")).toBeInTheDocument();
+      expect(screen.getByLabelText("Force du lien")).toBeInTheDocument();
     });
 
     it("still shows what is being talked about", async () => {

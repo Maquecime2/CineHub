@@ -3,9 +3,18 @@
    ============================================================ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pin, Plus, Trash2, LayoutGrid, Library, Paperclip, Dice5 } from "lucide-react";
+import {
+  Pin,
+  Plus,
+  Trash2,
+  LayoutGrid,
+  Library,
+  Paperclip,
+  Dice5,
+  FolderInput,
+} from "lucide-react";
 import { C, F } from "../../theme/tokens";
-import { underlineInput, tap, tapSquare } from "../../theme/styles";
+import { bare, underlineInput, tap, tapSquare } from "../../theme/styles";
 import { hash, tiltOf } from "../../domain/seeded";
 import { matchFilm } from "../../domain/search";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
@@ -13,8 +22,17 @@ import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
 import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
-import { SHELF_KINDS, sortIntoRows, patchViewDecor, clearViewDecor } from "../../shelf-views";
+import {
+  SHELF_KINDS,
+  sortIntoRows,
+  patchViewDecor,
+  clearViewDecor,
+  keepByHand,
+  heldByHand,
+  restoreByHand,
+} from "../../shelf-views";
 import { FilmWall } from "./FilmWall";
+import { NextUp } from "../../components/program/NextUp";
 import { useWallFiling } from "./useWallFiling";
 import { FilingProvider } from "../../components/film/filing";
 import { TonightDrawer } from "./TonightDrawer";
@@ -23,6 +41,10 @@ import { wallLookOf, DEFAULT_WALL_LOOK } from "./wallLook";
 import { wallStyle } from "../../theme/surfaces";
 import { catInk } from "../../components/shelf/constants";
 import { WALLS } from "./walls";
+import { Sieve } from "../../components/ui/Sieve";
+import { Confirmation } from "../../components/ui/Confirmation";
+import { FilmQuickView } from "../../components/film/FilmQuickView";
+import { normalize } from "../../domain/search";
 
 function ViewSwitcher({
   views,
@@ -57,7 +79,7 @@ function ViewSwitcher({
       <Label>Vue</Label>
       <button
         onClick={() => setOpen((o) => !o)}
-        title="Changer de rangement"
+        title={t("library.changeArrangement")}
         style={{
           all: "unset",
           ...tap,
@@ -163,7 +185,7 @@ function ViewSwitcher({
                     <>
                       <button
                         onClick={() => setRenaming(true)}
-                        title="Renommer"
+                        title={t("library.rename")}
                         style={{
                           all: "unset",
                           ...tap,
@@ -176,7 +198,7 @@ function ViewSwitcher({
                       </button>
                       <button
                         onClick={() => onCopy(v.id)}
-                        title="Dupliquer ce rangement"
+                        title={t("library.duplicateArrangement")}
                         style={{
                           all: "unset",
                           ...tap,
@@ -190,7 +212,7 @@ function ViewSwitcher({
                       {views.length > 1 && (
                         <button
                           onClick={() => onDelete(v.id)}
-                          title="Supprimer cette vue"
+                          title={t("library.deleteThisView")}
                           style={{
                             all: "unset",
                             ...tap,
@@ -335,6 +357,10 @@ export function LibraryView({
   onUpdateMany,
   shelfView,
   shelfViews,
+  /* Ce qui est déjà posé, tous murs et toutes vues confondus : voir
+     `countPlacedMotifs`. Le cabinet s'en sert pour dire ce qu'il reste. */
+  placed,
+  onOpenPerson,
   onShelfView,
   onPickView,
   onCreateView,
@@ -342,17 +368,72 @@ export function LibraryView({
   onCopyView,
   onDeleteView,
   onDeleteFilms,
+  /* Les deux portes du mur vide. Facultatives : `WallEmpty` n'en dessine
+     aucune sans elles, et le carré reste ce qu'il était. */
+  onImport,
+  onAdd,
+  onUpdateFilm,
+  /* LE PROGRAMME ÉPINGLÉ, LU ET JAMAIS ÉCRIT. C'est ici qu'on choisit
+     quoi regarder — jamais sur l'écran du programme, où l'on va pour
+     COMPOSER — donc c'est ici que la suite doit se dire. Facultatif :
+     un mur monté seul (un test, la vue partagée) n'en a pas. */
+  courses = [],
+  onOpenRun,
 }) {
   const { t } = useTranslation();
+  /* ============================================================
+     LA FICHE RAPIDE VIENT AVANT LE DOSSIER, QUOI QU'IL ARRIVE
+     ============================================================
+
+     Un clic sur une affiche ouvrait le dossier — l'écran d'ÉCRITURE,
+     avec ses champs, ses onglets et ses séances. Or neuf fois sur dix on
+     clique pour SAVOIR : de quoi ça parle, qui l'a fait, combien de
+     temps ça dure, l'ai-je noté. On ouvrait donc un formulaire pour lire
+     une réponse, et il fallait revenir en arrière pour continuer.
+
+     LES QUATRE SURFACES PASSENT PAR ICI — le mur, l'étagère, le mur
+     « à voir » (c'est la même vue, montée deux fois) et le tiroir du
+     soir. C'est le seul endroit qui les voie toutes, et c'est ce qui
+     évite que trois d'entre elles s'accordent et que la quatrième
+     oublie.
+
+     LE DOSSIER RESTE À UN GESTE, depuis la couche. Rien n'est retiré :
+     on ajoute une marche avant l'écriture. */
+  const [quick, setQuick] = useState(null);
+  /* La seule carte de cette vue : le premier tri d'une étagère rangée à
+     la main réécrit des semaines de gestes. */
+  const [request, setRequest] = useState(null);
+  const lookAt = (id) => {
+    const found =
+      (films || []).find((f) => f.id === id) || (allFilms || []).find((f) => f.id === id);
+    /* Une fiche qu'on ne retrouve pas ouvre le dossier comme avant :
+       mieux vaut la vieille porte qu'aucune. */
+    if (found) setQuick(found);
+    else onOpen(id);
+  };
   const cfg = WALLS[wall];
   /* Search, filter and sort live in App: opening a film unmounts this
      view, and a local state would be lost on the way back to the wall. */
-  const { q, genreFilter, decadeFilter = null, sortBy, desc, grouped } = ui;
+  const { q, sortBy, desc, grouped } = ui;
+  /* AU PLURIEL, ET ON TOLÈRE LE SINGULIER D'AVANT. Ces deux filtres ne
+     sont pas sur le disque — `keep()` dans `App` ne garde que le mode et
+     le tri — mais un état de vue survit à un rechargement de module en
+     développement, et un `.includes` sur une chaîne répondrait n'importe
+     quoi plutôt que d'échouer. */
+  const asList = (v) => (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]);
+  const genreFilter = asList(ui.genreFilter);
+  const decadeFilter = asList(ui.decadeFilter).map(String);
   const mode = ui.mode === "shelf" ? "shelf" : "wall";
   const set = (patch) => setUi({ ...ui, ...patch });
   const setQ = (v) => set({ q: v });
   const setGenreFilter = (v) => set({ genreFilter: v });
   const setDecadeFilter = (v) => set({ decadeFilter: v });
+  const sieved = genreFilter.length + decadeFilter.length;
+  /* CE QUE LES TAMIS CONTIENNENT, en une chaîne. Les deux tableaux sont
+     refaits à chaque rendu, donc en dépendre directement ne mémorise
+     rien ; c'est leur CONTENU qui décide, et il tient dans une clé. */
+  const genreKey = genreFilter.join("|");
+  const decadeKey = decadeFilter.join("|");
   const setGrouped = (fn) => set({ grouped: typeof fn === "function" ? fn(grouped) : fn });
   // clicking the active sort again simply reverses the direction
   const pickSort = (k) => set(k === sortBy ? { desc: !desc } : { sortBy: k, desc: true });
@@ -360,7 +441,7 @@ export function LibraryView({
   /* Filing into a list: the badge on each poster and the bar for a
      multiple choice. It answers nothing at all without a server or an
      account — the wall is then exactly the wall it was. */
-  const filing = useWallFiling(films, onDeleteFilms);
+  const filing = useWallFiling(films, onDeleteFilms, onUpdateMany);
 
   const allGenres = useMemo(
     () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
@@ -400,13 +481,19 @@ export function LibraryView({
     [look.decor]
   );
 
-  /* Genre and decade add up: they are two sieves laid one on the other,
-     and not two buttons fighting over the list. */
+  /* DEUX TAMIS POSÉS L'UN SUR L'AUTRE, et non deux boutons qui se
+     disputent la liste. DANS un tamis les cases s'ADDITIONNENT — police
+     OU noir — et d'un tamis à l'autre elles se MULTIPLIENT : les années
+     70 ET l'un des deux genres. C'est la seule lecture qui rende la
+     multi-sélection utile ; l'intersection dans un même tamis ne rendrait
+     presque jamais rien, un film portant rarement deux genres qu'on a
+     tous les deux cochés. */
   const passesFilters = useCallback(
     (f) =>
-      (!genreFilter || (f.genres || []).includes(genreFilter)) &&
-      (decadeFilter === null || decadeOf(f) === decadeFilter),
-    [genreFilter, decadeFilter]
+      (genreFilter.length === 0 || (f.genres || []).some((g) => genreFilter.includes(g))) &&
+      (decadeFilter.length === 0 || decadeFilter.includes(String(decadeOf(f)))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [genreKey, decadeKey]
   );
 
   /* A film set aside has no business on the wall: that is precisely
@@ -427,9 +514,9 @@ export function LibraryView({
   const matches = useCallback((f) => !q || matchFilm(f, q, t), [q, t]);
 
   const dimSet = useMemo(() => {
-    if (mode !== "shelf" || (!q && !genreFilter && decadeFilter === null)) return null;
+    if (mode !== "shelf" || (!q && sieved === 0)) return null;
     return new Set(scope.filter((f) => matches(f) && passesFilters(f)).map((f) => f.id));
-  }, [mode, q, genreFilter, decadeFilter, scope, matches, passesFilters]);
+  }, [mode, q, sieved, scope, matches, passesFilters]);
 
   /* Tidying the shelf in one gesture. The sort is no longer a state
      that would fight with the categories: it is a verb that rewrites the
@@ -440,8 +527,11 @@ export function LibraryView({
   const arrangedBy = ui.arrangedBy ?? null;
   const arrangedDesc = ui.arrangedDesc !== false;
 
-  const arrangeBy = (key) => {
-    if (!shelfView) return;
+  /* LE PREMIER TRI DEMANDE, ET LUI SEUL. Il réécrit un rangement fait à
+     la main sur des semaines ; les suivants ne réécrivent qu'un tri, qui
+     n'est le rangement de personne. Une carte qui reviendrait à chaque
+     fois ne se lirait plus au troisième essai. */
+  const doArrange = (key) => {
     const nextDesc = key === arrangedBy ? !arrangedDesc : true;
     const sign = nextDesc ? 1 : -1;
     const by = new Map(films.map((f) => [f.id, f]));
@@ -461,10 +551,32 @@ export function LibraryView({
               : (b.addedAt || 0) - (a.addedAt || 0);
     };
     const cmp = (x, y) => sign * base(x, y);
-    let next = shelfView;
+    /* LA COPIE SE PREND AVANT, ET UNE SEULE FOIS : `keepByHand` ne fait
+       rien s'il y en a déjà une. */
+    let next = keepByHand(shelfView);
     for (const k of SHELF_KINDS) next = sortIntoRows(next, k, cmp);
     onShelfView(next);
     set({ arrangedBy: key, arrangedDesc: nextDesc });
+  };
+
+  const arrangeBy = (key) => {
+    if (!shelfView) return;
+    if (heldByHand(shelfView)) return doArrange(key);
+    setRequest({
+      title: t("library.confirmArrangeTitle"),
+      body: t("library.confirmArrangeBody"),
+      action: t("library.confirmArrangeAction"),
+      onConfirm: () => doArrange(key),
+    });
+  };
+
+  /* REVENIR, TANT QU'ON N'A PAS REPOSÉ UNE FICHE SOI-MÊME. Le bouton
+     disparaît alors, parce que la disposition à l'écran est redevenue
+     celle qu'on voulait — voir `forgetByHand`. */
+  const restoreHand = () => {
+    if (!shelfView) return;
+    onShelfView(restoreByHand(shelfView));
+    set({ arrangedBy: null });
   };
 
   /* Catalogue keys, like the wall's sorts in `walls.ts`: the left-hand
@@ -556,6 +668,15 @@ export function LibraryView({
           {t(cfg.subtitle)}
         </div>
 
+        <div style={{ position: "relative", zIndex: 2, marginTop: 18 }}>
+          <NextUp
+            courses={courses}
+            films={allFilms.length ? allFilms : films}
+            onOpenFilm={onOpen}
+            onOpenRun={onOpenRun ?? (() => {})}
+          />
+        </div>
+
         {/* No `z-index` on this bar, and that is deliberate.
 
           It carried one — the same 2 as the rest of the content, so as to
@@ -594,74 +715,34 @@ export function LibraryView({
               onChange={(e) => setQ(e.target.value)}
             />
           </div>
-          <div data-tour="wall-filters">
-            <Label>{t("library.genre")}</Label>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {allGenres.length === 0 && (
-                <span style={{ color: C.inkFaded, fontSize: 13, fontStyle: "italic" }}>—</span>
-              )}
-              {allGenres.map((g) => {
-                // each genre carries its own ink — the labelling was not done on the same day
-                const ink = [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][
-                  Math.abs(hash(g)) % 5
-                ];
-                const on = genreFilter === g;
-                return (
-                  <button
-                    key={g}
-                    onClick={() => setGenreFilter(on ? "" : g)}
-                    style={{
-                      all: "unset",
-                      ...tap,
-                      cursor: "pointer",
-                      fontFamily: F.mono,
-                      fontSize: 10.5,
-                      padding: "4px 11px",
-                      borderRadius: 14,
-                      border: `1px solid ${ink}`,
-                      color: on ? C.card : ink,
-                      background: on ? ink : "transparent",
-                      transform: `rotate(${(Math.abs(hash(g)) % 5) - 2}deg)`,
-                      boxShadow: on ? `1px 2px 4px ${ink}55` : "none",
-                      transition: "background .15s ease",
-                    }}
-                  >
-                    {g}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {allDecades.length > 0 && (
-            <div>
-              <Label>{t("library.decade")}</Label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {allDecades.map((d) => {
-                  const on = decadeFilter === d;
-                  return (
-                    <button
-                      key={d}
-                      onClick={() => setDecadeFilter(on ? null : d)}
-                      style={{
-                        all: "unset",
-                        ...tap,
-                        cursor: "pointer",
-                        fontFamily: F.mono,
-                        fontSize: 10.5,
-                        padding: "4px 9px",
-                        border: `1px solid ${on ? C.ink : C.line}`,
-                        color: on ? C.card : C.inkFaded,
-                        background: on ? C.ink : "transparent",
-                        transform: `rotate(${(Math.abs(hash(String(d))) % 3) - 1}deg)`,
-                      }}
-                    >
-                      {d}s
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* DEUX TAMIS REPLIÉS, LÀ OÙ IL Y AVAIT DEUX RANGÉES. Dix-neuf
+              genres et onze décennies toujours dépliés poussaient les
+              affiches sous la ligne de flottaison, pour deux bandeaux
+              qu'on ne lit pas — on les balaie. Un filtre est fermé la
+              plupart du temps : c'est une chose qu'on ouvre pour
+              choisir. Et il en accepte PLUSIEURS, ce qui n'était pas
+              possible : on ne choisit plus entre deux décennies voisines
+              pour une même période. */}
+          <Sieve
+            tour="wall-filters"
+            label={t("library.genre")}
+            options={allGenres.map((g) => ({
+              value: g,
+              label: g,
+              /* Chaque genre porte son encre — l'étiquetage n'a pas été
+                 fait le même jour, et la couleur est ce qui les
+                 distingue au balayage. */
+              ink: [C.burgundy, C.cobalt, C.moss, C.vermillion, C.slate][Math.abs(hash(g)) % 5],
+            }))}
+            chosen={genreFilter}
+            onChange={setGenreFilter}
+          />
+          <Sieve
+            label={t("library.decade")}
+            options={allDecades.map((d) => ({ value: String(d), label: `${d}s` }))}
+            chosen={decadeFilter}
+            onChange={setDecadeFilter}
+          />
           <div data-tour="wall-sort">
             {/* On the wall, sorting is a state. On the shelf, the arrangement
               IS the state: filing becomes a gesture one makes once. */}
@@ -712,6 +793,26 @@ export function LibraryView({
                     </span>
                   ))}
             </div>
+            {/* TANT QU'ON N'A PAS REPOSÉ UNE FICHE SOI-MÊME. Il n'y a
+                rien à proposer avant le premier tri, et plus rien à
+                proposer dès qu'on range de nouveau à la main. */}
+            {mode === "shelf" && heldByHand(shelfView) && (
+              <button
+                onClick={restoreHand}
+                style={{
+                  ...bare,
+                  ...tap,
+                  cursor: "pointer",
+                  marginTop: 6,
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                  color: C.burgundy,
+                  borderBottom: `1px dashed ${C.burgundy}`,
+                }}
+              >
+                {t("library.backToHand")}
+              </button>
+            )}
           </div>
           <div data-tour="wall-mode">
             <Label>{t("library.presentation")}</Label>
@@ -768,10 +869,10 @@ export function LibraryView({
             nothing but how to pile up. */}
           {wall === "watchlist" && (
             <div data-tour="soir-ouvrir">
-              <Label>Ce soir</Label>
+              <Label>{t("library.tonight")}</Label>
               <button
                 onClick={() => setSoir(true)}
-                title="Trouver quoi regarder ce soir"
+                title={t("library.findWhatToWatch")}
                 style={{
                   all: "unset",
                   ...tap,
@@ -788,7 +889,7 @@ export function LibraryView({
                   border: `1px solid ${C.burgundy}`,
                 }}
               >
-                <Dice5 size={12} /> LEQUEL CE SOIR ?
+                <Dice5 size={12} /> {t("library.whichTonightStamp")}
               </button>
             </div>
           )}
@@ -864,7 +965,8 @@ export function LibraryView({
               films={scope}
               doc={shelfView}
               onDoc={onShelfView}
-              onOpen={onOpen}
+              placed={placed}
+              onOpen={lookAt}
               onUpdateMany={onUpdateMany}
               dimSet={dimSet}
             />
@@ -904,16 +1006,16 @@ export function LibraryView({
             <div style={{ position: "relative" }}>
               {filtered.length > 0 && filing.bar}
               {filtered.length === 0 ? (
-                <WallEmpty films={films} cfg={cfg} />
+                <WallEmpty films={films} cfg={cfg} onImport={onImport} onAdd={onAdd} />
               ) : grouped ? (
                 groups.map(([director, list]) => (
                   <div key={director} style={{ marginBottom: 46 }}>
                     <DirectorRule director={director} count={list.length} />
-                    <FilmWall films={list} onOpen={onOpen} look={look} filing={filing.bundle} />
+                    <FilmWall films={list} onOpen={lookAt} look={look} filing={filing.bundle} />
                   </div>
                 ))
               ) : (
-                <FilmWall films={filtered} onOpen={onOpen} look={look} filing={filing.bundle} />
+                <FilmWall films={filtered} onOpen={lookAt} look={look} filing={filing.bundle} />
               )}
               {filing.panel}
             </div>
@@ -934,7 +1036,22 @@ export function LibraryView({
           <TonightDrawer
             films={allFilms.length ? allFilms : films}
             onClose={() => setSoir(false)}
-            onOpen={onOpen}
+            onOpen={lookAt}
+          />
+        )}
+
+        <Confirmation request={request} onClose={() => setRequest(null)} />
+
+        {quick && (
+          <FilmQuickView
+            film={quick}
+            onEnrich={onUpdateFilm}
+            onOpenPerson={(name) => onOpenPerson(normalize(name))}
+            onOpenFilm={() => {
+              setQuick(null);
+              onOpen(quick.id);
+            }}
+            onClose={() => setQuick(null)}
           />
         )}
       </div>
@@ -945,7 +1062,7 @@ export function LibraryView({
 /* What one sees when the wall is empty — either the collection is, or
    the sieve lets nothing through. These are two different emptinesses,
    and they are not said the same way. */
-function WallEmpty({ films, cfg }) {
+function WallEmpty({ films, cfg, onImport, onAdd }) {
   const { t } = useTranslation();
   const never = films.length === 0;
   return (
@@ -1034,9 +1151,61 @@ function WallEmpty({ films, cfg }) {
       <div style={{ fontFamily: F.hand, fontSize: 19 }}>
         {t(never ? cfg.empty[1] : "library.tryAnotherSearch")}
       </div>
+
+      {/* LES PORTES, ET SEULEMENT SUR UN VRAI VIDE.
+
+          Un classeur vidé à la main ne resème jamais l'exemple — et il a
+          raison — donc il tombait sur ce carré, qui disait ce qu'il y
+          avait à savoir et ne proposait rien à faire. C'est le seul
+          écran du produit qui ne mène nulle part, et c'est celui d'une
+          première fois.
+
+          RIEN SOUS UN TAMIS QUI NE LAISSE RIEN PASSER : là, il y a des
+          films, ils sont juste filtrés. Proposer un import y répondrait
+          à côté de la question. */}
+      {never && (onImport || onAdd) && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            marginTop: 22,
+          }}
+        >
+          {onImport && (
+            <button onClick={onImport} style={emptyDoor(C.card, C.pine, C.pine)}>
+              <FolderInput size={12} /> {t("library.emptyImport")}
+            </button>
+          )}
+          {onAdd && (
+            <button onClick={onAdd} style={emptyDoor(C.ink, "transparent", C.line)}>
+              <Plus size={12} /> {t("library.emptyAdd")}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+/* Même forme pour les deux portes du vide : ce sont deux propositions,
+   et la première n'est mise en avant que par son encre. */
+const emptyDoor = (ink, fill, line) => ({
+  all: "unset",
+  ...tap,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 14px",
+  fontFamily: F.mono,
+  fontSize: 10.5,
+  letterSpacing: 1,
+  color: ink,
+  background: fill,
+  border: `1px solid ${line}`,
+});
 
 /* The thin line separating two directors, when the wall is grouped. */
 function DirectorRule({ director, count }) {

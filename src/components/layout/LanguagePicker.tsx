@@ -16,6 +16,8 @@ import { X } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { LANGUAGES, type Language } from "../../i18n/language";
+import { useEscape } from "../../hooks/useEscape";
+import { useDialog } from "../../hooks/useDialog";
 
 const PANEL: CSSProperties = {
   position: "fixed",
@@ -39,10 +41,12 @@ export function LanguagePicker({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  useEscape(onClose);
+  const box = useDialog();
   return (
     <>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 59 }} />
-      <div style={PANEL}>
+      <div ref={box} role="dialog" aria-modal="true" aria-label={t("language.title")} style={PANEL}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10 }}>
           <div style={{ fontFamily: F.mono, fontSize: 9.5, letterSpacing: 1, color: C.inkFaded }}>
             {t("language.title").toUpperCase()}

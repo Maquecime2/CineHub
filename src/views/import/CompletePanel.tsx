@@ -135,7 +135,7 @@ export function CompletePanel({ films, apiKey, onImport }: CompletePanelProps) {
         {t("complete.title")}
       </div>
 
-      <Tally label="fiches dans la collection" value={films.length} />
+      <Tally label={t("complete.cardsInCollection")} value={films.length} />
       <Tally
         label={t("complete.toComplete")}
         value={toDo.length}

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DetailView } from "./DetailView";
 import { makeFilm } from "../domain/film";
 import { makeCustomMotif, setVocabulary } from "../domain/motifs";
+import type { Film } from "../types";
 
 /* Cutting the card up is a matter of layout — but nothing it carried
    must have vanished along the way, and that is the kind of loss one
@@ -199,5 +201,103 @@ describe("handling the vocabulary from the card", () => {
     await user.click(screen.getByRole("button", { name: "SUPPRIMER LE MOTIF" }));
     expect(onDeleteMotif).toHaveBeenCalledWith("il-pleut");
     setVocabulary({ custom: [], hidden: [] });
+  });
+});
+
+/* ============================================================
+   REGARDER EN GRAND UNE IMAGE POSÉE DANS UNE CRITIQUE
+   ============================================================
+
+   ELLE FAISAIT TOMBER LA VUE, ET RIEN DE CE QUI EXISTAIT NE POUVAIT LE
+   VOIR. La chaîne tenait en quatre maillons dont aucun n'est fautif
+   seul : la visionneuse prend la main, le champ éditable perd la
+   sienne, perdre le focus ENREGISTRE, et enregistrer redessine la
+   fiche. Le rendu rendait un `onClose` neuf, `useDialog` remontait donc
+   son piège, le piège reprenait la main, le champ la reperdait — cent
+   quatre tours pour un clic, et React levait « Maximum update depth ».
+
+   IL FALLAIT LES QUATRE À LA FOIS : c'est pourquoi ce cas monte la vue
+   AVEC un parent qui écrit vraiment. Un `onUpdate` muet — ce que font
+   tous les autres cas de ce fichier — casse le quatrième maillon et la
+   boucle ne part pas. */
+function Host({ start }: { start: Film }) {
+  const [film, setFilm] = useState(start);
+  return (
+    <DetailView
+      film={film}
+      onBack={vi.fn()}
+      onUpdate={(next: Film) => setFilm(next)}
+      onDelete={vi.fn()}
+      films={[film]}
+      onLinkFilm={vi.fn()}
+      onRemoveLink={vi.fn()}
+      onEditLink={vi.fn()}
+      onOpen={vi.fn()}
+      tab="mots"
+    />
+  );
+}
+
+describe("a still called into the review, looked at large", () => {
+  const withStill = () =>
+    makeFilm({
+      id: "f",
+      title: "Le Samouraï",
+      status: "watched",
+      review: "avant [img:1] apres",
+      stills: [{ id: "s1", key: "still-f-1", thumbKey: "still-f-1-thumb", caption: "un plan" }],
+    });
+
+  it("opens the viewer instead of bringing the card down", async () => {
+    const user = userEvent.setup();
+    render(<Host start={withStill()} />);
+
+    const thumb = document.querySelector("[data-still]") as HTMLElement;
+    expect(thumb, "la vignette est posée dans le texte").toBeTruthy();
+    await user.click(thumb);
+
+    /* Une seule couche, et la vue est toujours là. Sans le correctif,
+       ce clic partait en boucle de rendu. */
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByText("Le Samouraï")).toBeInTheDocument();
+  });
+
+  /* IL ÉTAIT ÉCRIT SANS ACCOLADES, DONC CE N'ÉTAIT PAS UN COMMENTAIRE.
+     Trente mots de code anglais s'affichaient au-dessus de l'image, à
+     côté de la légende, à chaque agrandissement. Ni le typage, ni le
+     lint, ni un test qui ne lit pas ce que la couche écrit ne pouvaient
+     le dire. */
+  it("shows the still, and not the source comment of the viewer", async () => {
+    const user = userEvent.setup();
+    render(<Host start={withStill()} />);
+    await user.click(document.querySelector("[data-still]") as HTMLElement);
+
+    const box = screen.getByRole("dialog");
+    expect(box.textContent).toContain("un plan");
+    expect(box.textContent).not.toContain("Closing only fires");
+  });
+
+  /* PERDRE LE FOCUS N'EST PAS UNE MODIFICATION. Chaque `blur` du champ
+     réécrivait la fiche à l'identique : un `updatedAt` touché et un
+     document mis en file pour la synchro, pour rien. */
+  it("does not rewrite the card when the text has not changed", async () => {
+    const user = userEvent.setup();
+    const onUpdate = vi.fn();
+    render(
+      <DetailView
+        film={withStill()}
+        onBack={vi.fn()}
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+        films={[]}
+        onLinkFilm={vi.fn()}
+        onRemoveLink={vi.fn()}
+        onEditLink={vi.fn()}
+        onOpen={vi.fn()}
+        tab="mots"
+      />
+    );
+    await user.click(document.querySelector("[data-still]") as HTMLElement);
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 });

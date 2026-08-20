@@ -125,13 +125,25 @@ describe("the motifs", () => {
 
 describe("the threads", () => {
   it("finds a thread by its name", () => {
-    const thread = makeThread({ label: "Les fins tristes", motif: null });
+    const thread = makeThread({ label: "Les fins tristes", motif: "hero-dies" });
     const t = searchEverywhere("tristes", corpus({ threads: [thread] }));
     expect(said(t.find((x) => x.kind === "thread")!.title)).toBe("Les fins tristes");
   });
 
+  it("finds a gathering by the name of the motif that feeds it", () => {
+    /* The normal case, and the one that found nothing: a gathering is
+       called whatever its motif is called, and the row holds no name. */
+    const thread = makeThread({ motif: "hero-dies" });
+    const t = searchEverywhere("héros meurt", corpus({ threads: [thread] }));
+    expect(t.find((x) => x.kind === "thread")).toBeDefined();
+  });
+
   it("finds a thread by what was written under it", () => {
-    const thread = makeThread({ label: "Un fil", note: "tout ce qui parle de deuil" });
+    const thread = makeThread({
+      motif: "hero-dies",
+      label: "Un fil",
+      note: "tout ce qui parle de deuil",
+    });
     const t = searchEverywhere("deuil", corpus({ threads: [thread] }));
     const f = t.find((x) => x.kind === "thread");
     expect(f).toBeDefined();

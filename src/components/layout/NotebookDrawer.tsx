@@ -34,6 +34,8 @@ import { tiltOf } from "../../domain/seeded";
 import { uid } from "../../domain/film";
 import { StampCorner } from "../atmosphere";
 import { Layer } from "../ui/Layer";
+import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
+import { useDialog } from "../../hooks/useDialog";
 import type { Note } from "../../types";
 
 export function NotebookDrawer({
@@ -50,6 +52,11 @@ export function NotebookDrawer({
   onClose: () => void;
 }) {
   const { t, i18n } = useTranslation();
+  /* Le focus entre dans le tiroir, y tourne, et revient au bouton qui
+     l'a ouvert. `Escape` est déjà géré plus bas, d'où l'appel sans
+     rappel : deux gestionnaires pour une touche en font un de trop. */
+  const box = useDialog();
+  const [request, setRequest] = useState<ConfirmRequest | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
 
@@ -83,7 +90,9 @@ export function NotebookDrawer({
           style={{ position: "fixed", inset: 0, zIndex: 59, background: "rgba(20,14,8,0.5)" }}
         />
         <div
+          ref={box}
           role="dialog"
+          aria-modal="true"
           aria-label={t("notebook.title")}
           style={{
             position: "fixed",
@@ -204,7 +213,23 @@ export function NotebookDrawer({
                   }}
                 >
                   <button
-                    onClick={() => onDelete(n.id)}
+                    /* UNE PAGE ÉCRITE NE S'EFFACE PAS SUR UN CLIC. Le
+                       bouton est une petite croix au coin d'une page,
+                       à quelques pixels du champ dans lequel on tape :
+                       c'est exactement le geste qu'on fait de travers.
+                       Et il n'y a rien à annuler derrière — le carnet
+                       n'a pas de corbeille. */
+                    onClick={() =>
+                      setRequest({
+                        title: t("notebook.confirmTitle"),
+                        body: n.title?.trim()
+                          ? t("notebook.confirmNamed", { title: n.title.trim() })
+                          : t("notebook.confirmBlank"),
+                        action: t("common.delete"),
+                        severe: true,
+                        onConfirm: () => onDelete(n.id),
+                      })
+                    }
                     aria-label={t("common.delete")}
                     style={{
                       all: "unset",
@@ -253,6 +278,7 @@ export function NotebookDrawer({
               ))}
           </div>
         </div>
+        <Confirmation request={request} onClose={() => setRequest(null)} />
       </>
     </Layer>
   );

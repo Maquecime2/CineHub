@@ -8,7 +8,7 @@
    its place.
    ============================================================ */
 import type { ComponentType, CSSProperties } from "react";
-import { C, alpha } from "../../theme/tokens";
+import { C } from "../../theme/tokens";
 import {
   Plant,
   Cactus,
@@ -27,6 +27,9 @@ import {
   Tape,
 } from "./objects";
 import { CustomDraw } from "./CustomDraw";
+import { WonDraw } from "./WonDraw";
+import { isWonMotif, listWonDecor, wonDecorByKey } from "../../services/wonDecor";
+import type { WonDecor } from "../../services/wonDecor";
 import {
   customDecorByKey,
   isCustomMotif,
@@ -42,20 +45,17 @@ interface ShelfKindConfig {
      keep a sentence. */
   /** What a card dropped in this shelf becomes. */
   patch: Partial<Film>;
-  tint?: string;
   border?: string;
 }
 
 export const SHELF_KIND: Record<ShelfKind, ShelfKindConfig> = {
   bedside: {
     patch: { bedside: true, archived: false },
-    tint: `${alpha(C.burgundy, 0.051)}`,
     border: C.burgundy,
   },
   main: { patch: { bedside: false, archived: false } },
   reserve: {
     patch: { bedside: false, archived: true },
-    tint: "transparent",
     border: C.line,
   },
 };
@@ -86,21 +86,22 @@ export const GAP_X = 9,
    We hand them back under the name this file already served them by. */
 export { CAT_COLORS, CAT_FAMILIES, catInk } from "../../theme/palette";
 
-/* A view can change its wood. Only three things are themed: the board,
-   the tint of the shelf's paper, and the accent ink — enough to change
-   the mood, too little to undo the notebook. `kraft` reproduces exactly
-   the shelf from before the themes: a migrated view must be identical to
-   the pixel. */
+/* A view can change its wood. Only TWO things are themed: the board and
+   the accent ink — enough to change the mood, too little to undo the
+   notebook.
+
+   THERE WAS A THIRD, AND IT WAS A VEIL. Three of the five woods also
+   carried a tint spread over the whole shelf in `multiply`: choosing
+   `nuit` painted the paper bluish-grey behind the cases, with no
+   wallpaper laid and nothing on screen to say so. A shelf with no paint
+   must show the page's paper, exactly — the wood is the wood, not a
+   filter over what stands on it. */
 export const THEMES = {
-  kraft: { wood: ["#7A5B3A", "#5E442A"], tint: null, accent: C.burgundy },
-  noyer: { wood: ["#5A3E28", "#3B2818"], tint: "#2B262008", accent: C.ochre },
-  ceruse: { wood: ["#C9B99C", "#A8967A"], tint: null, accent: C.pine },
-  nuit: { wood: ["#3A4250", "#252B36"], tint: "#5C6B7814", accent: C.cobalt },
-  atelier: {
-    wood: ["#8A6A3E", "#6B4F2A"],
-    tint: "#B9862E10",
-    accent: C.vermillion,
-  },
+  kraft: { wood: ["#7A5B3A", "#5E442A"], accent: C.burgundy },
+  noyer: { wood: ["#5A3E28", "#3B2818"], accent: C.ochre },
+  ceruse: { wood: ["#C9B99C", "#A8967A"], accent: C.pine },
+  nuit: { wood: ["#3A4250", "#252B36"], accent: C.cobalt },
+  atelier: { wood: ["#8A6A3E", "#6B4F2A"], accent: C.vermillion },
 };
 export const themeOf = (key: string) => THEMES[key as keyof typeof THEMES] || THEMES.kraft;
 
@@ -217,6 +218,40 @@ const customDraw = (key: string) => {
   return Draw;
 };
 
+/* LES OBJETS GAGNÉS ONT LEUR PROPRE DESSIN ET LEUR PROPRE CACHE. Le
+   même raisonnement que juste au-dessus : `decorSpec` est appelé au
+   rendu de chaque objet posé, et fabriquer un composant à chaque fois
+   remonterait toute l'image à chaque survol. */
+const wonCache = new Map<string, ComponentType<{ color?: string; style?: CSSProperties }>>();
+
+const wonDraw = (key: string) => {
+  let Draw = wonCache.get(key);
+  if (!Draw) {
+    Draw = (props) => <WonDraw motif={key} {...props} />;
+    wonCache.set(key, Draw);
+  }
+  return Draw;
+};
+
+/* CE QU'ON A TIRÉ, VU COMME UN BIBELOT DU CABINET.
+
+   `custom: true` parce que le panneau s'en sert pour dire « celui-ci
+   n'est pas de la maison » — un objet gagné ne l'est pas davantage
+   qu'un objet déposé. Ce qui les sépare est ailleurs : celui-ci ne
+   s'efface pas et ne se partage pas, et le panneau ne lui offre donc ni
+   l'un ni l'autre. */
+const wonSpecOf = (d: WonDecor): DecorType => ({
+  key: d.key,
+  /* Le libellé vient de la base, dans les deux langues : ces objets
+     s'écrivent après la compilation, aucune clé ne peut les attendre.
+     Le français est le repli, comme partout ailleurs ici. */
+  label: d.label.fr,
+  wall: d.wall,
+  custom: true,
+  tintable: d.tintable,
+  draw: wonDraw(d.key),
+});
+
 const specOf = (d: CustomDecor): DecorType => ({
   key: d.key,
   label: d.label,
@@ -240,6 +275,15 @@ export const decorLabel = (d: DecorType, t: (key: string) => string): string =>
 export const decorSpec = (motif: string): DecorType | undefined => {
   const house = DECOR_BY_KEY[motif];
   if (house) return house;
+  /* TROIS ORIGINES MAINTENANT, ET L'ORDRE N'EST PAS INDIFFÉRENT : la
+     maison d'abord, parce qu'elle est un objet en mémoire et non une
+     recherche ; les deux autres ensuite, sur leur préfixe. Un motif qui
+     ne tombe dans aucune des trois rend `undefined`, et l'étagère
+     dessine un vide plutôt que d'échouer. */
+  if (isWonMotif(motif)) {
+    const won = wonDecorByKey(motif);
+    return won ? wonSpecOf(won) : undefined;
+  }
   const mine = isCustomMotif(motif) ? customDecorByKey(motif) : undefined;
   return mine ? specOf(mine) : undefined;
 };
@@ -251,6 +295,9 @@ export const decorSpec = (motif: string): DecorType | undefined => {
 export const shelfDecorTypes = (): DecorType[] =>
   [
     ...SHELF_DECOR,
+    ...listWonDecor()
+      .filter((d) => !d.wall)
+      .map(wonSpecOf),
     ...listCustomDecor()
       .filter((d) => !d.wall)
       .map(specOf),
@@ -258,6 +305,9 @@ export const shelfDecorTypes = (): DecorType[] =>
 export const wallDecorTypes = (): DecorType[] =>
   [
     ...WALL_DECOR,
+    ...listWonDecor()
+      .filter((d) => d.wall)
+      .map(wonSpecOf),
     ...listCustomDecor()
       .filter((d) => d.wall)
       .map(specOf),

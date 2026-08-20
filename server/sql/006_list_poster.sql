@@ -1,0 +1,32 @@
+-- ============================================================
+-- 006 — UNE ŒUVRE DE LISTE A UNE AFFICHE
+-- ============================================================
+--
+-- Conditionnel de bout en bout, comme ses cinq aînés.
+--
+-- UNE LISTE TIENT DES ŒUVRES ET NON DES FICHES, et c'est exact : une
+-- liste de fiches serait la liste des exemplaires de quelqu'un, elle ne
+-- voudrait rien dire chez un autre. Mais on en a tiré une conclusion de
+-- trop — que la liste ne pouvait donc RIEN montrer d'un film qu'on ne
+-- possède pas. Une œuvre n'avait qu'un titre et une année, et le domaine
+-- entier se lisait en lignes de texte dans une VIDÉOTHÈQUE.
+--
+-- ON GARDE LE CHEMIN, JAMAIS L'URL. C'est la discipline de `Film.frames`
+-- (`w300` pour la bande, `w1280` pour l'agrandissement) : la taille se
+-- compose au rendu. Une URL figée en base fixerait la taille le jour de
+-- l'écriture, pour toujours, et sur toutes les listes de tout le monde.
+--
+-- PAS DE `NOT NULL` ET PAS DE DÉFAUT. TMDB laisse `poster_path` vide sur
+-- quantité de fiches maigres, et **absent n'est pas vide** : NULL veut
+-- dire « on n'en a pas », et l'émulsion de remplacement de `PosterArt`
+-- est déjà la réponse à cela. Une chaîne vide aurait obligé chaque
+-- lecteur à distinguer les deux.
+--
+-- RIEN À RATTRAPER, ET C'EST VOULU. Les lignes écrites avant ce fichier
+-- restent à NULL : aucune tâche de fond, aucune requête TMDB en masse
+-- pour un champ décoratif. Elles se comblent à la prochaine écriture.
+-- C'est la règle de la vue rapide — **on comble des trous, on ne corrige
+-- rien**.
+
+ALTER TABLE IF EXISTS list_item
+  ADD COLUMN IF NOT EXISTS poster_path text;

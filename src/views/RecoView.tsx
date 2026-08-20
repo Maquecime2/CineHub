@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { C, F } from "../theme/tokens";
-import { underlineInput, tap } from "../theme/styles";
+import { C, F, alpha } from "../theme/tokens";
+import { underlineInput, tap, inked, hollow } from "../theme/styles";
+import { FilmQuickView } from "../components/film/FilmQuickView";
+import { normalize } from "../domain/search";
 import { Label, SectionTitle, Guideline, NoKey } from "../components/ui";
+import { Sieve } from "../components/ui/Sieve";
 import { StampCorner, InkUnderline, CoffeeRing } from "../components/atmosphere";
 import { useTmdbKey } from "../services/tmdbKey";
 import { buildTaste } from "../taste";
-import { gatherCandidates, rank, DEFAULT_QUERY } from "../reco";
+import { gatherCandidates, rank, DEFAULT_QUERY, FEATURE_MIN } from "../reco";
 import { directorOf, pooled } from "../tmdb";
 import { makeFilm, initialsOf } from "../domain/film";
 import { say } from "../domain/wording";
@@ -14,6 +17,7 @@ import { languageName } from "../names";
 import { FilmPolaroid } from "../components/film/FilmPolaroid";
 import { PosterArt } from "../components/film/PosterArt";
 import { filmKey } from "../domain/importing";
+import { canonicalGenres } from "../domain/genres";
 import { atHomeSuggestions, type Nature } from "../domain/athome";
 import type { Film, Year } from "../types";
 
@@ -29,6 +33,11 @@ interface Candidate {
   /** TMDB rating, and the niche share computed by `rank`. */
   voteAverage: number;
   niche: number;
+  /* IL TRAVERSAIT DÉJÀ TOUTE LA CHAÎNE et n'était déclaré nulle part :
+     `toCandidate` le ramène, `gatherCandidates` et `rank` l'étalent avec
+     le reste. On proposait donc des films en n'en disant que le titre,
+     l'année et deux chiffres — en tenant le résumé dans la main. */
+  overview?: string;
 }
 
 /** The settings of the order form. See `DEFAULT_QUERY` in reco.js. */
@@ -43,17 +52,18 @@ interface Query {
   nichePref: number;
   driftPref: number;
   excludeWatchlist: boolean;
+  /** Écarter les courts métrages. Le seuil est `FEATURE_MIN`. */
+  noShorts: boolean;
   niche: { obscurity: boolean; foreign: boolean; age: boolean };
 }
 
-/** The two genre lists, the only keys of `Query` carrying an array. */
-type GenreKey = "withGenres" | "withoutGenres";
-
-/** The three factors that make up the "niche", and their labels. */
+/** The three factors that make up the "niche". Their labels are read
+    from the catalogue: they were written in French INSIDE this view, in
+    a screen the rest of which is translated. */
 const NICHE_FACTORS: [keyof Query["niche"], string][] = [
-  ["obscurity", "peu vu"],
-  ["foreign", "non anglophone"],
-  ["age", "ancien"],
+  ["obscurity", "reco.nicheObscurity"],
+  ["foreign", "reco.nicheForeign"],
+  ["age", "reco.nicheAge"],
 ];
 /* ============================================================
    VIEW — RECOMMENDATIONS: an order form addressed to the archives.
@@ -137,15 +147,19 @@ function Chip({
   on,
   onClick,
   ink = C.burgundy,
+  title,
 }: {
   label: string;
   on: boolean;
   onClick: () => void;
   ink?: string;
+  /** Ce que la pastille ne dit pas d'elle-même — un seuil, par exemple. */
+  title?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       style={{
         all: "unset",
         ...tap,
@@ -173,6 +187,7 @@ function RecoCard({
   director,
   onAdd,
   added,
+  onQuick,
 }: {
   c: Candidate;
   /* Brought back afterwards (see `useDirectors`), hence the THREE
@@ -183,6 +198,7 @@ function RecoCard({
   director?: string;
   onAdd: () => void;
   added: boolean;
+  onQuick: () => void;
 }) {
   const { t } = useTranslation();
   const asFilm = useMemo(
@@ -200,12 +216,11 @@ function RecoCard({
   );
   return (
     <div>
-      <FilmPolaroid
-        film={asFilm}
-        onClick={() =>
-          window.open(`https://www.themoviedb.org/movie/${c.tmdbId}`, "_blank", "noopener")
-        }
-      />
+      {/* L'AFFICHE OUVRE LA VUE RAPIDE, ET PLUS TMDB DANS UN AUTRE
+          ONGLET. Quitter le site pour savoir de quoi parle un film qu'on
+          nous propose ici perd la recherche qu'on venait de régler — et
+          tout ce que cette page allait chercher, elle le tenait déjà. */}
+      <FilmPolaroid film={asFilm} onClick={onQuick} />
       <div style={{ marginTop: -22, marginBottom: 30, padding: "0 4px" }}>
         <div
           style={{
@@ -217,6 +232,23 @@ function RecoCard({
         >
           {c.reasons.join(" · ")}
         </div>
+        {c.overview && (
+          <div
+            style={{
+              fontFamily: F.body,
+              fontSize: 11.5,
+              lineHeight: 1.4,
+              color: alpha(C.ink, 0.7),
+              marginTop: 4,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {c.overview}
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
           <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
             TMDB {c.voteAverage.toFixed(1)} · niche {Math.round(c.niche * 100)}%
@@ -307,7 +339,7 @@ function AtHome({
   const { t } = useTranslation();
   return (
     <div data-tour="reco-maison" style={{ marginTop: 26, position: "relative", zIndex: 2 }}>
-      <SectionTitle>Chez vous</SectionTitle>
+      <SectionTitle>{t("reco.atYourPlace")}</SectionTitle>
       <Guideline>
         Deux cents fiches vues, et l'on tourne autour des douze dernières. Voici les autres — rien
         d'ici ne sort du navigateur.
@@ -397,11 +429,14 @@ export function RecoView({
   films,
   onAddToWatchlist,
   onOpen,
+  onOpenPerson,
 }: {
   films: Film[];
   onAddToWatchlist: (f: Film) => void;
   /** Opens a card of the collection — the "chez vous" proposals. */
   onOpen?: (id: string) => void;
+  /** Ouvre la page de quelqu'un au générique, depuis la vue rapide. */
+  onOpenPerson?: (key: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState<Query>(DEFAULT_QUERY);
@@ -409,6 +444,8 @@ export function RecoView({
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
   const [added, setAdded] = useState<Set<number>>(() => new Set());
+  /** La proposition qu'on regarde en entier, par-dessus la planche. */
+  const [quick, setQuick] = useState<Candidate | null>(null);
   const set = <K extends keyof Query>(k: K, v: Query[K]) => setQuery((q) => ({ ...q, [k]: v }));
 
   const apiKey = useTmdbKey();
@@ -416,8 +453,15 @@ export function RecoView({
   /* Computed HERE and not in the block: the missing-key message must
      know whether there is something above it to speak of. */
   const house = useMemo(() => atHomeSuggestions(films), [films]);
+  /* UNE SEULE ORTHOGRAPHE PAR GENRE, ICI AUSSI. La liste sort des
+     fiches, et un classeur rempli sur deux navigateurs réglés dans deux
+     langues porte « Science Fiction » ET « Science-Fiction » : deux
+     entrées dans le tamis, dont l'une ne cochera jamais les films de
+     l'autre. `canonicalGenres` fait déjà ce choix à l'entrée d'une fiche
+     (`domain/genres`) ; les fiches d'AVANT lui ne sont pas réécrites, et
+     n'ont pas à l'être — on choisit une graphie pour LIRE. */
   const allGenres = useMemo(
-    () => Array.from(new Set(films.flatMap((f) => f.genres || []))).sort(),
+    () => canonicalGenres(films.flatMap((f) => f.genres || [])).sort(),
     [films]
   );
 
@@ -485,14 +529,11 @@ export function RecoView({
     setAdded((s) => new Set(s).add(c.tmdbId));
   };
 
-  const toggleIn = (key: GenreKey) => (g: string) =>
-    set(key, query[key].includes(g) ? query[key].filter((x) => x !== g) : [...query[key], g]);
-
   return (
     <div style={{ padding: "34px 44px 60px", position: "relative", overflow: "hidden" }}>
       <CoffeeRing style={{ top: 20, right: 160 }} rotate={-18} />
-      <StampCorner text="BULLETIN DE COMMANDE" />
-      <div
+      <StampCorner text={t("reco.stamp")} />
+      <h1
         style={{
           fontFamily: F.title,
           fontStyle: "italic",
@@ -501,10 +542,11 @@ export function RecoView({
           color: C.ink,
           position: "relative",
           zIndex: 2,
+          margin: 0,
         }}
       >
-        Le bureau des découvertes
-      </div>
+        {t("reco.heading")}
+      </h1>
       <InkUnderline width={370} />
       <div
         style={{
@@ -516,7 +558,7 @@ export function RecoView({
           zIndex: 2,
         }}
       >
-        des films à voir, choisis d'après ce que dit votre collection
+        {t("reco.subheading")}
       </div>
 
       {/* AT YOUR PLACE, BEFORE THE REST, and outside the key check:
@@ -542,7 +584,7 @@ export function RecoView({
               marginBottom: 6,
             }}
           >
-            CLÉ TMDB MANQUANTE
+            {t("reco.missingTmdbKey")}
           </div>
           <div
             style={{
@@ -554,7 +596,7 @@ export function RecoView({
           >
             {house.length > 0 ? t("reco.needsKeyWithHome") : t("reco.needsKey")}
           </div>
-          <NoKey what="chercher au-dehors" style={{ marginTop: 10 }} />
+          <NoKey what={t("reco.searchOutside")} style={{ marginTop: 10 }} />
         </div>
       ) : (
         <>
@@ -573,7 +615,7 @@ export function RecoView({
             <div data-tour="reco-dials" style={{ display: "flex", gap: 34, flexWrap: "wrap" }}>
               <Dial
                 label={t("reco.obscurity")}
-                left="grand public"
+                left={t("reco.mainstream")}
                 right={t("reco.gem")}
                 value={query.nichePref}
                 onChange={(v) => set("nichePref", v)}
@@ -581,7 +623,7 @@ export function RecoView({
               <Dial
                 label={t("reco.changeOfScene")}
                 left={t("reco.withinMyTastes")}
-                right="hors des sentiers"
+                right={t("reco.offTheBeatenTrack")}
                 value={query.driftPref}
                 onChange={(v) => set("driftPref", v)}
                 ink={C.cobalt}
@@ -605,12 +647,12 @@ export function RecoView({
                   letterSpacing: 1,
                 }}
               >
-                CE QUI FAIT LA NICHE
+                {t("reco.whatMakesTheNiche")}
               </span>
               {NICHE_FACTORS.map(([k, l]) => (
                 <Chip
                   key={k}
-                  label={l}
+                  label={t(l)}
                   on={query.niche[k] !== false}
                   onClick={() => set("niche", { ...query.niche, [k]: query.niche[k] === false })}
                 />
@@ -621,7 +663,7 @@ export function RecoView({
 
             <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
               <div style={{ width: 92 }}>
-                <Label>De</Label>
+                <Label>{t("reco.from")}</Label>
                 <input
                   style={underlineInput}
                   value={query.yearFrom}
@@ -639,7 +681,7 @@ export function RecoView({
                 />
               </div>
               <div style={{ width: 150 }}>
-                <Label>Langue d'origine</Label>
+                <Label>{t("reco.originalLanguage")}</Label>
                 <select
                   value={query.language}
                   onChange={(e) => set("language", e.target.value)}
@@ -669,7 +711,7 @@ export function RecoView({
                 />
               </div>
               <div style={{ width: 120 }}>
-                <Label>Votes ≥</Label>
+                <Label>{t("reco.votesAtLeast")}</Label>
                 <input
                   type="number"
                   min="0"
@@ -688,40 +730,44 @@ export function RecoView({
                 marginTop: 6,
               }}
             >
-              le plancher de votes évite de confondre « confidentiel » et « oublié pour de bonnes
-              raisons »
+              {t("reco.voteFloorNote")}
             </div>
 
+            {/* QUARANTE PASTILLES DÉPLIÉES, C'ÉTAIT DEUX MURS ET NON DEUX
+                FILTRES. Vingt genres cherchés, vingt écartés, tous
+                visibles en permanence : on ne les lisait pas, on les
+                balayait, et le bouton « chercher » — la seule chose que
+                cet écran demande vraiment — se retrouvait poussé sous la
+                ligne de flottaison.
+
+                `Sieve` existe déjà pour exactement ce mal (voir son
+                en-tête, et le rail du classeur qui s'en sert) : fermé la
+                plupart du temps, il dit ce qui est coché une fois replié
+                et il en accepte plusieurs. On ne réécrit pas un menu à
+                cocher parce qu'on est dans une autre vue. */}
             {allGenres.length > 0 && (
-              <>
-                <div style={{ marginTop: 16 }}>
-                  <Label>{t("reco.genresSought")}</Label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {allGenres.map((g) => (
-                      <Chip
-                        key={g}
-                        label={g}
-                        on={query.withGenres.includes(g)}
-                        onClick={() => toggleIn("withGenres")(g)}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div style={{ marginTop: 12 }}>
-                  <Label>{t("reco.genresSetAside")}</Label>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {allGenres.map((g) => (
-                      <Chip
-                        key={g}
-                        label={g}
-                        ink={C.slate}
-                        on={query.withoutGenres.includes(g)}
-                        onClick={() => toggleIn("withoutGenres")(g)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  marginTop: 16,
+                }}
+              >
+                <Sieve
+                  label={t("reco.genresSought")}
+                  options={allGenres.map((g) => ({ value: g, label: g }))}
+                  chosen={query.withGenres}
+                  onChange={(next) => set("withGenres", next)}
+                />
+                <Sieve
+                  label={t("reco.genresSetAside")}
+                  options={allGenres.map((g) => ({ value: g, label: g, ink: C.slate }))}
+                  chosen={query.withoutGenres}
+                  onChange={(next) => set("withoutGenres", next)}
+                />
+              </div>
             )}
 
             <div
@@ -748,17 +794,33 @@ export function RecoView({
                   letterSpacing: 1,
                 }}
               >
-                {progress ? `CONSULTATION… ${progress.done}/${progress.total}` : "CHERCHER"}
+                {progress
+                  ? t("reco.consulting", { done: progress.done, total: progress.total })
+                  : t("reco.search")}
               </button>
               <Chip
-                label="ignorer aussi ma watchlist"
+                label={t("reco.ignoreWatchlist")}
                 ink={C.pine}
                 on={query.excludeWatchlist}
                 onClick={() => set("excludeWatchlist", !query.excludeWatchlist)}
               />
+              {/* LE COURT MÉTRAGE N'EST PAS UNE SOIRÉE. `/discover` en
+                  rend beaucoup dès qu'on descend le plancher de votes —
+                  c'est là qu'ils vivent — et ils occupaient une planche
+                  qu'on ouvre pour choisir un film à voir ce soir.
+                  Quarante minutes est la frontière d'usage, et elle est
+                  DITE : un seuil qu'on ne peut pas lire est un seuil
+                  qu'on soupçonne. */}
+              <Chip
+                label={t("reco.noShorts")}
+                title={t("reco.noShortsHint", { count: FEATURE_MIN })}
+                ink={C.pine}
+                on={query.noShorts}
+                onClick={() => set("noShorts", !query.noShorts)}
+              />
               {taste.isEmpty && (
                 <span style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>
-                  collection trop mince pour un profil — seuls les filtres joueront
+                  {t("reco.tooThinForAProfile")}
                 </span>
               )}
             </div>
@@ -807,12 +869,48 @@ export function RecoView({
                     director={directors[c.tmdbId]}
                     onAdd={() => addOne(c)}
                     added={added.has(c.tmdbId)}
+                    onQuick={() => setQuick(c)}
                   />
                 ))}
               </div>
             </>
           )}
         </>
+      )}
+
+      {/* LA PROPOSITION EN ENTIER. Pas au classeur, donc `inBinder` est
+          faux : ni note, ni séance, ni statut. Le réalisateur y est
+          cliquable, ce que la planche ne savait pas faire — c'est même
+          la question qu'on se pose devant une découverte. */}
+      {quick && (
+        <FilmQuickView
+          film={makeFilm({
+            id: `tmdb-${quick.tmdbId}`,
+            title: quick.title,
+            year: quick.year || "",
+            poster: quick.poster,
+            genres: quick.genres,
+            synopsis: quick.overview || "",
+            director: directors[quick.tmdbId] || "",
+            tmdbRating: quick.voteAverage || null,
+            tmdbId: quick.tmdbId,
+          })}
+          inBinder={false}
+          onOpenPerson={onOpenPerson ? (name) => onOpenPerson(normalize(name)) : undefined}
+          action={
+            <button
+              onClick={() => {
+                addOne(quick);
+                setQuick(null);
+              }}
+              disabled={added.has(quick.tmdbId)}
+              style={{ ...inked(C.pine), ...(added.has(quick.tmdbId) ? hollow : null) }}
+            >
+              {added.has(quick.tmdbId) ? t("wakePanel.setAsideDone") : t("wakePanel.setAside")}
+            </button>
+          }
+          onClose={() => setQuick(null)}
+        />
       )}
     </div>
   );

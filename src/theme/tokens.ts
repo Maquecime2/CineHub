@@ -214,6 +214,9 @@ body { background: ${C.paper}; }
    (No backtick in this comment: it lives INSIDE a template literal, and
    the first one would close the whole stylesheet.) */
 @keyframes drawerIn { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+/* L'attente d'une reponse : une opacite, et rien d'autre. Voir Waiting,
+   dans components/ui. (Pas d'accent grave ici : voir juste au-dessus.) */
+@keyframes waitingFade { from { opacity: 0.28; } to { opacity: 0.85; } }
 
 /* THE FRONT OF HOUSE LIGHTING UP — the one animation that travels.
 
@@ -235,6 +238,30 @@ body { background: ${C.paper}; }
 @keyframes runLights { from { background-position-x: 0; } to { background-position-x: 240px; } }
 @keyframes stampDown { from { opacity: 0; transform: rotate(var(--stamp-tilt, -7deg)) scale(1.6); } 60% { opacity: 1; } to { opacity: var(--stamp-rest, 0.62); transform: rotate(var(--stamp-tilt, -7deg)) scale(1); } }
 @keyframes riseAway { from { opacity: 0; transform: translateY(6px); } 30% { opacity: 1; } to { opacity: 0; transform: translateY(-22px); } }
+
+/* LA CHUTE D'UN CONFETTI. Un seul jeu d'images pour vingt-quatre
+   morceaux : ce qui les distingue est leur position de depart, leur
+   angle et leur retard, tous SEMES sur l'identifiant de la partie
+   (domain/seeded). Les quatre variables sont ecrites EN LIGNE par le
+   composant, parce qu'elles changent d'un morceau a l'autre ; la forme
+   de la chute, elle, est ici.
+
+   PAS UN SEUL ACCENT GRAVE DANS CE COMMENTAIRE, ET C'EST LA REGLE DU
+   FICHIER : tout ce bloc vit dans un gabarit JavaScript, ou un accent
+   grave ferme la chaine et fait tomber le module entier. La premiere
+   ecriture de ce commentaire en portait quatre.
+
+   ELLE NE BOUCLE PAS. Une fete qui ne s'arrete jamais est un defaut,
+   pas une fete : le mode de remplissage la laisse a son dernier etat,
+   c'est-a-dire invisible. Sous prefers-reduced-motion les deux jetons
+   de duree tombent a zero, donc cet etat est atteint immediatement et
+   rien ne tombe du tout. */
+@keyframes flutter {
+  from { opacity: 0; transform: translate3d(0, -14px, 0) rotate(var(--spin-from, 0deg)); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translate3d(var(--drift, 0px), var(--fall, 240px), 0) rotate(var(--spin-to, 540deg)); }
+}
 
 /* During a drag, the drawer tab announces itself as a target. In CSS
    and not in React state: a setState here would re-render the whole row
@@ -344,6 +371,81 @@ html[data-dragging="1"] [data-wall-item]:not([data-drag-self]) {
 }
 
 /* ============================================================
+   LE FOCUS, QUI AVAIT DISPARU
+   ============================================================
+
+   PRESQUE TOUS LES BOUTONS DU PROJET COMMENCENT PAR all: unset. C'est
+   la convention, et elle est bonne — un bouton doit ressembler à ce
+   qu'on dessine, pas à ce que le navigateur en pense. Mais all: unset
+   emporte AUSSI le contour de focus, et rien ne le remplaçait nulle
+   part : la navigation au clavier était littéralement invisible dans
+   toute l'application. On tabule, quelque chose bouge, on ne sait pas
+   quoi.
+
+   :focus-visible ET PAS :focus. La distinction est du navigateur, et
+   c'est la bonne : il montre le contour à qui navigue au clavier et
+   pas à qui vient de cliquer. La règle :focus aurait mis un liseré
+   autour de chaque bouton qu'on presse à la souris.
+
+   DEUX TRAITS, ET LE SECOND EST CE QUI LE REND VISIBLE PARTOUT. Un
+   contour à l'encre disparaît sur les peaux sombres, et un contour
+   clair disparaît sur les claires ; l'ombre blanche posée dessous fait
+   qu'il en reste toujours un des deux. Le verdict se dit par un mot et
+   pas par une couleur ; ici il n'y a pas de mot à dire, alors on
+   double le trait plutôt que de parier sur une teinte.
+
+   Le décalage est NÉGATIF : posé dehors, le contour d'un bouton collé
+   au bord d'un panneau se fait couper par le débordement caché de son
+   voisin. Dedans, il est toujours entier.
+
+   ET LE MOT-CLE D'IMPORTANCE EST OBLIGATOIRE ICI, ce qui est assez rare
+   pour etre justifie. Le "all: unset" des boutons n'est pas dans une
+   feuille de style : il est ecrit dans l'attribut de style de chaque
+   bouton, en JSX, comme tout le dessin de ce projet. Or un style en
+   ligne bat n'importe quelle regle de feuille, quelle que soit sa
+   specificite — la regle a donc ete posee, essayee au navigateur, et
+   n'a rien change du tout : le "outline: none" du "all: unset" gagnait
+   a chaque fois. C'est le seul endroit du fichier ou la cascade ne
+   suffit pas, et cela vient de la convention du projet, pas d'un
+   defaut.
+
+   (Aucun accent grave dans ce bloc : il vit DANS un litteral gabarit,
+   et le premier le fermerait au milieu d'une phrase. Le piege s'est
+   referme une fois de plus en ecrivant ces lignes — la page est restee
+   blanche jusqu'a ce qu'on la regarde vraiment.) */
+:focus-visible {
+  outline: 2px solid var(--c-ink) !important;
+  outline-offset: -2px !important;
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.35) !important;
+}
+
+/* Ce qui porte deja son propre etat visible n'a pas besoin des deux. */
+:focus:not(:focus-visible) { outline: none; }
+
+/* ============================================================
+   LA CURSIVE, UN CRAN PLUS LISIBLE — SANS TOUCHER 203 ENDROITS
+   ============================================================
+
+   Les peaux chargent Caveat en 500, 600 et 700, et pas une ligne de
+   l'application ne demandait de graisse : tout s'affichait donc au 400
+   par defaut, que le fichier ne contient pas. Le navigateur prenait la
+   coupe la plus proche ou la synthetisait — dans les deux cas le trait
+   le plus mince, en encre palie, a quatorze pixels. C'est de la que
+   venait l'illisibilite, plus que de la cursive elle-meme.
+
+   LE SELECTEUR MARCHE PARCE QUE LE PROJET S'HABILLE EN LIGNE. React
+   ecrit style="font-family: var(--f-hand); ..." : l'attribut contient
+   litteralement le nom du jeton, et un selecteur de sous-chaine
+   l'attrape. C'est une clef posee sur une convention du projet, pas sur
+   un hasard — et elle est ecrite ici, ou la convention est deja
+   expliquee deux paragraphes plus haut.
+
+   AUCUNE DECLARATION EN LIGNE N'EST ECRASEE : ces endroits ne posent pas
+   de graisse. Celui qui en poserait une gagnerait, ce qui est bien ce
+   qu'on veut. */
+[style*="--f-hand"] { font-weight: 600; }
+
+/* ============================================================
    THE PHONE
    ============================================================
 
@@ -394,6 +496,24 @@ html, body { overscroll-behavior-y: contain; }
      included. In CSS rather than inline: the bar exists only on the
      phone, and the column has no business knowing it exists. */
   [data-enters] { padding-bottom: calc(58px + var(--safe-bottom)); }
+
+  /* QUATRE-VINGT-HUIT PIXELS DE GOUTTIERE SUR TROIS CENT QUATRE-VINGT-DIX.
+
+     Huit vues posent leur page en 34px 44px, ecrit a la main dans
+     chacune, et ViewHeading en 34px 24px. Sur un telephone cela fait
+     entre douze et vingt-trois pour cent de la largeur donnes a la
+     marge, et une affiche par rangee la ou il en tiendrait deux.
+
+     La regle est ici et pas dans les huit fichiers, et c'est la seule
+     facon de la rendre vraie partout : useViewport n'est consomme par
+     AUCUNE vue, et le devenait-il qu'il faudrait s'en souvenir a chaque
+     vue neuve. Une declaration en CSS s'applique a ce qui n'existe pas
+     encore.
+
+     Elle vise l'enfant direct de la colonne — le bloc de page — et pas
+     ce qu'il y a dedans : un panneau qui a ses propres marges les
+     garde. */
+  [data-enters] > div { padding-left: 14px !important; padding-right: 14px !important; }
 }
 
 /* WHAT THE BROWSER DRAWS IN OUR STEAD.

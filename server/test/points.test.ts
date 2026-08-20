@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { testDb } from "./helpers.ts";
 import * as store from "../src/store.ts";
-import { DECLARED_CEILING, RATE } from "../src/points.ts";
+import { DECLARED_CEILING, RATE, REVIEW_LENGTH } from "../src/points.ts";
 import type { Db } from "../src/db.ts";
 
 /* ============================================================
@@ -262,6 +262,184 @@ describe("a challenge, once its period is over", () => {
        been the cheapest merit going. */
     const g = await finished("vide", 0, 0);
     expect(await store.settleChallenge(db, g.challenge)).toBe(0);
+  });
+
+  /* ============================================================
+     LE FILET DE `SEEN_DURING`, TISSÉ AVANT D'Y TOUCHER
+
+     Cette sous-requête est celle par laquelle passe le paiement de TOUS
+     les défis, et elle a DEUX appelants : `progressOf`, qui affiche, et
+     `settleChallenge`, qui PAIE. Les cas des trois âges de données —
+     journal `watches`, `watchedAt` d'avant le journal, et un `watches`
+     qui n'est pas un tableau — n'étaient éprouvés que sur le premier.
+     Or `merit_event` est unique : UN PAIEMENT FAUX NE PEUT PAS ÊTRE
+     REJOUÉ JUSTE. Le côté qui comptait sans filet est celui qui coûte.
+
+     Le mélange est choisi pour que le verdict soit SENSIBLE : deux
+     films sur quatre, donc exactement `challenge_half`. Qu'un seul des
+     quatre cas bascule et la ligne payée change de nom — trois comptés
+     donneraient encore la moitié, mais un de moins ne paierait plus
+     rien et quatre paieraient le tout.
+     ============================================================ */
+  it("pays the same over all three ages of card, and survives a malformed log", async () => {
+    const me = await store.createPerson(db, "trois-ages");
+    const list = await store.createList(db, me.id, { title: "mars" });
+    const works = [
+      /* Le journal, dans la période : compte. */
+      { tmdb: "2000", data: { watches: [{ date: "2026-03-04" }] } },
+      /* D'AVANT LE JOURNAL : une fiche importée ne porte que
+         `watchedAt`, et l'oublier volerait des points à qui a le plus
+         ancien classeur. */
+      { tmdb: "2001", data: { watchedAt: "2026-03-09" } },
+      /* Vu, mais l'an dernier : un défi mensuel qui compterait cela se
+         gagnerait en s'inscrivant. */
+      { tmdb: "2002", data: { watches: [{ date: "2025-01-04" }] } },
+      /* PAS UN TABLEAU. `jsonb_array_elements` sur autre chose fait
+         tomber la requête ENTIÈRE — et avec elle le paiement de tous
+         les participants, pas seulement de celui-ci. */
+      { tmdb: "2003", data: { watches: "autrefois" } },
+    ];
+    for (const [i, w] of works.entries()) {
+      await store.addToList(db, list, me.id, { tmdbId: w.tmdb, title: `film ${i}` });
+      await store.storeCard(db, me.id, {
+        id: `c${i}`,
+        tmdbId: w.tmdb,
+        data: w.data,
+        updatedAt: new Date(1),
+      });
+    }
+    const challenge = await store.createChallenge(db, me.id, {
+      listId: list,
+      title: "le défi",
+      starts_on: "2026-03-01",
+      ends_on: "2026-03-31",
+    });
+
+    /* LES DEUX APPELANTS COMPTENT PAREIL, et c'est la moitié du contrat :
+       un écran qui annonce deux et une bourse qui en paie trois est le
+       genre d'écart qu'on ne découvre qu'en relisant un classement. */
+    expect(
+      (await store.progressOf(db, challenge)).find((p) => p.pseudo === "trois-ages")?.done
+    ).toBe(2);
+    expect(await store.settleChallenge(db, challenge)).toBe(1);
+    expect((await store.purseOf(db, me.id)).merit).toBe(RATE.challenge_half);
+  });
+
+  /* ============================================================
+     UNE CIBLE CHIFFRÉE
+
+     Une liste de quarante films ne se finit pas en un mois : un défi
+     bâti dessus ne payait personne et se lisait comme cassé. La cible
+     en fait une intention tenable sans toucher à la liste, qui
+     appartient à quelqu'un et sert peut-être à autre chose.
+
+     ET LE BARÈME NE BOUGE PAS D'UNE LIGNE. Une nature change CE QUI
+     COMPTE, jamais CE QUE ÇA PAIE — un gain proportionnel à la cible
+     aurait laissé le créateur fixer son propre prix.
+     ============================================================ */
+  it("pays the whole way at the TARGET, not at the end of the list", async () => {
+    const g = await finished("cible", 10, 3);
+    await db.query("UPDATE challenge SET target = 3 WHERE id = $1", [g.challenge]);
+    expect(await store.settleChallenge(db, g.challenge)).toBe(1);
+    /* Trois sur dix, mais trois sur trois : le tout, et au tarif
+       ordinaire du défi. */
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge);
+  });
+
+  it("never asks for more films than the list holds", async () => {
+    /* La liste peut MAIGRIR après coup — quelqu'un retire une œuvre — et
+       une cible devenue inatteignable rendrait le défi impossible à
+       finir sans que personne l'ait décidé. */
+    const g = await finished("retrecie", 4, 4);
+    await db.query("UPDATE challenge SET target = 99 WHERE id = $1", [g.challenge]);
+    expect(await store.settleChallenge(db, g.challenge)).toBe(1);
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge);
+  });
+
+  it("leaves every challenge written before the target untouched", async () => {
+    /* NULL veut dire « toute la liste » : rien à rétro-remplir. */
+    const g = await finished("avant", 4, 2);
+    expect((await store.challengeById(db, g.challenge))?.target).toBeNull();
+    await store.settleChallenge(db, g.challenge);
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge_half);
+  });
+
+  /* ============================================================
+     UN DÉFI PAR CRITIQUE
+
+     « Pendant la période » NE PEUT PAS ÊTRE `updated_at` : une critique
+     ne porte aucune date, et `card.updated_at` bouge à la moindre
+     retouche — une fiche effleurée en mars aurait payé une critique
+     écrite deux ans plus tôt. On demande donc les deux choses qui, elles,
+     sont datables ou mesurables : UNE SÉANCE DANS LA PÉRIODE, et une
+     critique d'au moins `REVIEW_LENGTH` signes — la même longueur
+     qu'`awardFromCard` exige déjà pour la payer.
+
+     ET LE BARÈME NE BOUGE PAS. Pas de `challenge_review` mieux payé :
+     il est plus facile à vérifier, donc mieux le payer aurait été
+     l'arbitrage.
+     ============================================================ */
+  async function reviewChallenge(pseudo: string, cards: Record<string, unknown>[]) {
+    const me = await store.createPerson(db, pseudo);
+    const list = await store.createList(db, me.id, { title: "mars" });
+    for (const [i, data] of cards.entries()) {
+      await store.addToList(db, list, me.id, { tmdbId: String(3000 + i), title: `film ${i}` });
+      await store.storeCard(db, me.id, {
+        id: `r${i}`,
+        tmdbId: String(3000 + i),
+        data,
+        updatedAt: new Date(1),
+      });
+    }
+    const challenge = await store.createChallenge(db, me.id, {
+      listId: list,
+      title: "en écrire",
+      starts_on: "2026-03-01",
+      ends_on: "2026-03-31",
+      kind: "critique",
+    });
+    return { me: me.id, challenge };
+  }
+
+  const seen = { watches: [{ date: "2026-03-04" }] };
+
+  it("wants a screening in the period AND a review long enough", async () => {
+    const g = await reviewChallenge("critique", [
+      /* Les deux : compte. */
+      { ...seen, review: "x".repeat(REVIEW_LENGTH) },
+      /* Vu dans la période, mais rien d'écrit : c'est un défi par
+         critique, pas un défi par liste. */
+      { ...seen },
+      /* Écrit, mais trop court pour être une critique — la même mesure
+         que celle qui décide de la payer. */
+      { ...seen, review: "bien" },
+      /* Une vraie critique, mais la séance est hors période : sans cela
+         on paierait ce qu'on a écrit il y a deux ans en effleurant la
+         fiche, puisqu'une critique ne porte pas de date. */
+      { watches: [{ date: "2025-01-04" }], review: "x".repeat(REVIEW_LENGTH) },
+    ]);
+
+    expect((await store.progressOf(db, g.challenge))[0]!.done).toBe(1);
+  });
+
+  it("counts like an ordinary challenge when the nature is a list", async () => {
+    /* LE DÉFAUT NE CHANGE PAS D'UN IOTA : tout défi écrit avant 004 est
+       en 'liste', et une critique n'y est demandée nulle part. */
+    const g = await finished("liste-ordinaire", 4, 4);
+    expect(await store.settleChallenge(db, g.challenge)).toBe(1);
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge);
+  });
+
+  it("pays a review challenge at the ORDINARY rate", async () => {
+    const g = await reviewChallenge("paye-pareil", [
+      { ...seen, review: "x".repeat(REVIEW_LENGTH) },
+      { ...seen, review: "x".repeat(REVIEW_LENGTH) },
+    ]);
+    await db.query("UPDATE challenge SET ends_on = current_date - 1 WHERE id = $1", [g.challenge]);
+    expect(await store.settleChallenge(db, g.challenge)).toBe(1);
+    /* Le même `RATE.challenge` qu'un défi par liste : une nature change
+       CE QUI COMPTE, jamais CE QUE ÇA PAIE. */
+    expect((await store.purseOf(db, g.me)).merit).toBe(RATE.challenge);
   });
 
   it("is settled by the first to look, and by nobody after", async () => {

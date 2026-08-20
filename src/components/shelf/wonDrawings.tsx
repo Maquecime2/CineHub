@@ -1,50 +1,34 @@
 /* ============================================================
-   LES VIGNETTES — onze dessins, une seule main
+   LES ONZE OBJETS DE DÉPART — un seul trait de plume
    ============================================================
 
-   La même convention que les bibelots de l'étagère : la forme est écrite
-   DEUX FOIS, une fois lavée pour le remplissage, une fois nue pour le
-   trait par-dessus. Peindre dans le ton du trait donnerait une
+   ILS ÉTAIENT DES VIGNETTES À COLLER, ils sont devenus des bibelots à
+   poser : c'est le même dessin, et c'est le même endroit du produit qui
+   a changé d'avis. Les identifiants n'ont pas bougé — ils sont écrits
+   dans les collections de tout le monde — d'où le préfixe `vig-` qui
+   reste, et qui ne veut plus rien dire. On ne renomme pas une clé pour
+   une question de vocabulaire.
+
+   La même convention que les bibelots maison (`objects.jsx`) : la forme
+   est écrite DEUX FOIS, une fois lavée pour le remplissage, une fois nue
+   pour le trait par-dessus. Peindre dans le ton du trait donnerait une
    silhouette pleine — une icône, pas un croquis.
 
-   Un même carré de cent unités pour toutes, une même épaisseur de trait,
-   les mêmes bouts ronds : c'est ce qui fait qu'elles se lisent comme
-   sorties du même stylo une fois collées côte à côte sur la planche.
+   Un même carré de cent unités pour tous, une même épaisseur de trait,
+   les mêmes bouts ronds : c'est ce qui fait qu'ils se lisent comme
+   sortis du même stylo une fois posés côte à côte sur une planche.
 
-   L'ENCRE VIENT DE LA RARETÉ, ET NON DU SUJET. Une commune est à
-   l'encre, une rare à l'ocre, une dorée au bordeaux — de sorte qu'on
-   voit ce qu'on a sans lire une légende. C'est aussi ce qui permet
-   d'ajouter une douzième vignette sans inventer une douzième couleur.
+   ILS SONT DESSINÉS ET NON DÉPOSÉS, et c'est ce qui les distingue de
+   ceux qu'un administrateur ajoute : la couleur leur parle encore, ils
+   ne coûtent aucun octet, et ils ne demandent aucun ticket. Le stock de
+   départ d'une boutique doit marcher sans container.
    ============================================================ */
-import type { CSSProperties, ReactNode } from "react";
-import { C } from "../../theme/tokens";
-
-const Sketch = ({
-  color,
-  children,
-  style,
-}: {
-  color: string;
-  children: ReactNode;
-  style?: CSSProperties;
-}) => (
-  <svg
-    viewBox="0 0 100 100"
-    fill="none"
-    stroke={color}
-    strokeWidth="3.4"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ display: "block", width: "100%", height: "100%", overflow: "visible", ...style }}
-  >
-    {children}
-  </svg>
-);
+import type { ReactNode } from "react";
 
 const wash = (color: string, o = 0.16) => ({ fill: color, fillOpacity: o, stroke: "none" });
 
-/** Le dessin de chaque vignette, sous la clé que le serveur emploie. */
-const DRAWINGS: Record<string, (c: string) => ReactNode> = {
+/** Le dessin de chaque objet, sous la clé que le serveur emploie. */
+export const DRAWINGS: Record<string, (c: string) => ReactNode> = {
   "vig-projecteur": (c) => (
     <>
       <path d="M22 44 H62 V72 H22 Z" {...wash(c)} />
@@ -153,23 +137,3 @@ const DRAWINGS: Record<string, (c: string) => ReactNode> = {
     </>
   ),
 };
-
-export const RARITY_INK: Record<string, string> = {
-  common: C.ink,
-  rare: C.ochre,
-  gold: C.burgundy,
-};
-
-/** Y a-t-il un dessin pour cette clé ? Une vignette inconnue n'affole rien. */
-export const isDrawn = (id: string): boolean => id in DRAWINGS;
-
-export function StickerArt({ id, rarity }: { id: string; rarity?: string }) {
-  const draw = DRAWINGS[id];
-  const ink = RARITY_INK[rarity ?? "common"] ?? C.ink;
-  /* UNE VIGNETTE VENUE D'UN SERVEUR PLUS RÉCENT NE CASSE PAS LA PLANCHE.
-     Le catalogue vit là-bas ; un classeur qui n'a pas encore été
-     rechargé peut recevoir une clé qu'il ne connaît pas, et un carré
-     vide vaut mieux qu'un écran blanc. */
-  if (!draw) return <div style={{ width: "100%", height: "100%" }} />;
-  return <Sketch color={ink}>{draw(ink)}</Sketch>;
-}

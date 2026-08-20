@@ -4,12 +4,19 @@
    to be found again from TMDB.
    ============================================================ */
 
+import { canonicalGenres } from "./domain/genres";
 import { ADDRESS } from "./services/server";
 import { writtenKey, VIA_SERVER } from "./services/tmdbKey";
 
 const BASE = "https://api.themoviedb.org/3";
 // w342: fine enough for a card, light enough for a wall of 500 posters
 export const POSTER_BASE = "https://image.tmdb.org/t/p/w342";
+/* LES DEUX TAILLES D'UN PHOTOGRAMME. w300 pour la bande — vingt-cinq
+   kilo-octets, six d'entre eux tiennent dans ce qu'une seule affiche
+   coûte —, w1280 une fois ouvert. Ce sont des PRÉFIXES : la fiche ne
+   stocke que le chemin, voir `getDetails`. */
+export const FRAME_THUMB = "https://image.tmdb.org/t/p/w300";
+export const FRAME_FULL = "https://image.tmdb.org/t/p/w1280";
 const CACHE_KEY = "tmdb-cache";
 
 /* THE SHAPE OF WHAT WE MEMORISE, AND WHY IT CARRIES A NUMBER.
@@ -33,8 +40,23 @@ const CACHE_KEY = "tmdb-cache";
 /* 4: entries of shape 3 carry `keywords: []` where the joined resource
    had not come back — an emptiness passing itself off as an answer.
    Keeping them would make the repair impossible: we would ask again, and
-   the cache would serve the same lie. */
-const SHAPE = 4;
+   the cache would serve the same lie.
+
+   5: `synopsis`. Entries of shape 4 hold none, and the field arrives
+   empty rather than absent — so a card completed from one of them would
+   look answered and never be asked again. The bump is what makes the
+   whole cache re-earn its keep; nothing else here has to know.
+
+   6: `frames`. Same reasoning, and the same trap: an entry of shape 5
+   would hand back an empty list, which reads as "TMDB has no still" and
+   is never asked again.
+
+   7 : les photogrammes, tous et non plus six. Une entrée de forme 6 en
+   tient six, et six n'est pas une réponse fausse — c'est ce qui rend
+   celui-ci différent des précédents. Mais le cache est ÉTERNEL : sans ce
+   numéro, un classeur rempli avant ce jour n'en verrait jamais plus de
+   six, sans que rien ne le dise et sans qu'aucun geste puisse y mener. */
+const SHAPE = 7;
 
 // the cache avoids burning the quota again on every re-import of the same file
 const readCache = () => {
@@ -207,6 +229,12 @@ export async function searchMovies({ title, year = null, apiKey, limit = 12 }) {
     poster: m.poster_path ? `${POSTER_THUMB}${m.poster_path}` : "",
     overview: (m.overview || "").slice(0, 200),
     lang: m.original_language || "",
+    /* COMBIEN DE GENS L'ONT NOTÉ — la seule mesure d'audience que TMDB
+       expose, et celle sur laquelle les propositions se rangent
+       (`domain/proposals`). `toCandidate` la ramenait déjà ; cette route
+       la jetait, si bien que la même liste se rangeait autrement selon
+       la porte par laquelle elle était arrivée. */
+    voteCount: m.vote_count || 0,
   }));
 }
 
@@ -230,6 +258,10 @@ const CREW_JOBS = {
    noise, and weight. */
 const ROLES = 8;
 
+/* Le plafond des photogrammes. Voir `getDetails` : il borne l'absurde,
+   pas le confort. */
+const FRAMES = 80;
+
 /* Detail + crew: that is where the director is. */
 export async function getDetails(tmdbId, apiKey) {
   /* THE KEYWORDS COME IN THE SAME REQUEST, AND THAT IS THE WHOLE POINT.
@@ -239,7 +271,18 @@ export async function getDetails(tmdbId, apiKey) {
      token, not one more millisecond. Harvesting them separately — which
      is what `fetchKeywords` does for the open card — would double the
      number of calls of a full import for the same thing. */
-  const data = await get(`/movie/${tmdbId}`, { append_to_response: "credits,keywords" }, apiKey);
+  /* LES PHOTOGRAMMES VOYAGENT DANS LA MÊME REQUÊTE, et c'est tout leur
+     coût : `append_to_response` en accepte autant qu'on veut, donc pas un
+     appel de plus, pas un jeton de quota de plus. `include_image_language`
+     est un paramètre de PREMIER niveau — il s'applique à la ressource
+     jointe, et `null` y désigne les images SANS TEXTE, qui sont celles
+     qu'on veut : une image portant le titre incrusté en coréen n'est plus
+     un plan du film, c'est une affiche. */
+  const data = await get(
+    `/movie/${tmdbId}`,
+    { append_to_response: "credits,keywords,images", include_image_language: "null,en,fr" },
+    apiKey
+  );
 
   /* THE FALLBACK ON THE DEDICATED ENDPOINT.
 
@@ -288,10 +331,48 @@ export async function getDetails(tmdbId, apiKey) {
     v: SHAPE,
     tmdbId: data.id,
     director: directors.join(", "),
-    genres: (data.genres || []).map((g) => g.name),
+    /* UNE SEULE ORTHOGRAPHE PAR GENRE. TMDB les sert dans la langue
+       demandée, et un classeur rempli sur deux navigateurs réglés
+       autrement se retrouvait avec « Science Fiction » ET
+       « Science-Fiction » comme deux genres distincts. Voir
+       `domain/genres` : on choisit une graphie, on ne traduit pas. */
+    genres: canonicalGenres((data.genres || []).map((g) => g.name)),
+    /* THE SUMMARY IS NOT TRUNCATED HERE, unlike `toCandidate`'s. There
+       it is cut to 240 because a discovery sweep holds a few hundred at
+       once and the full text would saturate the quota on its own; this
+       one is asked for a single film and is written on its card, where
+       reading it whole is the entire point. */
+    synopsis: data.overview || "",
     year: data.release_date ? Number(data.release_date.slice(0, 4)) : null,
     // we store only a path (~30 bytes): the image stays at TMDB
     poster: data.poster_path ? `${POSTER_BASE}${data.poster_path}` : "",
+    /* LES CHEMINS NUS, ET NON DES ADRESSES — la seule chose de ce module
+       qui s'écarte de ce que fait `poster` juste au-dessus, et c'est
+       délibéré : un photogramme se montre en deux tailles, petit dans la
+       bande et grand une fois ouvert. Écrire l'adresse figerait la
+       taille au moment de la moisson, et la changer demanderait de
+       réécrire toutes les fiches. `theme` compose, la fiche stocke.
+
+       TOUS, TRIÉS PAR LE VOTE — et il n'y avait que six.
+
+       « Ça risque quoi ? » est la bonne question, et la réponse est
+       presque rien. Un photogramme est un CHEMIN d'une trentaine
+       d'octets : les soixante-dix-sept d'un film pèsent moins de trois
+       kilo-octets sur une fiche qui en fait déjà plusieurs. Et la
+       planche les charge en `loading="lazy"` (`stills/shots`), donc ce
+       qu'on ne fait pas défiler n'est jamais demandé — le coût
+       d'ouverture d'une fiche ne bouge pas.
+
+       Le plafond reste, et il ne borne plus le confort mais l'ABSURDE :
+       quelques fiches très courues en tiennent plusieurs centaines, et
+       une fiche n'a pas à peser cela pour rien. Le tri par vote garde le
+       meilleur en tête, donc ce qui tombe est toujours la queue. */
+    frames: (data.images?.backdrops || [])
+      .slice()
+      .sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0))
+      .slice(0, FRAMES)
+      .map((b) => b.file_path)
+      .filter(Boolean),
     cast: (data.credits?.cast || []).slice(0, ROLES).map((c) => c.name),
     crew,
     /* THE RUNTIME, AND WHY `null` RATHER THAN ZERO. TMDB sometimes
@@ -344,6 +425,36 @@ export async function getDetails(tmdbId, apiKey) {
 }
 
 export const POSTER_THUMB = "https://image.tmdb.org/t/p/w185";
+
+/* ============================================================
+   LE CHEMIN D'UN CÔTÉ, L'URL DE L'AUTRE
+   ============================================================
+
+   `Film.poster` est une URL COMPLÈTE, taille comprise, parce qu'une
+   fiche est à soi et que l'affiche qu'on y a mise ne bouge plus. Une
+   œuvre de LISTE ne peut pas se le permettre : elle est lue par tout le
+   monde, dans une grille ici et une vignette là, et une taille figée le
+   jour de l'écriture serait figée pour tous les lecteurs à venir. Elle
+   range donc le CHEMIN — la même discipline que `Film.frames`, qui
+   compose `w300` pour la bande et `w1280` pour l'agrandissement.
+
+   Ces deux fonctions sont la charnière, et il n'y en a pas d'autre :
+   `posterPathOf` pour écrire, `posterUrl` pour lire. */
+
+/** L'URL d'une affiche de TMDB ramenée à son chemin — `""` si ce n'en
+    est pas une. On ne devine rien d'une adresse qui n'est pas de TMDB :
+    elle ne se recomposerait à aucune taille. */
+export function posterPathOf(url) {
+  if (!url) return "";
+  const m = String(url).match(/^https:\/\/image\.tmdb\.org\/t\/p\/[^/]+(\/[\w.-]+)$/);
+  return m ? m[1] : "";
+}
+
+/** Le chemin rendu affichable. `base` est ce qu'on veut EN FACE : la
+    vignette pour une grille, la grande pour une couche. */
+export function posterUrl(path, base = POSTER_THUMB) {
+  return path ? `${base}${path}` : "";
+}
 
 /* Every poster known for a film — several countries, several designs.
    We favour the original language and French, then the posters with no
@@ -529,10 +640,44 @@ export async function directorOf(tmdbId, apiKey) {
   }
 }
 
-export async function searchPerson(name, apiKey) {
-  return cachedList(`p:${name.toLowerCase()}`, async () => {
+/* THE TMDB DEPARTMENT EACH OF OUR ROLES BELONGS TO. Same shape and same
+   reason as `JOBS` below, one level up: `JOBS` names a credit, this
+   names the trade TMDB files a PERSON under. */
+const DEPARTMENTS = {
+  réalisation: "Directing",
+  interprétation: "Acting",
+  image: "Camera",
+  musique: "Sound",
+  scénario: "Writing",
+};
+
+/**
+ * The person behind a name.
+ *
+ * `results[0]` IS TMDB'S POPULARITY RANKING, AND NOTHING ELSE. Ask for a
+ * director who shares a name with a better-known actor and the actor
+ * wins — then their "Director" credits are asked for, and the Credits
+ * view lists films the person one was looking at never signed. It looks
+ * like a filter that leaks; it is the wrong person entirely.
+ *
+ * So when the capacity is known, the first result FILED UNDER THAT TRADE
+ * wins, and popularity only decides among equals. It stays a fallback
+ * and never a filter: TMDB leaves `known_for_department` empty on plenty
+ * of sparse entries, and refusing those would turn a wrong answer into
+ * no answer.
+ *
+ * THE TRADE IS PART OF THE CACHE KEY, for the same reason it is part of
+ * `personFilmography`'s: two questions, two answers, and the old
+ * `p:<name>` entries already written in people's browsers must not serve
+ * one for the other.
+ */
+export async function searchPerson(name, apiKey, { role = "" } = {}) {
+  const department = DEPARTMENTS[role] || "";
+  return cachedList(`p:${name.toLowerCase()}${department ? `:${department}` : ""}`, async () => {
     const data = await get("/search/person", { query: name }, apiKey);
-    const hit = data.results?.[0];
+    const results = data.results || [];
+    const hit =
+      (department && results.find((r) => r.known_for_department === department)) || results[0];
     return hit ? { id: hit.id, name: hit.name } : null;
   });
 }
@@ -589,9 +734,18 @@ const JOBS = {
 export async function personFilmography(personId, apiKey, { role = "réalisation" } = {}) {
   return cachedList(`pc:${personId}:${role}`, async () => {
     const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
-    if (role === "interprétation") return (data.cast || []).map(toCandidate);
-    const jobs = JOBS[role] || JOBS.réalisation;
-    return (data.crew || []).filter((c) => jobs.includes(c.job)).map(toCandidate);
+    const raw =
+      role === "interprétation"
+        ? data.cast || []
+        : (data.crew || []).filter((c) => (JOBS[role] || JOBS.réalisation).includes(c.job));
+    /* ONE FILM, ONE ENTRY. TMDB lists a crew credit PER JOB, so somebody
+       who directed and also wrote comes back twice on the same film once
+       `scénario` gathers two job titles — and a filmography that says a
+       title twice reads as a mistake in the collection, not in the
+       answer. Keyed on the id, which is the only thing that identifies a
+       film here. */
+    const seen = new Set();
+    return raw.filter((c) => !seen.has(c.id) && seen.add(c.id)).map(toCandidate);
   });
 }
 
@@ -723,10 +877,12 @@ export async function enrichRows(rows, apiKey, { onProgress, concurrency = 5 } =
             language: info.language || "",
             countries: info.countries || [],
             tmdbRating: info.tmdbRating ?? null,
+            synopsis: info.synopsis || "",
             /* No `|| []`: see `getDetails`. Falling back on the empty
                list would turn "we do not know" into "there are none",
                and would freeze the card for good. */
             keywords: info.keywords,
+            frames: info.frames,
             tmdbId: info.tmdbId,
             year: rows[i].year || info.year || "",
           };

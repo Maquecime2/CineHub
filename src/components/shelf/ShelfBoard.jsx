@@ -1,7 +1,8 @@
 /* Filing by hand: this is where all the drag and drop lives. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { C } from "../../theme/tokens";
+import { C, F } from "../../theme/tokens";
+import { tap } from "../../theme/styles";
 import {
   SHELF_KINDS,
   CAT_KEYS,
@@ -11,6 +12,7 @@ import {
   makeWallDecor,
   reconcileView,
   moveItem,
+  forgetByHand,
   pinToWall,
   patchRow,
   addRow,
@@ -37,7 +39,8 @@ import {
   wallBoxOf,
 } from "./constants";
 import { DropMark, angleOf, rotatedBoxOfWall } from "./items";
-import { Shelf, ReserveDrawer, CellPreview, DecorCabinet, ItemPalette } from "./layout";
+import { QuickFile } from "./QuickFile";
+import { Shelf, ReserveDrawer, DecorCabinet, ItemPalette } from "./layout";
 
 /* A pattern whose tint changes nothing: an imported image that is not
    line work, or an SVG whose ink we could not name. The house patterns
@@ -51,7 +54,7 @@ const noTint = (motif) => {
    handler asks itself before doing anything at all. */
 const hangs = (drag) => drag?.type === "wall";
 
-export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) {
+export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet, placed }) {
   const { t } = useTranslation();
   /* A drag changes NO React state. It was the last visible lag:
      `setDragId` at the start of the drag re-rendered the shelf, which
@@ -65,13 +68,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
   const dragRef = useRef(null); // { type, id, node, create? }
   const overRef = useRef({}); // { kind, rowId, catId, overId, side, afterRowId }
   const markRef = useRef(null); // the drop marker, outside React
+  const quickRef = useRef(null); // le classeur rapide, ouvert à la main
+  const wantQuick = useRef(false); // une fiche est en vol : on ouvrira au premier mouvement
   const spreadRef = useRef([]); // the layers pushed aside, to be set straight again
   const litRef = useRef(null); // the target currently lit
   const measureRef = useRef(new WeakMap()); // les rectangles du glissement en cours
   const tailRef = useRef(new WeakMap()); // the last object of each row hovered
-  const [preview, setPreview] = useState(null);
   const [drawer, setDrawer] = useState(false);
-  const [cabinet, setCabinet] = useState(null);
+  const [cabinet, setCabinet] = useState(false);
   const [editCat, setEditCat] = useState(null);
   const [editDecor, setEditDecor] = useState(null);
 
@@ -307,6 +311,8 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
        render never receives it — and a forgotten mark would make that one
        object alone able to steal a drop at the next gesture. */
     for (const el of document.querySelectorAll("[data-drag-self]")) delete el.dataset.dragSelf;
+    wantQuick.current = false;
+    if (quickRef.current) quickRef.current.style.display = "none";
     dragRef.current = null;
     overRef.current = {};
     /* The measurements were only valid for THIS drag: the next one may
@@ -323,6 +329,25 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     dragRef.current = { type, id, node, grab };
     if (node) node.style.opacity = "0.35"; // the case lifted, without going through React
     document.documentElement.dataset.dragging = "1";
+    /* LE CLASSEUR RAPIDE S'ARME ICI, ET S'OUVRE AU PREMIER MOUVEMENT.
+
+       Il s'ouvrait dès `dragstart`, et c'était un défaut : à cet
+       instant précis le navigateur est en train de capturer l'image de
+       glissement, et le curseur est encore SUR la case qu'on vient
+       d'attraper. Faire apparaître un panneau pile dessous faisait
+       avorter le glissement une fois sur deux — sur les cases du bord
+       où le panneau se posait, c'est-à-dire les premières de chaque
+       rangée.
+
+       On note donc l'intention, et c'est le premier `dragover` qui
+       ouvre : à ce moment le glissement est établi, et plus rien ne
+       peut l'interrompre. Déplacer le panneau d'un bord à l'autre
+       n'aurait fait que déplacer le défaut sur les dernières cases.
+
+       POUR UNE FICHE SEULEMENT : on ne range pas un bibelot dans une
+       catégorie de films, et un panneau qui s'ouvre sur un objet qu'il
+       ne peut pas recevoir est un panneau qui ment. */
+    wantQuick.current = type === "film";
   }, []);
 
   /* Taking a decor out of the cabinet is MAKING it, not moving it: it
@@ -564,9 +589,90 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       target = { kind, rowId: rows[rows.length - 1].id };
     }
 
-    const next = moveItem(view, drag.create ? { create: drag.create } : { id: drag.id }, target);
+    /* REPOSER UNE FICHE SOI-MÊME PÉRIME L'INSTANTANÉ. À partir
+       d'ici la disposition à l'écran est celle qu'on veut : « revenir
+       au rangement à la main » rendrait une version plus ancienne que
+       le geste qu'on vient de faire. Voir `forgetByHand`. */
+    const next = forgetByHand(
+      moveItem(view, drag.create ? { create: drag.create } : { id: drag.id }, target)
+    );
     if (next !== view) onDoc(next);
     if (drag.type === "film") onUpdateMany({ [drag.id]: { ...SHELF_KIND[kind].patch } });
+    reset();
+  };
+
+  /* LE FILET DE SÉCURITÉ DU CLASSEUR RAPIDE.
+
+     Le panneau s'ouvre à la main et se referme dans `reset`, qui est
+     appelé par `drop` et par `dragend`. Or ce fichier dit lui-même,
+     à propos du marquage des objets pendus, que « ce `dragend` n'arrive
+     pas toujours — un nœud remplacé par le rendu du dépôt n'en reçoit
+     jamais ». C'est exactement le cas du classeur rapide : on y lâche
+     une fiche, elle change de rangée, son nœud est remplacé.
+
+     UN PANNEAU RESTÉ OUVERT NE FAIT PAS QUE TRAÎNER : il est en
+     `position: fixed` par-dessus la colonne, donc il INTERCEPTE le
+     premier appui sur ce qu'il recouvre. Un objet qu'on ne peut plus
+     attraper, sans rien à l'écran qui l'explique, est le pire des
+     défauts à retrouver.
+
+     L'écoute est posée sur le document, en capture, et ne fait que
+     refermer : elle ne peut donc rien casser d'autre. */
+  useEffect(() => {
+    const shut = () => {
+      wantQuick.current = false;
+      if (quickRef.current) quickRef.current.style.display = "none";
+    };
+    const open = () => {
+      if (!wantQuick.current || !quickRef.current) return;
+      quickRef.current.style.display = "block";
+    };
+    document.addEventListener("dragover", open, true);
+    document.addEventListener("dragend", shut, true);
+    document.addEventListener("drop", shut, true);
+    return () => {
+      document.removeEventListener("dragover", open, true);
+      document.removeEventListener("dragend", shut, true);
+      document.removeEventListener("drop", shut, true);
+    };
+  }, []);
+
+  /* LES BOÎTES DE LA VUE, À PLAT.
+
+     Calculées au rendu ordinaire et non pendant le glissement : elles ne
+     bougent pas tant qu'on tient une fiche, et les chercher au moment du
+     survol coûterait un balayage par mouvement de souris. */
+  const quickBoxes = useMemo(() => {
+    const out = [];
+    if (!view) return out;
+    for (const kind of SHELF_KINDS) {
+      for (const row of view.shelves?.[kind]?.rows || []) {
+        for (const it of row.items || []) {
+          if (it.t !== "c") continue;
+          out.push({
+            kind,
+            rowId: row.id,
+            catId: it.id,
+            label: it.label,
+            color: it.color,
+            count: (it.items || []).filter((x) => x.t === "f").length,
+          });
+        }
+      }
+    }
+    return out;
+  }, [view]);
+
+  /* RANGER DEPUIS LE PANNEAU EST UN DÉPÔT COMME UN AUTRE : même modèle,
+     même écriture, et le film prend les marques du rayon où sa boîte se
+     trouve — sans quoi il serait rangé sur une étagère et marqué comme
+     appartenant à une autre. */
+  const dropInBox = (box) => {
+    const drag = dragRef.current;
+    if (!drag || drag.type !== "film" || !view) return reset();
+    const next = forgetByHand(moveItem(view, { id: drag.id }, box));
+    if (next !== view) onDoc(next);
+    onUpdateMany({ [drag.id]: { ...SHELF_KIND[box.kind].patch } });
     reset();
   };
 
@@ -650,7 +756,14 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
     wallDecor: wallDecorOf(view),
     plankDecor: plankDecorOf(view),
     dim,
-    onOpen: setPreview,
+    /* UNE MARCHE EN MOINS. Ouvrir une case posait `CellPreview`, un
+       aperçu — titre, note, critique — après lequel il fallait encore
+       cliquer pour la fiche puis pour le dossier : trois écrans pour
+       lire une réponse. Depuis que la fiche rapide vient avant le
+       dossier partout, cet aperçu disait moins qu'elle, plus tôt. Le
+       clic va donc directement à `onOpen`, que `LibraryView` mène à la
+       couche. */
+    onOpen,
     onEditCat: setEditCat,
     onEditDecor: setEditDecor,
     onDecorLabel,
@@ -688,7 +801,6 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
           shelf={view.shelves.bedside}
           wall={view.shelves.bedside.wall}
           count={countOf("bedside")}
-          onCabinet={setCabinet}
           {...shared}
         />
       )}
@@ -697,7 +809,6 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
         shelf={view.shelves.main}
         wall={view.shelves.main.wall}
         count={countOf("main")}
-        onCabinet={setCabinet}
         {...shared}
       />
       <ReserveDrawer
@@ -707,9 +818,44 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
         setOpen={setDrawer}
         {...shared}
       />
+      {/* LE CABINET S'OUVRE D'ICI, ET D'UN SEUL ENDROIT.
+
+          Il y avait un bouton « + DÉCOR » au haut de CHAQUE rayon, et
+          chacun annonçait viser le sien — alors que c'est le lâcher qui
+          décide. Trois portes pour une pièce, dont deux mentaient sur ce
+          qu'il y avait derrière.
+
+          Le bouton est en `position: fixed`, comme le tiroir qu'il
+          ouvre : il ne bouge pas avec les planches, ne défile pas avec
+          elles, et reste à portée quel que soit le rayon qu'on regarde. */}
+      <button
+        onClick={() => setCabinet((open) => !open)}
+        aria-expanded={!!cabinet}
+        title={t("shelf.cabinet")}
+        style={{
+          all: "unset",
+          ...tap,
+          cursor: "pointer",
+          position: "fixed",
+          right: 40,
+          top: 84,
+          zIndex: 44,
+          fontFamily: F.mono,
+          fontSize: 9.5,
+          letterSpacing: 1,
+          padding: "5px 10px",
+          color: cabinet ? C.card : C.inkFaded,
+          background: cabinet ? C.ink : C.card,
+          border: `1px dashed ${C.line}`,
+          boxShadow: "1px 2px 6px rgba(30,20,10,0.2)",
+        }}
+      >
+        + DÉCOR
+      </button>
+      <QuickFile ref={quickRef} boxes={quickBoxes} onDrop={dropInBox} />
       {cabinet && (
         <DecorCabinet
-          kind={cabinet}
+          placed={placed}
           onClose={() => setCabinet(null)}
           onDragStart={onDecorDragStart}
           onDragEnd={reset}
@@ -730,7 +876,7 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
       )}
       {decor && (
         <ItemPalette
-          title="OBJET"
+          title={t("shelf.objectStamp")}
           color={decor.color}
           size={decor.size}
           /* The field only appears for the patterns that write: passing
@@ -756,13 +902,6 @@ export function ShelfBoard({ films, doc, onDoc, onOpen, onUpdateMany, dimSet }) 
             setEditDecor(null);
           }}
           onClose={() => setEditDecor(null)}
-        />
-      )}
-      {preview && filmsById.get(preview) && (
-        <CellPreview
-          film={filmsById.get(preview)}
-          onClose={() => setPreview(null)}
-          onOpenFile={onOpen}
         />
       )}
     </div>

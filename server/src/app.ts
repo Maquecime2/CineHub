@@ -27,9 +27,12 @@ import * as store from "./store.ts";
 import { registerRelays } from "./relay.ts";
 import { publicKeyForPush, pushAvailable, remindChallenges } from "./push.ts";
 import { allowed, mediaAvailable, ticketFor } from "./media.ts";
+import { ceilingsFor } from "./limits.ts";
+import { demoPosters } from "./demo.ts";
 import { LEVELS, SIZES } from "./draw.ts";
 import { RATE } from "./points.ts";
-import { SHOP } from "./shop.ts";
+import { SHOP, WEARABLE, packItem } from "./shop.ts";
+import type { Wearable } from "./shop.ts";
 
 export interface Settings {
   db: Db;
@@ -64,6 +67,13 @@ export interface Settings {
    * `DEFAULT_TMDB_CEILING` in `relay.ts`.
    */
   tmdbCeiling?: number;
+  /**
+   * Wikidata requests per minute per address, for the filiation hints.
+   *
+   * Nothing is billed there, which is exactly why it needs its own
+   * figure: see `DEFAULT_HINTS_CEILING` in `relay.ts`.
+   */
+  hintsCeiling?: number;
   /**
    * Opens `POST /dev/session`, which creates an account and a session
    * with no passkey. Never true in production — see `index.ts`.
@@ -111,7 +121,22 @@ export const CORS_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "O
 
 export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   const { db, domain, origin } = settings;
-  const app = Fastify({ logger: false });
+  /* LE PLAFOND DE CORPS EST CELUI DES CARTES, PAS CELUI DE FASTIFY.
+
+     Fastify refuse par defaut tout corps de plus d'UN MEBIOCTET. Or
+     `/collection` accepte cinq cents fiches par envoi, et une fiche
+     porte desormais un synopsis, un generique et des mots-cles : un
+     classeur bien rempli depasse le mebioctet des la premiere tranche.
+     Et le refus ne se lit pas : Fastify repond 413 puis ferme la
+     chaussette AVANT la fin de l'envoi, donc le navigateur n'annonce
+     pas le refus mais un `ERR_CONNECTION_RESET` — une panne de reseau,
+     alors que le serveur a parle. Huit cent vingt-quatre fiches en
+     attente ne partaient jamais, sans qu'une seule ligne de journal le
+     dise.
+
+     Le vrai plafond reste le compte de fiches (cinq cents), qui lui
+     repond proprement ; celui-ci n'est qu'un garde-fou. */
+  const app = Fastify({ logger: false, bodyLimit: 16 * 1024 * 1024 });
 
   /* AN EMPTY BODY IS NOT AN UNREADABLE BODY.
 
@@ -841,6 +866,14 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return { subscriptions: await store.subscriptionsOf(db, person.id) };
   });
 
+  /* QUI ME SUIT. Elle ne dit rien de plus que `/follows` sur les gens
+     qu'elle nomme — même colonnes, même garde de blocage — et elle
+     existe parce qu'on invite surtout des gens qui vous suivent. */
+  app.get("/followers", async (req) => {
+    const person = await requireAccount(req);
+    return { followers: await store.followersOf(db, person.id) };
+  });
+
   app.put("/follows/:pseudo", async (req, reply) => {
     const person = await requireAccount(req);
     const { pseudo } = req.params as { pseudo: string };
@@ -954,6 +987,20 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return reply.send({ pseudo, blocked: false });
   });
 
+  /* ------------------------------------------------------------
+     LA VITRINE — la seule route ouverte à qui n'a pas de compte
+     ------------------------------------------------------------
+
+     Les douze fiches d'exemple sont ce qu'on montre avant l'inscription.
+     Cette route rend leurs AFFICHES, et rien d'autre : les textes sont
+     traduits par le classeur, qui seul sait dans quelle langue il se
+     lit.
+
+     PAS DE `requireAccount`, et c'est tout l'objet. La surface est
+     nulle : douze adresses fixes, aucune donnée de personne, rien
+     qu'un client puisse faire varier. */
+  app.get("/demo/posters", async () => ({ posters: await demoPosters(db) }));
+
   app.post("/reports", async (req, reply) => {
     const person = await requireAccount(req);
     const { pseudo, card, reason } = (req.body ?? {}) as {
@@ -963,7 +1010,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     };
     const text = (reason || "").trim();
     if (!text || text.length > 500) {
-      return reply.code(400).send({ error: "Dites en one phrase ce qui ne va pas." });
+      return reply.code(400).send({ error: "Dites en une phrase ce qui ne va pas." });
     }
     const about = pseudo ? await store.findByPseudo(db, pseudo.toLowerCase()) : null;
     if (!about) return reply.code(404).send({ error: "Personne." });
@@ -978,6 +1025,49 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        "noted" is true in both cases, and knowing one had already
        reported adds nothing for somebody who has just done it. */
     return { noted: true, fresh };
+  });
+
+  /* ------------------------------------------------------------
+     LE BUREAU DE MODÉRATION — réservé au rôle
+     ------------------------------------------------------------
+
+     La table des signalements existait et son `handled_at` n'a jamais
+     été écrit : rien ne savait lister ce qui attendait. Sur une adresse
+     ouverte au public, un signalement qu'on ne peut pas lire vaut un
+     signalement qu'on refuse.
+
+     `requireAdmin` et non `requireAccount` : la file dit qui est visé et
+     pourquoi, ce qui est exactement ce qu'on ne montre à personne
+     d'autre. */
+
+  app.get("/reports", async (req) => {
+    await requireAdmin(req);
+    return { reports: await store.reportsToHandle(db) };
+  });
+
+  /* CLORE, ET FACULTATIVEMENT RETIRER DU PARTAGE. Les deux gestes sont
+     dans une seule route parce qu'ils se font ensemble : on regarde, on
+     décide, on classe. Séparer aurait laissé la porte ouverte à une file
+     où l'on cache sans clore, donc où l'on recroise éternellement ce
+     qu'on a déjà traité.
+
+     `hide` est RÉVERSIBLE — c'est la colonne que l'auteur manipule
+     lui-même. Fermer un compte ne se fait pas ici : voir `store.ts` pour
+     pourquoi cette décision ne doit pas tenir dans un clic. */
+  app.post("/reports/handle", async (req, reply) => {
+    await requireAdmin(req);
+    const { targetType, targetId, hide } = (req.body ?? {}) as {
+      targetType?: string;
+      targetId?: string;
+      hide?: boolean;
+    };
+    if (!targetType || !targetId) {
+      return reply.code(400).send({ error: "Il faut dire quoi traiter." });
+    }
+    const hidden =
+      hide === true && targetType === "card" ? await store.hideReported(db, targetId) : false;
+    const closed = await store.handleReports(db, targetType, targetId);
+    return { closed, hidden };
   });
 
   /* ------------------------------------------------------------
@@ -1036,7 +1126,11 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
     const list = await store.listById(db, rights.list_id);
     return {
-      list: { ...list, mienne: rights.administer, isMember: rights.write },
+      /* `is_member` COMME LE SQL DE `myLists`, et c'est indivisible :
+         corriger un seul des deux cotes ferait marcher le champ sur une
+         route et pas sur l'autre — un defaut intermittent, pire a
+         retrouver que le silence qu'il remplace. */
+      list: { ...list, mienne: rights.administer, is_member: rights.write },
       works: await store.worksOf(db, rights.list_id),
       /* The co-builders only show themselves to those who write in it: a
          visitor to a public list reads films, not the list of the people
@@ -1085,18 +1179,34 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!rights) return reply;
     if (!rights.write) return reply.code(403).send({ error: "On ne vous a rien demandé ici." });
 
-    const { tmdbId, title, year } = (req.body ?? {}) as {
+    const { tmdbId, title, year, posterPath } = (req.body ?? {}) as {
       tmdbId?: string | number;
       title?: string;
       year?: string;
+      posterPath?: string;
     };
     if (!/^[0-9]{1,12}$/.test(String(tmdbId ?? ""))) {
       return reply.code(400).send({ error: "Une œuvre se désigne by son identifiant TMDB." });
     }
+    /* UN CHEMIN, ET RIEN QUI PUISSE DEVENIR UNE ADRESSE. La forme
+       `/xxxx.jpg` est ce que TMDB rend et tout ce dont le rendu a
+       besoin ; accepter une URL laisserait n'importe qui écrire dans
+       la liste d'autrui l'adresse d'un serveur à lui, et le
+       navigateur des autres irait la chercher. Ce qui ne tient pas
+       cette forme n'est pas refusé — on n'écrit pas d'affiche, et la
+       ligne se range quand même.
+
+       UN SEUL SEGMENT, ET LA BARRE N'EST PAS DANS LA CLASSE. Un chemin
+       TMDB n'en a jamais deux, et `//ailleurs.example/x.jpg` en aurait
+       tenu un qui commence bien par une barre : concaténé à la base, il
+       ressort en adresse absolue vers un autre hôte. */
+    const poster =
+      typeof posterPath === "string" && /^\/[\w.-]{1,180}$/.test(posterPath) ? posterPath : null;
     const fresh = await store.addToList(db, rights.list_id, person.id, {
       tmdbId: String(tmdbId),
       title: (title || "").slice(0, 200),
       year: year ? String(year).slice(0, 8) : null,
+      posterPath: poster,
     });
     return { added: true, fresh };
   });
@@ -1130,6 +1240,33 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       return reply.code(404).send({ error: "Personne." });
     }
     await store.inviteToList(db, rights.list_id, invite.id);
+    /* UNE LISTE QUI A ATTEINT QUELQU'UN, ET C'EST CE QUE LE NOM DIT.
+       `list_shared` était déclaré dans les deux barèmes depuis toujours
+       et crédité par personne : une ligne déclarée et non câblée est un
+       oubli, pas du poids mort.
+
+       La forme est copiée sur `challenge_joined` juste plus bas, et la
+       référence composite achète la même garantie gratuitement : retirer
+       quelqu'un et le remettre ne paie pas deux fois. Le propriétaire ne
+       peut pas se payer lui-même — la route a refusé `invite.id ===
+       person.id` quelques lignes plus haut —, et il ne peut pas
+       davantage se payer par un complice qui partirait et reviendrait. */
+    /* `rights.owner_id` ET NON `person.id`, bien que les deux soient le
+       même aujourd'hui : `administer` vaut « propriétaire » et la route
+       vient de le vérifier. C'est l'INTENTION qu'on écrit — la liste
+       paie la personne à qui elle appartient — et elle survivra au jour
+       où `administer` s'élargira. */
+    await store.award(
+      db,
+      rights.owner_id,
+      "list_shared",
+      `${rights.list_id}:${invite.id}`,
+      RATE.list_shared
+    );
+    /* CE N'EST PAS LE `is_member` D'UNE LISTE, et la ressemblance est un
+       piege. Celui-la est ecrit en TypeScript des deux cotes — jamais
+       rendu par du SQL — et son lecteur l'epelle pareil : il fonctionne.
+       Le renommer par sympathie casserait deux appels qui marchent. */
     return { pseudo: invite.pseudo, isMember: true };
   });
 
@@ -1162,11 +1299,15 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/challenges", async (req, reply) => {
     const person = await requireAccount(req);
-    const { listId, title, starts_on, ends_on } = (req.body ?? {}) as {
+    const { listId, title, starts_on, ends_on, target, kind, subject, mode } = (req.body ?? {}) as {
       listId?: string;
       title?: string;
       starts_on?: string;
       ends_on?: string;
+      target?: number | null;
+      kind?: string | null;
+      subject?: Record<string, unknown> | null;
+      mode?: string | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1175,19 +1316,111 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!JOUR.test(starts_on || "") || !JOUR.test(ends_on || "") || ends_on! < starts_on!) {
       return reply.code(400).send({ error: "Deux dates, et la ends_on après at début." });
     }
+    /* ABSENT VEUT DIRE « TOUTE LA LISTE », et zéro est refusé : un défi
+       fini avant d'être commencé aurait été le mérite le moins cher du
+       barème. Une cible PLUS GRANDE que la liste n'est pas refusée ici —
+       la liste peut maigrir ensuite, et le paiement la ramène au nombre
+       de films existants (`least`, dans `settleChallenge`). */
+    const goal = target === undefined || target === null ? null : Number(target);
+    if (goal !== null && (!Number.isInteger(goal) || goal < 1)) {
+      return reply.code(400).send({ error: "Une cible est un nombre de films, au moins un." });
+    }
+    /* La nature est refusée ICI en plus du schéma, pour que la réponse
+       soit une phrase et non une violation de contrainte. `critere`
+       n'est pas encore servi : le déclarer accepté rendrait un défi que
+       rien ne sait compter. */
+    const nature = kind == null ? "liste" : String(kind);
+    /* LA COURSE — un film ne compte que pour le PREMIER qui le valide.
+       Refusée ici en plus du schéma, pour que la réponse soit une phrase
+       et non une violation de contrainte. Une nature change ce qui
+       COMPTE, jamais ce que ça paie : rien de plus dans `points.ts`. */
+    const race = mode == null ? "ensemble" : String(mode);
+    if (race !== "ensemble" && race !== "course") {
+      return reply.code(400).send({ error: "Un défi se court ensemble ou en course." });
+    }
+    if (!["liste", "critique", "critere"].includes(nature)) {
+      return reply.code(400).send({ error: "Nature de défi inconnue." });
+    }
+
+    /* ------------------------------------------------------------
+       UN DÉFI PAR CRITÈRE
+
+       TROIS FORMES ET PAS UNE DE PLUS : décennie, pays, cinéaste. Ce
+       sont les trois choses qu'une fiche complétée par TMDB porte
+       toujours, donc les trois dont on peut faire une question à la
+       collection. Un quatrième critère se répondrait « ça dépend si la
+       fiche est remplie », et on perdrait un défi pour n'avoir pas fait
+       ses imports.
+
+       LA CIBLE EST OBLIGATOIRE ICI, et le schéma la redemande. « Tous
+       les films des années 60 » n'a pas de fin : sans cible le
+       dénominateur serait inconnu, la barre n'aurait pas de bout, et le
+       défi ne se gagnerait jamais. Une liste, elle, se compte seule.
+       ------------------------------------------------------------ */
+    let matter: Record<string, unknown> | null = null;
+    if (nature === "critere") {
+      const s = (subject ?? {}) as { decade?: unknown; country?: unknown; director?: unknown };
+      const decade = s.decade == null ? null : Number(s.decade);
+      const country = typeof s.country === "string" ? s.country.trim().toUpperCase() : "";
+      const director = typeof s.director === "string" ? s.director.trim() : "";
+
+      if (decade !== null) {
+        /* Une décennie est un multiple de dix, et le cinéma commence
+           dans les années 1890 : hors de là, c'est une faute de frappe
+           et non une intention. */
+        if (!Number.isInteger(decade) || decade % 10 !== 0 || decade < 1890 || decade > 2100) {
+          return reply.code(400).send({ error: "Une décennie s'écrit 1960, 1970, 1980…" });
+        }
+        matter = { decade };
+      } else if (country) {
+        /* Deux lettres, comme les fiches les portent (ISO 3166-1). */
+        if (!/^[A-Z]{2}$/.test(country)) {
+          return reply.code(400).send({ error: "Un pays s'écrit en deux lettres : FR, JP, IT…" });
+        }
+        matter = { country };
+      } else if (director) {
+        if (director.length > 120) {
+          return reply.code(400).send({ error: "Ce nom est trop long." });
+        }
+        matter = { director };
+      } else {
+        return reply
+          .code(400)
+          .send({ error: "Un défi par critère porte sur une décennie, un pays ou un cinéaste." });
+      }
+
+      if (goal === null) {
+        return reply
+          .code(400)
+          .send({ error: "Un défi par critère demande une cible : combien de films." });
+      }
+    }
     /* A challenge is only built on a list you write in: otherwise
        anybody starts a challenge on a stranger's public list, and they
-       would see it appear without having wanted it. */
-    const rights = UUID.test(listId || "")
-      ? await store.rightsOnList(db, listId!, person.id)
-      : null;
-    if (!rights?.write) return reply.code(404).send({ error: "Liste inconnue." });
+       would see it appear without having wanted it.
+
+       UN DÉFI PAR CRITÈRE NE DEMANDE LE DROIT DE PERSONNE, et c'est la
+       conséquence de n'appartenir à aucune liste : il porte sur SA
+       PROPRE collection, celle de chaque participant, et n'est jamais
+       découvrable — voir `rightsOnChallenge`. */
+    let listFor: string | null = null;
+    if (nature !== "critere") {
+      const rights = UUID.test(listId || "")
+        ? await store.rightsOnList(db, listId!, person.id)
+        : null;
+      if (!rights?.write) return reply.code(404).send({ error: "Liste inconnue." });
+      listFor = rights.list_id;
+    }
 
     const id = await store.createChallenge(db, person.id, {
-      listId: rights.list_id,
+      listId: listFor,
       title: name,
       starts_on: starts_on!,
       ends_on: ends_on!,
+      target: goal,
+      kind: nature,
+      subject: matter,
+      mode: race,
     });
     return { id };
   });
@@ -1199,12 +1432,16 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
     /* The right to see a challenge is the right to see its list: there
        are not two confidentialities to keep in agreement. */
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
 
     return {
       challenge,
-      works: await store.worksOf(db, challenge.list_id),
+      /* Un défi par critère n'a pas d'œuvres à énumérer : la question
+         est le critère, et la réponse est dans la collection de chacun.
+         Demander `worksOf(null)` aurait rendu une liste vide sans dire
+         qu'elle l'était par nature. */
+      works: challenge.list_id ? await store.worksOf(db, challenge.list_id) : [],
       /* PROGRESS LEAVES THE LOG AS A NUMBER AND NOTHING ELSE. The
          screening log never leaves a collection; here it leaves nothing
          either — we count, we do not copy. And we count only people who
@@ -1218,10 +1455,70 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
     await store.deleteChallenge(db, challenge.id);
     return { erased: true };
+  });
+
+  /* ------------------------------------------------------------
+     ON DÉFIE QUELQU'UN, ON NE PUBLIE PLUS EN ESPÉRANT
+     ------------------------------------------------------------
+
+     Jusqu'ici, faire entrer une personne précise dans un défi demandait
+     de l'ajouter comme MEMBRE de la liste — donc de lui donner le droit
+     d'y écrire — ou de rendre la liste publique et d'attendre qu'un
+     abonné passe. « Défier quelqu'un » n'existait pas.
+
+     `challenge_participant` acceptait déjà n'importe qui : seul le geste
+     manquait, et ces deux routes sont calquées au mot près sur les
+     joueurs d'un quiz. Aucun changement de schéma.
+
+     ET AUCUN `challenge_joined` ICI, ce qui n'est pas un oubli.
+     L'auto-inscription paie l'auteur parce que quelqu'un a CHOISI de
+     venir ; payer pour les gens qu'on ajoute soi-même reviendrait à se
+     verser quatre points par tête, autant de fois qu'on a d'amis. */
+  app.put("/challenges/:id/participants/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id, pseudo } = req.params as { id: string; pseudo: string };
+    const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
+    if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+    /* `administer` et non `write` : c'est le droit que demande déjà la
+       suppression d'un défi. Un co-rédacteur de la liste peut y ajouter
+       des œuvres, pas y engager des gens. */
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
+    if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
+
+    const invite = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!invite) return reply.code(404).send({ error: "Personne." });
+    if (invite.id === person.id) return reply.code(400).send({ error: "C'est votre défi." });
+    /* Comme partout : on n'invite ni quelqu'un qu'on a fait taire, ni
+       quelqu'un qui nous a fait taire. Et on répond 404 — le même
+       silence que pour un défi qui n'existe pas. */
+    if (await store.blockedIds(db, person.id, invite.id)) {
+      return reply.code(404).send({ error: "Personne." });
+    }
+    await store.joinChallenge(db, challenge.id, invite.id);
+    return { pseudo: invite.pseudo, inside: true };
+  });
+
+  app.delete("/challenges/:id/participants/:pseudo", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id, pseudo } = req.params as { id: string; pseudo: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    const about = await store.findByPseudo(db, (pseudo || "").toLowerCase());
+    if (!about) return reply.code(404).send({ error: "Personne." });
+    /* L'auteur retire qui il veut ; n'importe qui d'autre ne retire que
+       soi-même. Partir ne demande la permission de personne — et cela
+       vaut aussi pour un défi où l'on nous a mis sans nous demander. */
+    if (about.id !== person.id) {
+      const challenge = await store.challengeById(db, id);
+      if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
+      const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
+      if (!rights?.administer) return reply.code(403).send({ error: "Ce défi n'est pas vôtre." });
+    }
+    await store.leaveChallenge(db, id, about.id);
+    return { pseudo: about.pseudo, inside: false };
   });
 
   app.put("/challenges/:id/participation", async (req, reply) => {
@@ -1229,7 +1526,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
     await store.joinChallenge(db, challenge.id, person.id);
     /* Somebody joining pays the person who started it — but only that
@@ -1472,11 +1769,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.post("/quizzes", async (req, reply) => {
     const person = await requireAccount(req);
-    const { title, categoryIds, level, size } = (req.body ?? {}) as {
+    const { title, categoryIds, level, size, secondsPerQuestion } = (req.body ?? {}) as {
       title?: string;
       categoryIds?: string[];
       level?: string;
       size?: number;
+      secondsPerQuestion?: number | null;
     };
     const name = (title || "").trim();
     if (!name || name.length > 120) {
@@ -1484,6 +1782,17 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     }
     if (level !== undefined && !DIFFICULTIES.includes(level)) {
       return reply.code(400).send({ error: "Niveau inconnu." });
+    }
+    /* ABSENT ET ZÉRO NE SONT PAS LA MÊME CHOSE. `null` et `undefined`
+       veulent dire « pas de chronomètre » ; un nombre hors des bornes du
+       schéma est refusé ici plutôt que de remonter comme une violation
+       de contrainte, parce qu'une erreur de Postgres ne se lit pas. */
+    const seconds =
+      secondsPerQuestion === undefined || secondsPerQuestion === null
+        ? null
+        : Number(secondsPerQuestion);
+    if (seconds !== null && (!Number.isInteger(seconds) || seconds < 5 || seconds > 600)) {
+      return reply.code(400).send({ error: "Le délai va de 5 à 600 secondes." });
     }
     if (!SIZES.includes(Number(size))) {
       return reply.code(400).send({ error: "Dix, vingt ou trente questions." });
@@ -1503,6 +1812,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       categoryIds: wanted,
       level: level ?? "normal",
       size: Number(size),
+      secondsPerQuestion: seconds,
     });
     /* A DRAW THAT CAME OUT EMPTY IS NOT A QUIZ. The bank held nothing
        dealable in those baskets — no live question with exactly one
@@ -1515,6 +1825,57 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
         .send({ error: "Ces catégories n'ont pas encore de question jouable." });
     }
     return { id: drawn.id, softened: drawn.softened, drawn: drawn.drawn };
+  });
+
+  /* ------------------------------------------------------------
+     LE QUIZZ DE LA SEMAINE
+     ------------------------------------------------------------
+
+     DECLAREE AVANT `/quizzes/:id`, ET CE N'EST PAS COSMETIQUE : sans
+     cela `weekly` entre dans la route parametree, `quizOr404` le teste
+     contre la forme d'un UUID et repond 404. L'ordre de declaration est
+     ce qui tranche, et il se lit mal — d'ou ce commentaire.
+
+     ELLE TIRE LE QUIZZ SI PERSONNE NE L'A ENCORE FAIT. Ce serveur n'a
+     pas de tache de fond : la lecture EST le declencheur, et l'index
+     unique de 008 fait que deux lectures simultanees n'en tirent qu'un.
+
+     `null` N'EST PAS UNE ERREUR. La banque n'a rien de jouable ; la
+     semaine reste ouverte et se tirera quand elle sera remplie.
+     L'ecran, lui, sait dire qu'il n'y a rien — c'est ce qu'il fait
+     partout ailleurs. */
+
+  app.get("/quizzes/weekly", async (req) => {
+    const person = await requireAccount(req);
+    const weekly = await store.weeklyQuiz(db);
+    if (!weekly) return { quiz: null };
+
+    const attempt = await store.myAttempt(db, weekly.id, person.id);
+    /* LA MEME LIGNE QUE PARTOUT : personne ne voit les corrections avant
+       que son propre essai soit clos. Un quizz public ne desserre rien
+       de ce cote — il elargit qui peut jouer, pas ce qu'on voit. */
+    const withAnswers = attempt?.finished_at != null;
+    return {
+      quiz: { ...(await store.quizById(db, weekly.id)), mine: false },
+      questions: await store.drawnQuestions(db, weekly.id, {
+        withAnswers,
+        forPerson: person.id,
+      }),
+      weight: await store.quizWeight(db, weekly.id),
+      attempt,
+      /* PERSONNE N'EST INVITE, DONC IL N'Y A PERSONNE A NOMMER. Le
+         tableau public tient lieu de liste de joueurs, et il vient de
+         la route d'a cote. */
+      players: [],
+      board: await store.scoresOf(db, weekly.id, person.id),
+    };
+  });
+
+  app.get("/quizzes/weekly/board", async (req) => {
+    const person = await requireAccount(req);
+    const weekly = await store.weeklyQuiz(db);
+    if (!weekly) return { scores: [] };
+    return { scores: await store.scoresOf(db, weekly.id, person.id) };
   });
 
   app.get("/quizzes/:id", async (req, reply) => {
@@ -1711,16 +2072,153 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.get("/shop", async (req) => {
     const person = await requireAccount(req);
-    const held = await store.holdingsOf(db, person.id);
-    /* The catalogue is the same for everybody; what changes is what one
-       already has. Sent together so the shop can be drawn in one pass. */
+    /* LE PRÉSENTOIR EST DEUX CATALOGUES COUSUS EN UN. Le code tient les
+       familles qui demandent du code pour être rendues ; la base tient
+       les pochettes, qu'on veut pouvoir ajouter un dimanche. Le client
+       ne voit qu'une liste — c'est ici que la couture se fait, pour
+       qu'elle ne se refasse pas dans chaque écran. */
+    const [held, packs, decors] = await Promise.all([
+      store.holdingsOf(db, person.id),
+      store.listPacks(db),
+      store.listDecors(db),
+    ]);
+    const items = [...SHOP, ...packs.map(packItem)];
     return {
-      items: SHOP.map((i) => ({
+      items: items.map((i) => ({
         ...i,
         owned: held.items.includes(i.id),
         held: i.power ? (held.powers[i.power] ?? 0) : undefined,
       })),
+      /* LE CATALOGUE DES OBJETS VOYAGE AVEC, et pas sur une seconde
+         requête : le présentoir dessine une pochette entrouverte sur ce
+         qu'elle contient, la collection a besoin du même dictionnaire
+         pour nommer ce qu'on possède, ET L'ÉTAGÈRE en a besoin pour
+         dessiner ce qu'on y pose. Trois écrans, une réponse. */
+      decors: decors
+        .filter((d) => !d.retired)
+        .map((d) => ({
+          id: d.id,
+          packId: d.packId,
+          rarity: d.rarity,
+          media: d.media,
+          label: d.label,
+          wall: d.wall,
+          tintable: d.tintable,
+        })),
     };
+  });
+
+  /* ------------------------------------------------------------
+     LE STUDIO DES POCHETTES — écriture réservée au rôle
+     ------------------------------------------------------------
+
+     MÊME RAISON QUE `/shop/sell` : le rôle ne s'obtient QUE par
+     l'environnement du déploiement, aucune route ne l'accorde. Quelqu'un
+     qui l'a tient déjà la base ; lui laisser écrire une ligne de
+     catalogue ne lui donne rien qu'il n'ait déjà.
+
+     L'IMAGE NE PASSE PAS PAR ICI. Elle est déposée dans le container
+     avec un ticket signé (`/media/ticket`, préfixe `bank/decor/…`), et
+     seule la CLÉ arrive dans ce corps de requête. Un serveur qui relaie
+     des octets est un serveur qu'on peut remplir. */
+
+  app.get("/shop/packs", async (req) => {
+    const person = await requireAdmin(req);
+    void person;
+    const packs = await store.listPacks(db, true);
+    const decors = await store.listDecors(db);
+    return { packs, decors };
+  });
+
+  const catalogueOr409 = async <T>(reply: FastifyReply, run: () => Promise<T>) => {
+    try {
+      return await run();
+    } catch (e) {
+      if (e instanceof store.CatalogueRefusal) return reply.code(409).send({ error: e.message });
+      throw e;
+    }
+  };
+
+  app.post("/shop/packs", async (req, reply) => {
+    await requireAdmin(req);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    if (
+      typeof b.id !== "string" ||
+      typeof b.labelFr !== "string" ||
+      typeof b.labelEn !== "string"
+    ) {
+      return reply.code(400).send({ error: "Il faut un identifiant et deux libellés." });
+    }
+    return catalogueOr409(reply, () =>
+      store.upsertPack(db, {
+        id: b.id as string,
+        price: Number(b.price),
+        labelFr: b.labelFr as string,
+        labelEn: b.labelEn as string,
+        cover: typeof b.cover === "string" ? b.cover : null,
+      })
+    );
+  });
+
+  app.delete("/shop/packs/:id", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    const { back, forever } = (req.query ?? {}) as { back?: string; forever?: string };
+    /* DEUX GESTES, ET LE SECOND EST IRRÉVERSIBLE. « Retirer » sort de
+       l'étal sans rien reprendre à personne, et « remettre » est la même
+       route avec `?back=1`. `?forever=1` efface la pochette, ses
+       vignettes (la cascade) et les possessions qui allaient avec — voir
+       `deletePackDef`, qui dit ce que cela coûte. */
+    if (forever === "1") {
+      if (!(await store.deletePackDef(db, id))) {
+        return reply.code(404).send({ error: "Cette pochette n'existe pas." });
+      }
+      return { id, deleted: true };
+    }
+    if (!(await store.retirePack(db, id, back !== "1"))) {
+      return reply.code(404).send({ error: "Cette pochette n'existe pas." });
+    }
+    return { id, retired: back !== "1" };
+  });
+
+  app.post("/shop/decors", async (req, reply) => {
+    await requireAdmin(req);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    for (const k of ["id", "packId", "rarity", "media", "labelFr", "labelEn"]) {
+      if (typeof b[k] !== "string") return reply.code(400).send({ error: `Il manque « ${k} ».` });
+    }
+    return catalogueOr409(reply, () =>
+      store.upsertDecor(db, {
+        id: b.id as string,
+        packId: b.packId as string,
+        rarity: b.rarity as string,
+        media: b.media as string,
+        labelFr: b.labelFr as string,
+        labelEn: b.labelEn as string,
+        wall: b.wall === true,
+        tintable: b.tintable !== false,
+      })
+    );
+  });
+
+  app.delete("/shop/decors/:id", async (req, reply) => {
+    await requireAdmin(req);
+    const { id } = req.params as { id: string };
+    const { back, forever } = (req.query ?? {}) as { back?: string; forever?: string };
+    if (forever === "1") {
+      /* Le nombre de possesseurs part avec la réponse : c'est ce que le
+         studio vient d'effacer chez les autres, et le seul endroit qui
+         puisse encore le dire. */
+      const owners = await store.ownersOfDecor(db, id);
+      if (!(await store.deleteDecorDef(db, id))) {
+        return reply.code(404).send({ error: "Cet objet n'existe pas." });
+      }
+      return { id, deleted: true, owners };
+    }
+    if (!(await store.retireDecor(db, id, back !== "1"))) {
+      return reply.code(404).send({ error: "Cet objet n'existe pas." });
+    }
+    return { id, retired: back !== "1" };
   });
 
   app.get("/shop/mine", async (req) => {
@@ -1771,8 +2269,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
 
   app.patch("/shop/worn", async (req, reply) => {
     const person = await requireAccount(req);
-    const body = (req.body ?? {}) as { stamp?: string | null; skin?: string | null };
-    for (const what of ["stamp", "skin"] as const) {
+    const body = (req.body ?? {}) as Partial<Record<Wearable, string | null>>;
+    /* LA LISTE VIENT DU CATALOGUE, et non de cette ligne. Elle disait
+       « stamp, skin » et il a fallu deux familles de plus pour s'en
+       apercevoir : une route qui répète une liste est une route qui
+       oubliera de la mettre à jour. */
+    for (const what of WEARABLE) {
       if (!(what in body)) continue;
       const value = body[what] ?? null;
       /* A single statement decides: a row that comes back is the
@@ -1836,6 +2338,25 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return pushed;
   });
 
+  /* LE SECOND SOUFFLE — le premier pouvoir qui ne soit pas du quiz.
+     Même forme que la prolongation, refus compris : on prend le pouvoir,
+     on essaie, on le rend si la base refuse. Ce qu'il fait de plus est
+     documenté sur `store.secondWind`. */
+  app.post("/challenges/:id/second-wind", async (req, reply) => {
+    const person = await requireAccount(req);
+    const { id } = req.params as { id: string };
+    if (!UUID.test(id || "")) return reply.code(404).send({ error: "Défi inconnu." });
+    if (!(await store.spendPower(db, person.id, "second-wind"))) {
+      return reply.code(402).send({ error: "Il vous faut ce pouvoir." });
+    }
+    const again = await store.secondWind(db, id, person.id);
+    if (!again) {
+      await store.givePower(db, person.id, "second-wind");
+      return reply.code(409).send({ error: "Ce défi ne peut plus être relancé." });
+    }
+    return again;
+  });
+
   /**
    * Close a finished challenge's accounts.
    *
@@ -1849,7 +2370,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     const { id } = req.params as { id: string };
     const challenge = UUID.test(id || "") ? await store.challengeById(db, id) : null;
     if (!challenge) return reply.code(404).send({ error: "Défi inconnu." });
-    const rights = await store.rightsOnList(db, challenge.list_id, person.id);
+    const rights = await store.rightsOnChallenge(db, challenge.id, person.id);
     if (!rights?.read) return reply.code(404).send({ error: "Défi inconnu." });
     return { awarded: await store.settleChallenge(db, challenge.id) };
   });
@@ -1913,13 +2434,27 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
        up in one request; one of them being wrong is worth one missing
        ticket, not fifty. The client sends again what it did not get. */
     const tickets: { path: string; url: string }[] = [];
+    /* CE QUI EST PLEIN N'EST PAS UNE ERREUR DE LOT. Un chemin refusé
+       vaut un ticket manquant, pas cinquante — même règle que ci-dessus
+       pour un chemin mal formé. Le client redemande ce qu'il n'a pas
+       reçu, et voit dans `full` qu'il n'y a plus la place. */
+    let full = false;
     for (const p of paths) {
       if (typeof p !== "string") continue;
       if (!(await allowed(db, person.id, p, mode))) continue;
+      /* LE REGISTRE NE NOTE QUE L'ÉCRITURE, et que le PRIVÉ. Lire ne
+         prend pas de place, et un décor est déjà compté par sa propre
+         ligne — le noter ici le compterait deux fois. */
+      if (mode === "write" && p.startsWith("p/")) {
+        if (!(await store.noteMedia(db, person.id, p))) {
+          full = true;
+          continue;
+        }
+      }
       const url = ticketFor(p, mode);
       if (url) tickets.push({ path: p, url });
     }
-    return { tickets };
+    return full ? { tickets, full: true } : { tickets };
   });
 
   app.get("/media/ticket", ticketCeiling, async (req, reply) => {
@@ -1948,6 +2483,12 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     }
     const url = ticketFor(path, "write");
     if (!url) return reply.code(503).send(noContainer);
+    /* LA LIGNE PART AVEC LE BLOB. On la retire ici plutôt qu'après le
+       DELETE effectif : le navigateur peut ne jamais s'en servir, et
+       une ligne de trop refuse un dépôt alors que la place est libre —
+       tandis qu'une ligne manquante ne coûte qu'un rang de plafond. On
+       penche du côté qui ne bloque personne. */
+    await store.forgetMedia(db, person.id, path);
     return { path, url };
   });
 
@@ -1976,29 +2517,31 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return { decor: await store.publicDecorOf(db, pseudo.toLowerCase(), me?.id) };
   });
 
-  app.post("/decor", async (req, reply) => {
-    const person = await requireAccount(req);
-    const { label, wall, kind, tintable, bytes } = (req.body ?? {}) as Record<string, unknown>;
-    const name = typeof label === "string" ? label.trim() : "";
-    if (name.length < 1 || name.length > 60) {
-      return reply.code(400).send({ error: "Un nom de 1 à 60 caractères." });
-    }
-    if (kind !== undefined && kind !== "raster" && kind !== "svg") {
-      return reply.code(400).send({ error: "Une image ou un dessin, rien d'autre." });
-    }
-    const decor = await store.createDecor(db, {
-      ownerId: person.id,
-      label: name,
-      wall: typeof wall === "string" ? wall.slice(0, 40) : "",
-      kind: (kind as "raster" | "svg") ?? "raster",
-      tintable: tintable === true,
-      bytes: Number(bytes) || 0,
-    });
-    /* The blob has NOT been put down yet: the client now asks for a
-       write ticket on `decor/<id>` and uploads. Making the row first is
-       what gives the object the identity two people can name. */
-    return reply.code(201).send({ decor, path: `decor/${decor.id}` });
-  });
+  /* ------------------------------------------------------------
+     LE DÉPÔT D'UN OBJET N'EXISTE PLUS
+     ------------------------------------------------------------
+
+     `POST /decor` créait la ligne, puis le classeur demandait un ticket
+     d'écriture sur `decor/<id>` et envoyait l'image. C'était la SEULE
+     porte par laquelle un bibelot entrait, et elle est fermée : les
+     objets neufs sortent d'une pochette, tirés par le serveur.
+
+     TOUT LE RESTE DE `/decor` TIENT, ET C'EST VOULU. On lit toujours les
+     siens, on les partage, on en prend copie chez les autres, on les
+     efface. Ce qui a été déposé avant reste déposé — fermer la porte
+     d'entrée n'est pas vider la pièce, et personne ne perd ce qu'il a
+     mis sur son étagère.
+
+     `createDecor` reste dans `store.ts` : la synchronisation d'un
+     appareil qui n'a pas encore vu ce changement passe par elle, et le
+     jour où ces lignes-là auront toutes migré, c'est ce jour-là qu'on
+     retirera la fonction. Une fonction sans appelant se voit ; une
+     synchronisation qui échoue en silence, non.
+
+     LE TICKET D'ÉCRITURE, LUI, EST TOUJOURS SIGNÉ pour un décor qu'on
+     possède : `media.ts` le garde, parce que remplacer l'image d'un
+     objet qu'on a déjà n'est pas en déposer un neuf, et parce que la
+     synchronisation d'un second appareil en dépend. */
 
   app.put("/decor/:id", async (req, reply) => {
     const person = await requireAccount(req);
@@ -2053,6 +2596,52 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
   /* ------------------------------------------------------------
      WHAT IS YOURS, AND THE RIGHT TO LEAVE
      ------------------------------------------------------------ */
+
+  /* CE QU'ON OCCUPE, ET CE QU'ON A LE DROIT D'OCCUPER.
+     Un plafond invisible est un plafond qu'on découvre en le heurtant,
+     au pire moment — celui où l'on vient de déposer quelque chose. */
+  /* ------------------------------------------------------------
+     LES IMPORTS — demander avant, consommer après
+     ------------------------------------------------------------
+
+     Deux routes et non une, et l'écart entre elles est tout l'objet.
+
+     LE COÛT EST DANS L'ENRICHISSEMENT, PAS DANS L'ÉCRITURE. Six cents
+     films importés, ce sont six cents interrogations du relais TMDB, et
+     elles partent AVANT qu'on valide quoi que ce soit. Refuser
+     seulement à la validation ferait travailler quelqu'un — et notre
+     relais — pour lui dire non à la fin.
+
+     ON DEMANDE DONC AVANT (`GET`), pour le dire tout de suite, et on
+     CONSOMME APRÈS (`POST`), pour ne pas compter un bordereau que
+     quelqu'un a ouvert puis refermé. Un import abandonné ne coûte que
+     du relais, qui a son propre plafond par minute. */
+  app.get("/imports", async (req) => {
+    const person = await requireAccount(req);
+    const bornes = ceilingsFor(person);
+    const used = await store.importsInWindow(db, person.id);
+    return { used, ceiling: bornes.imports, allowed: used < bornes.imports };
+  });
+
+  app.post("/imports", async (req, reply) => {
+    const person = await requireAccount(req);
+    const ok = await store.noteImport(db, person.id);
+    const bornes = ceilingsFor(person);
+    const used = await store.importsInWindow(db, person.id);
+    if (!ok) {
+      return reply.code(409).send({
+        error: "Vous avez atteint votre nombre d'imports pour ce mois-ci.",
+        used,
+        ceiling: bornes.imports,
+      });
+    }
+    return { used, ceiling: bornes.imports, allowed: true };
+  });
+
+  app.get("/my-usage", async (req) => {
+    const person = await requireAccount(req);
+    return store.usageOf(db, person.id);
+  });
 
   app.get("/my-data", async (req) => {
     const person = await requireAccount(req);
@@ -2192,7 +2781,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
            l'ouverture d'une pochette comme le refus du doublon. Le
            journal des gains, lui, reste : c'est la mémoire de ce qui a
            payé, et l'effacer masquerait un double crédit. */
-        for (const table of ["owned", "sticker", "power", "token_spend"]) {
+        for (const table of ["owned", "decor_won", "power", "token_spend"]) {
           await db.query(`DELETE FROM ${table} WHERE person_id = $1`, [person.id]);
         }
         await db.query("UPDATE person SET stamp = NULL, skin = NULL WHERE id = $1", [person.id]);
@@ -2219,6 +2808,7 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     tmdbKey: settings.tmdbKey,
     requireAccount,
     tmdbCeiling: settings.tmdbCeiling,
+    hintsCeiling: settings.hintsCeiling,
   });
 
   /* ------------------------------------------------------------

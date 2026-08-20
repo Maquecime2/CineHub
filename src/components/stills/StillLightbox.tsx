@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Layer } from "../ui/Layer";
+import { useDialog } from "../../hooks/useDialog";
 import { X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { IdbImage } from "./IdbImage";
-import type { Still } from "../../types";
+import { ShotImage, type Shot } from "./shots";
 
 const ARROW_COL = {
   all: "unset",
@@ -21,29 +21,49 @@ const ARROW_COL = {
   fontFamily: F.title,
 } as const;
 
-/* The full-screen viewer, with keyboard navigation. */
+/* The full-screen viewer, with keyboard navigation.
+
+   LA SEULE DU PRODUIT, DÉSORMAIS. Elle regardait vos captures ; les
+   plans de TMDB en avaient une seconde, qui redessinait le même voile,
+   les mêmes flèches et le même compteur — deux visionneuses à corriger
+   au lieu d'une. Ce qui les séparait n'était pas l'affichage mais la
+   PROVENANCE de l'image, et `Shot` la porte. */
 export function StillLightbox({
-  stills,
+  shots,
   index,
+  title,
   onClose,
   onIndex,
 }: {
-  stills: Still[];
+  shots: Shot[];
   index: number;
+  /** De quoi ces images sont les images. Sert à NOMMER la couche. */
+  title?: string;
   onClose: () => void;
   onIndex: (i: number) => void;
 }) {
   const { t } = useTranslation();
-  const still = stills[index];
+  const shot = shots[index];
+  /* `useDialog` PIÈGE LE FOCUS ET LE REND, ce que cette visionneuse ne
+     faisait pas : on l'ouvrait au clavier et le curseur restait derrière
+     le voile. Il prend aussi Escape en charge — d'où l'effet ci-dessous
+     réduit aux seules flèches. La planche des plans l'avait ; c'est le
+     genre de qualité qu'une fusion perd si personne ne compare. */
+  const box = useDialog(onClose);
+
+  /* ON NE BOUCLE PAS, ET C'EST UNE DÉCISION : on doit sentir qu'on est
+     au bout. Les captures bouclaient, les plans butaient ; la règle qui
+     porte une raison écrite l'emporte sur celle qui n'en portait pas. */
+  const step = (to: number) => onIndex(Math.max(0, Math.min(shots.length - 1, to)));
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") onIndex((index + 1) % stills.length);
-      if (e.key === "ArrowLeft") onIndex((index - 1 + stills.length) % stills.length);
+      if (e.key === "ArrowRight") step(index + 1);
+      if (e.key === "ArrowLeft") step(index - 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, stills.length, onClose, onIndex]);
+  });
 
   /* THE PAGE BEHIND DOES NOT SCROLL.
 
@@ -63,13 +83,26 @@ export function StillLightbox({
       root.style.overflowY = before;
     };
   }, []);
-  if (!still) return null;
+  if (!shot) return null;
 
   return (
     <Layer>
-      /* Closing only fires on the backdrop itself (`e.target` = the veil), never on what it
-      contains: aiming beside the image no longer closes the viewer by accident. */
+      {/* CE COMMENTAIRE S'AFFICHAIT. Écrit sans accolades, il n'était pas
+          un commentaire mais du TEXTE JSX : la visionneuse posait ses
+          trente mots de code anglais au-dessus de l'image, à côté de la
+          légende, sur chaque agrandissement. Rien ne pouvait le dire —
+          ni le typage, ni le lint, ni un test qui ne lit pas ce que la
+          couche écrit.
+
+          Ce qu'il dit reste vrai : la fermeture ne part que du VOILE
+          lui-même (`e.target` === `e.currentTarget`) et jamais de ce
+          qu'il contient, pour qu'un clic à côté de l'image ne referme
+          pas la visionneuse par accident. */}
       <div
+        ref={box}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title ? t("frames.plate", { title }) : t("stills.theFilmStrip")}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
@@ -107,9 +140,9 @@ export function StillLightbox({
         </button>
 
         {/* full-height navigation columns: a wide target, not a chevron */}
-        {stills.length > 1 && (
+        {shots.length > 1 && (
           <button
-            onClick={() => onIndex((index - 1 + stills.length) % stills.length)}
+            onClick={() => step(index - 1)}
             title={t("stills.previous")}
             style={ARROW_COL}
             onMouseEnter={(e) => {
@@ -145,8 +178,9 @@ export function StillLightbox({
               maxWidth: "100%",
             }}
           >
-            <IdbImage
-              imageKey={still.key}
+            <ShotImage
+              shot={shot}
+              big
               style={{
                 display: "block",
                 maxWidth: "100%",
@@ -164,7 +198,7 @@ export function StillLightbox({
               textAlign: "center",
             }}
           >
-            {still.caption || `capture ${index + 1}`}
+            {shot.caption || t("stills.shotNumber", { n: index + 1 })}
             <span
               style={{
                 fontFamily: F.mono,
@@ -173,7 +207,7 @@ export function StillLightbox({
                 marginLeft: 10,
               }}
             >
-              {index + 1} / {stills.length}
+              {t("frames.count", { place: index + 1, total: shots.length })}
             </span>
           </div>
           <div
@@ -185,14 +219,14 @@ export function StillLightbox({
               letterSpacing: 1,
             }}
           >
-            ÉCHAP POUR FERMER
+            {t("stills.escToClose")}
           </div>
         </div>
 
-        {stills.length > 1 && (
+        {shots.length > 1 && (
           <button
-            onClick={() => onIndex((index + 1) % stills.length)}
-            title="suivante (→)"
+            onClick={() => step(index + 1)}
+            title={t("stills.next")}
             style={ARROW_COL}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "rgba(255,255,255,0.06)";

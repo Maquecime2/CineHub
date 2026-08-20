@@ -38,14 +38,31 @@ const REGISTER_KEY = "documents-maj";
 const PENDING_KEY = "documents-a-envoyer";
 /* Quelle version de la liste ci-dessous ce navigateur a déjà rattrapée. */
 const SYNCABLE_VERSION_KEY = "documents-liste-version";
+/* Le premier tirage de ce compte a-t-il eu lieu sur CE navigateur ? */
+const SETTLED_KEY = "documents-premier-tirage";
 
 /* WHAT SYNCHRONISES, AND WHAT MUST ABSOLUTELY NOT.
 
    Everything that describes the COLLECTION travels. Everything that
-   describes THIS device stays: the chosen skin (we do not impose the
-   mood of the moment on our other screen), the guided tour's state, the
-   invitation to install, and the synchronisation markers themselves —
-   sending those would amount to synchronising on our own cursor. */
+   describes THIS device stays: the guided tour's state, the invitation
+   to install, the TMDB key, and the synchronisation markers themselves —
+   sending those would amount to synchronising on our own cursor.
+
+   LA PEAU ET LA MAIN ONT CHANGÉ DE CAMP, ET C'EST DÉLIBÉRÉ. Ce
+   paragraphe a longtemps donné la peau en exemple de ce qui reste ici,
+   avec cet argument : « on n'impose pas l'humeur du moment à notre autre
+   écran ». La règle est renversée. Ce qu'on choisit dans ce panneau
+   n'est pas une humeur d'un soir, c'est l'aspect de son classeur — le
+   retrouver autre en changeant d'ordinateur se lit comme un réglage
+   perdu, pas comme une attention. Les deux partent ENSEMBLE parce
+   qu'elles vivent dans le même panneau : en faire voyager une et pas
+   l'autre se lirait comme une panne.
+
+   Rien n'est à déployer pour autant : la table `doc` est générique
+   (`person_id` + `key` en texte libre), donc deux clés de plus ne
+   demandent pas une ligne de SQL. Ce qui se paie est ici — voir
+   `SYNCABLE_VERSION`, sans quoi les classeurs déjà connectés ne les
+   enverraient JAMAIS. */
 /* THREE OF THESE NAMED NOTHING, AND NOTHING SAID SO.
 
    A key that is not on this list simply does not travel — silently, and
@@ -73,6 +90,13 @@ const SYNCABLE_KEYS = [
   "wall-prefs",
   "shelf-decor-custom",
   "shelf-decor-hidden",
+  "filiations",
+  "parcours",
+  "letterboxd",
+  /* L'aspect du classeur : voir le paragraphe ci-dessus, et
+     `theme/applySkin` pour la conversion de l'ancienne forme. */
+  "site-skin",
+  "site-hand",
 ];
 
 /**
@@ -97,7 +121,7 @@ const SYNCABLE_KEYS = [
  * c'est-à-dire en perdant contre tout ce que le serveur tient déjà :
  * rattraper ne doit écraser personne.
  */
-export const SYNCABLE_VERSION = 2;
+export const SYNCABLE_VERSION = 5;
 
 export const isSyncable = (key: string): boolean =>
   SYNCABLE_KEYS.includes(key) || SYNCABLE_PREFIXES.some((p) => key.startsWith(p));
@@ -105,7 +129,59 @@ export const isSyncable = (key: string): boolean =>
 type Register = Record<string, number>;
 
 const register = (): Register => store.get<Register>(REGISTER_KEY, {});
+
+/* Ce qu'on vient de classer, et la date sous laquelle on l'a classé. En
+   mémoire et non sur le disque : cela ne sert qu'à reconnaître la note
+   différée d'une écriture faite il y a trois lignes. Voir
+   `noteDocument`. */
+const filed = new Map<string, number>();
 const pending = (): string[] => store.get<string[]>(PENDING_KEY, []);
+
+/**
+ * L'AUBE DES TEMPS — la date de ce qu'on n'a pas vraiment daté.
+ *
+ * Le serveur refuse `updatedAt: 0`, donc il fallait bien écrire QUELQUE
+ * CHOSE ; `Date.now()` semblait sans conséquence et ne l'est pas, c'est
+ * la date la plus récente qui soit. Voir `sendAllDocuments` et
+ * `noteDocument`.
+ */
+const DAWN = 1;
+
+/* FAUX PAR DÉFAUT, ET C'EST TOUT LE CORRECTIF.
+
+   La première version de cette garde était vraie par défaut et comptait
+   sur `expectFirstPull` pour l'ouvrir. Elle ne s'ouvrait JAMAIS à temps :
+   la synchro ne démarre qu'une fois le classeur chargé (`useSync(loaded,
+   …)`), et c'est l'effet de chargement lui-même qui fabrique et écrit
+   l'agencement par défaut. La garde arrivait après le geste qu'elle
+   devait garder — donc après la perte.
+
+   Elle ne dépend plus de rien d'autre qu'elle-même. Ce qui la rend sans
+   danger pour les navigateurs déjà branchés est la seconde condition,
+   dans `noteDocument` : on ne rabat à l'aube que ce qui n'a AUCUNE date
+   ici, c'est-à-dire ce que ce navigateur vient d'inventer. Un document
+   qu'il connaît déjà garde sa date pleine. */
+const settled = (): boolean => store.get<boolean>(SETTLED_KEY, false);
+
+/**
+ * Ce navigateur a-t-il déjà vu descendre les documents de ce compte ?
+ *
+ * Lu par `ensureViews` : tant que la réponse est non, un agencement
+ * fabriqué faute d'en trouver un est un PIS-ALLER d'affichage, et
+ * l'écrire reviendrait à inventer des vues que le serveur n'a pas et
+ * qu'il faudrait ensuite retrouver dans les orphelines.
+ */
+export const documentsSettled = (): boolean => settled();
+
+/** Un compte neuf sur ce navigateur : rien n'est encore descendu. */
+export const expectFirstPull = (): void => {
+  store.set(SETTLED_KEY, false);
+};
+
+/** Le tirage a atterri : ce qu'on écrit désormais est un vrai geste. */
+export const noteFirstPull = (): void => {
+  if (!settled()) store.set(SETTLED_KEY, true);
+};
 
 /**
  * This document has just changed HERE.
@@ -116,6 +192,61 @@ const pending = (): string[] => store.get<string[]>(PENDING_KEY, []);
  */
 export function noteDocument(key: string, now = Date.now()): void {
   if (!isSyncable(key)) return;
+  /* L'ÉCHO DE NOTRE PROPRE CLASSEMENT N'EST PAS UN GESTE.
+
+     `fileIncomingDocument` écrit par le magasin, et le magasin date ce
+     qu'on écrit — c'est tout son intérêt, six services écrivent des
+     documents et aucun ne pense à les dater. Mais la datation passe par
+     un import dynamique, donc elle ATTERRIT APRÈS : le classement avait
+     beau poser la date reçue puis retirer la clé de la file, la note
+     arrivait ensuite et défaisait les deux. Chaque document reçu
+     repartait donc au serveur, redaté de maintenant — c'est-à-dire plus
+     récent que ce qu'on venait d'en recevoir.
+
+     ENTRE DEUX SESSIONS OUVERTES, CELA NE S'ARRÊTE JAMAIS. L'une reçoit,
+     redate, renvoie ; l'autre reçoit à son tour, redate, renvoie. Deux
+     navigateurs sur la même adresse épuisaient les cent requêtes par
+     minute du serveur en se renvoyant les mêmes documents, et la
+     synchronisation répondait « too many requests » sans que personne
+     ait touché à quoi que ce soit.
+
+     On reconnaît l'écho à ceci : la clé vient d'être classée, et sa date
+     au registre est encore EXACTEMENT celle qu'on a classée. Un vrai
+     geste, lui, arrive après que la marque a été consommée. */
+  const echo = filed.get(key);
+  if (echo != null && echo === register()[key]) {
+    filed.delete(key);
+    return;
+  }
+  /* TANT QUE LE PREMIER TIRAGE N'A PAS EU LIEU, ON DATE À L'AUBE.
+
+     Un navigateur neuf n'attend pas la synchro pour vivre : il charge,
+     ne trouve aucun agencement, en FABRIQUE un par défaut
+     (`ensureViews`) et l'écrit — daté de MAINTENANT, c'est-à-dire de la
+     date la plus récente qui soit. Le tirage arrive une seconde plus
+     tard avec le vrai agencement, daté d'hier : `fileIncomingDocument`
+     le refuse, puisqu'il est plus vieux. La poussée qui suit écrase
+     alors le serveur avec l'étagère vide, et l'agencement est perdu POUR
+     TOUS LES APPAREILS.
+
+     C'est exactement le défaut que `DAWN` répare pour les documents
+     DÉJÀ là au premier branchement. Rien ne protégeait ceux que
+     l'application se fabrique elle-même avant que le tirage ait
+     atterri, et ce sont les plus nombreux : l'agencement des étagères,
+     les préférences de mur, le vocabulaire.
+
+     On ne perd rien à dater à l'aube : le document part quand même — un
+     compte vide n'a rien à lui opposer — et il perd contre tout ce que
+     le serveur tient déjà. C'est la seule lecture de « je viens
+     d'inventer ça faute de mieux » qui ne détruise le travail de
+     personne.
+
+     ET SEULEMENT CE QUI N'A PAS DE DATE ICI. Un document que ce
+     navigateur connaît déjà a une vraie date, et la lui rabattre à
+     l'aube laisserait une copie plus VIEILLE du serveur le remplacer au
+     tour suivant. La garde ne vise que ce qui vient d'être inventé de
+     rien. */
+  if (!settled() && !register()[key]) now = DAWN;
   store.set(REGISTER_KEY, { ...register(), [key]: now });
   const list = pending();
   if (!list.includes(key)) store.set(PENDING_KEY, [...list, key]);
@@ -124,7 +255,20 @@ export function noteDocument(key: string, now = Date.now()): void {
 /** A document's date, or zero if it has never been noted. */
 export const dateOf = (key: string): number => register()[key] ?? 0;
 
-/** What is left to send, ready for the road. */
+/**
+ * What is left to send, ready for the road.
+ *
+ * IL LISAIT `localStorage.getItem` EN DIRECT, et c'est ce qui rendait ce
+ * module inconciliable avec le coffre. Une clé descendue dans IndexedDB
+ * y aurait rendu `null` — que la ligne ci-dessous interprète comme une
+ * SUPPRESSION. Le carnet ne serait pas resté sur place : il aurait été
+ * effacé sur l'autre appareil, par une pierre tombale que personne
+ * n'avait demandée.
+ *
+ * `store.has` et `store.get` regardent aux deux endroits. Ce module n'a
+ * plus à savoir où dort un document — c'est le magasin qui le sait, et
+ * lui seul.
+ */
 export function documentsToSend(): {
   key: string;
   updatedAt: number;
@@ -132,25 +276,17 @@ export function documentsToSend(): {
   deleted?: boolean;
 }[] {
   return pending().map((key) => {
-    const raw = localStorage.getItem(key);
+    const there = store.has(key);
     return {
       key: key,
       updatedAt: dateOf(key) || Date.now(),
       /* A document deleted here goes out like the cards: as a tombstone.
          Otherwise the other device would push it back. */
-      deleted: raw === null,
-      content: raw === null ? null : safeParse(raw),
+      deleted: !there,
+      content: there ? store.get<unknown>(key, null) : null,
     };
   });
 }
-
-const safeParse = (raw: string): unknown => {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
 
 export function forgetSentDocuments(keys: string[]): void {
   const rest = pending().filter((c) => !keys.includes(c));
@@ -173,7 +309,10 @@ export function fileIncomingDocument(d: {
   if (!isSyncable(d.key)) return false;
   if (d.updatedAt <= dateOf(d.key)) return false;
 
-  if (d.deleted) localStorage.removeItem(d.key);
+  /* `store.remove` et non `localStorage.removeItem` : une clé coffrée
+     doit disparaître des DEUX endroits, sinon elle revient au prochain
+     chargement. */
+  if (d.deleted) store.remove(d.key);
   else store.set(d.key, d.content);
 
   /* We noted the date RECEIVED, and we do not put the key back on the
@@ -181,6 +320,8 @@ export function fileIncomingDocument(d: {
      to go back there. */
   store.set(REGISTER_KEY, { ...register(), [d.key]: d.updatedAt });
   forgetSentDocuments([d.key]);
+  /* APRÈS le registre, jamais avant : c'est sa valeur qu'on marque. */
+  filed.set(d.key, d.updatedAt);
   return true;
 }
 
@@ -208,15 +349,12 @@ export function fileIncomingDocument(d: {
  * holds, which is the only reading of "I have never dated this" that does
  * not destroy somebody's work.
  */
-const DAWN = 1;
-
 export function sendAllDocuments(): void {
   const reg = register();
-  const keys: string[] = [];
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i);
-    if (key && isSyncable(key)) keys.push(key);
-  }
+  /* `store.keys()` et non un parcours de `localStorage` par index : un
+     document au coffre y serait resté invisible, donc jamais rattrapé
+     et jamais envoyé. */
+  const keys = store.keys().filter(isSyncable);
   const next = { ...reg };
   for (const c of keys) if (!next[c]) next[c] = DAWN;
   store.set(REGISTER_KEY, next);
@@ -245,11 +383,7 @@ export function catchUpDocuments(): boolean {
      n'a jamais été notée, donc jamais envoyée. C'est exactement la trace
      que laisse une liste qui s'est élargie après coup. */
   const reg = register();
-  const orphans: string[] = [];
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i);
-    if (key && isSyncable(key) && !reg[key]) orphans.push(key);
-  }
+  const orphans = store.keys().filter((key) => isSyncable(key) && !reg[key]);
   if (orphans.length === 0) return false;
 
   const dated = { ...reg };

@@ -257,3 +257,57 @@ describe("the feed", () => {
     expect((await app.inject({ method: "GET", url: "/feed" })).statusCode).toBe(401);
   });
 });
+
+/* ============================================================
+   LES DEUX SENS DU MÊME LIEN
+
+   `subscriptionsOf` N'APPLIQUAIT PAS `NOT_BLOCKED`, là où tous ses
+   frères le font. Suivre est antérieur au blocage — rien n'efface la
+   ligne de `follow` quand quelqu'un vous bloque ensuite — donc « qui je
+   suis » pouvait NOMMER une personne qui vous a bloqué, et le
+   pseudonyme est exactement ce qu'un blocage retire de la vue. Rien
+   n'échouait, ce qui est pourquoi le trou a duré.
+
+   `followersOf` est le miroir, et sa garde est écrite dans le MÊME
+   commit : les séparer aurait laissé « lequel des deux le fait ? » à
+   quelqu'un dans six mois.
+   ============================================================ */
+describe("who I follow, and who follows me", () => {
+  const follows = (cookie: string) =>
+    app.inject({ method: "GET", url: "/follows", headers: { cookie } });
+  const followers = (cookie: string) =>
+    app.inject({ method: "GET", url: "/followers", headers: { cookie } });
+
+  it("names the same pair from both ends", async () => {
+    const me = await count("copine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
+
+    const named = (rows: { pseudo: string }[]) => rows.map((s) => s.pseudo);
+    expect(named((await follows(me.cookie)).json().subscriptions)).toEqual(["varda"]);
+    expect(named((await followers(her.cookie)).json().followers)).toEqual(["copine"]);
+    /* Et pas l'inverse : le lien est orienté. */
+    expect((await followers(me.cookie)).json().followers).toEqual([]);
+    expect((await follows(her.cookie)).json().subscriptions).toEqual([]);
+  });
+
+  it("stops naming somebody who blocked me — in BOTH directions", async () => {
+    const me = await count("copine");
+    const her = await count("varda");
+    await openUp(her.cookie);
+    await app.inject({ method: "PUT", url: "/follows/varda", headers: { cookie: me.cookie } });
+    expect((await follows(me.cookie)).json().subscriptions).toHaveLength(1);
+    expect((await followers(her.cookie)).json().followers).toHaveLength(1);
+
+    /* ELLE bloque. La ligne de `follow` reste — rien ne l'efface — donc
+       c'est bien la LECTURE qui doit se taire, des deux côtés. */
+    await store.block(db, her.person.id, me.person.id);
+    expect((await follows(me.cookie)).json().subscriptions).toEqual([]);
+    expect((await followers(her.cookie)).json().followers).toEqual([]);
+  });
+
+  it("wants an account", async () => {
+    expect((await app.inject({ method: "GET", url: "/followers" })).statusCode).toBe(401);
+  });
+});

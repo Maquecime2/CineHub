@@ -124,7 +124,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
     >
       {/* the official posters first: that is the common case */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <Label>Affiches TMDB</Label>
+        <Label>{t("poster.tmdbPosters")}</Label>
         <button
           onClick={loadGallery}
           style={{
@@ -167,7 +167,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
             <button
               key={p.full}
               onClick={() => choose(p.full)}
-              title={`langue : ${p.lang}`}
+              title={t("poster.inLanguage", { lang: p.lang })}
               style={{
                 all: "unset",
                 ...tap,
@@ -187,7 +187,7 @@ export function PosterPicker({ film, onUpdate }: { film: Film; onUpdate: (f: Fil
       )}
 
       <div style={{ height: 1, background: C.line, margin: "14px 0 10px" }} />
-      <Label>Ou une adresse d'image</Label>
+      <Label>{t("poster.orAnImageUrl")}</Label>
       <input
         style={underlineInput}
         value={url}

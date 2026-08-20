@@ -119,6 +119,19 @@ export interface Film {
   /** TMDB's public rating out of 10 — enough to measure one's own gap. */
   tmdbRating: number | null;
   /**
+   * What the film is about, in TMDB's words. Empty means "we have never
+   * asked", and it is the only honest default: a card typed by hand has
+   * no summary and inventing one is not this application's business.
+   *
+   * IT IS NOT `review` AND NEVER WILL BE. `review` is what YOU wrote
+   * about the film, and it is the point of the whole binder; this is
+   * what the film is, which one needs BEFORE having seen it — a
+   * viewing plan is made of films one cannot yet have an opinion on.
+   * Filing them together would make the second overwrite the first the
+   * first time a card was completed.
+   */
+  synopsis: string;
+  /**
    * TMDB's keywords ("time loop", "neo-noir"), twenty at most. They are
    * the ONLY thematic information that arrives on its own: `themes` and
    * `motifs` are set by hand, and on an imported collection they stay
@@ -134,6 +147,24 @@ export interface Film {
    * warns about.
    */
   keywords?: string[];
+  /**
+   * A few frames of the film, as TMDB holds them — PATHS and not
+   * addresses, because a frame is shown in two sizes and freezing one at
+   * harvest time would mean rewriting every card to change it.
+   *
+   * IT IS NOT `stills`, AND CONFUSING THE TWO WOULD COST REAL MONEY.
+   * `stills` are the images YOU captured: they live in this device's
+   * vault, they are mirrored server-side and they count against
+   * `MEDIA_CEILING`. These are hosted by TMDB, cost us nothing to keep
+   * and nothing to serve, and there is nothing to annotate or delete on
+   * them.
+   *
+   * ABSENT AND EMPTY DO NOT SAY THE SAME THING, exactly as for
+   * `keywords`. `undefined`: never asked. `[]`: asked, TMDB holds none —
+   * which happens on obscure films. Without that distinction the quick
+   * view would ask again at every opening, for ever.
+   */
+  frames?: string[];
   themes: string[];
   /**
    * The catalogue's motifs (`domain/motifs`), by `id`. Alongside `themes`
@@ -182,6 +213,22 @@ export interface Film {
   /** The screening log, from the most recent to the oldest. */
   watches: Watch[];
   tmdbId: number | string | null;
+  /**
+   * Les clés (`filmKey`) sous lesquelles cette œuvre a DÉJÀ été connue.
+   *
+   * CE QUE LA FUSION D'UN DOUBLON APPREND. Une fiche jamais raccrochée à
+   * TMDB n'a que son titre pour se faire reconnaître à l'import, et un
+   * titre n'est pas une identité : « Scenes from a Marriage » et
+   * « Scènes de la vie conjugale » sont le même film et deux clés. Le
+   * fichier qu'on redépose portait l'une, le classeur tenait l'autre, et
+   * une fiche se recréait À CHAQUE IMPORT.
+   *
+   * On ne devine pas mieux : on RETIENT. En fusionnant, on apprend que
+   * ce titre-là désigne cette œuvre-là, et `diffImport` s'y reconnaît
+   * ensuite. Absent : rien à retenir, ce qui est le cas de presque
+   * toutes les fiches.
+   */
+  aka?: string[];
   source: FilmSource;
 }
 
@@ -249,7 +296,9 @@ export interface ImportRow {
   language?: string;
   countries?: string[];
   tmdbRating?: number | null;
+  synopsis?: string;
   keywords?: string[];
+  frames?: string[];
   poster?: string;
   tmdbId?: number | string | null;
   /**

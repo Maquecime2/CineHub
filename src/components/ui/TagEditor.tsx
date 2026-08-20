@@ -7,6 +7,7 @@
    ============================================================ */
 import { useState } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { C, F } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import { hash, pickFrom } from "../../domain/seeded";
@@ -78,6 +79,8 @@ export function TagEditor({
   allTags?: string[];
   onChange: (next: string[]) => void;
 }) {
+  /* `tr` and not `t`: `t` is already the cleaned-up word inside `add`. */
+  const { t: tr } = useTranslation();
   const [draft, setDraft] = useState("");
   const clean = (s: string) => s.trim().replace(/\s+/g, " ");
 
@@ -104,14 +107,16 @@ export function TagEditor({
           <TagChip key={t} tag={t} onRemove={() => onChange(tags.filter((x) => x !== t))} />
         ))}
         {tags.length === 0 && (
-          <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>aucun mot-clé</span>
+          <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
+            {tr("tags.noneLaid")}
+          </span>
         )}
       </div>
       <div style={{ position: "relative" }}>
         <input
           style={{ ...underlineInput, fontSize: 14 }}
           value={draft}
-          placeholder="ajouter un mot-clé, puis Entrée"
+          placeholder={tr("tags.addOne")}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

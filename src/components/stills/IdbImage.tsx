@@ -145,7 +145,7 @@ export function IdbImage({
       <ImageOff size={large ? 20 : 12} aria-hidden />
       {large && (
         <span style={{ fontFamily: F.mono, fontSize: 9.5, lineHeight: 1.5 }}>
-          restée sur l'autre appareil
+          {t("stills.leftOnOtherDevice")}
         </span>
       )}
     </div>

@@ -930,6 +930,57 @@ export function layoutByDirector(view, films, { cap = null } = {}) {
    somebody put there on purpose. Only the films circulate: those at the
    top level redistribute themselves into the slots they already
    occupied, those in a category sort among themselves. */
+/* ------------------------------------------------------------
+   LE RANGEMENT À LA MAIN, GARDÉ AVANT D'ÊTRE ÉCRASÉ
+   ------------------------------------------------------------
+
+   `sortIntoRows` réécrit la disposition et on l'enregistre aussitôt :
+   un rangement fait à la main sur des semaines disparaissait d'un clic
+   sur « RANGER », sans trace et sans retour. C'est un geste ordinaire —
+   on trie pour VOIR, pas pour décider — et il coûtait tout.
+
+   PAS UNE ANNULATION DE DIX SECONDES. On s'aperçoit du dégât en
+   revenant sur l'étagère, c'est-à-dire plus tard : une fenêtre qui se
+   referme toute seule n'aurait réparé que les regrets immédiats. La vue
+   garde donc une COPIE, et elle la garde jusqu'à ce qu'on n'en veuille
+   plus.
+
+   ET LE PREMIER TRI SEUL LA PREND. Trier deux fois de suite est
+   ordinaire — on essaie par année, puis par note — et le second tri ne
+   doit surtout pas photographier le premier, qui n'est plus le
+   rangement de personne. */
+
+/** La disposition d'avant le premier tri, si on la tient encore. */
+export const heldByHand = (view) => view?.byHand?.shelves ?? null;
+
+/** Garder la disposition actuelle — sans effet s'il y en a déjà une. */
+export function keepByHand(view) {
+  if (view.byHand) return view;
+  return { ...view, byHand: { at: Date.now(), shelves: view.shelves } };
+}
+
+/** La remettre, et oublier la copie : elle redevient le présent. */
+export function restoreByHand(view) {
+  const kept = heldByHand(view);
+  if (!kept) return view;
+  const { byHand, ...rest } = view;
+  void byHand;
+  return { ...rest, shelves: kept };
+}
+
+/* OUBLIER, PARCE QU'ON VIENT DE RANGER À LA MAIN.
+
+   Dès qu'on repose une fiche soi-même, la disposition à l'écran devient
+   celle qu'on veut ; proposer de « revenir au rangement à la main »
+   rendrait alors une version PLUS ANCIENNE que le geste qu'on vient de
+   faire, et l'écraserait. Le bouton doit disparaître à ce moment-là. */
+export function forgetByHand(view) {
+  if (!view?.byHand) return view;
+  const { byHand, ...rest } = view;
+  void byHand;
+  return rest;
+}
+
 export function sortIntoRows(view, kind, compare) {
   const shelf = view.shelves[kind];
   const slots = [];
@@ -1117,4 +1168,53 @@ export function duplicateView(view, { name, now = 0 } = {}) {
     updatedAt: now,
     shelves,
   };
+}
+
+/* ============================================================
+   COMBIEN D'UN MÊME OBJET EST DÉJÀ POSÉ
+   ============================================================
+
+   ON POSE AUTANT D'EXEMPLAIRES QU'ON EN POSSÈDE, ET PAS UN DE PLUS.
+   C'est la règle qui donne un sens aux doubles : sans elle, tirer deux
+   fois la même lanterne ne changeait rien — un objet obtenu une fois se
+   posait partout, autant de fois qu'on voulait, et le second exemplaire
+   ne valait rien.
+
+   ET LE COMPTE EST SUR TOUTES LES VUES À LA FOIS. C'est le point
+   délicat : une vue est une DISPOSITION de la même collection, pas une
+   étagère de plus. Compter par vue aurait laissé poser la même lanterne
+   dans chacune — autant d'exemplaires que de vues, gratuitement. On
+   balaie donc `docs` en entier, les rangées ET les fonds de rangée.
+
+   PUREMENT ICI, comme tout ce fichier : ni React ni stockage. C'est la
+   couche où une erreur ne se voit pas à l'écran mais fausse un décompte,
+   d'où les épreuves qui vont avec.
+
+   Les objets de la maison ne sont PAS comptés par l'appelant : ils sont
+   inépuisables, et cette fonction ne le sait pas — elle compte des
+   motifs, et c'est au cabinet de décider lesquels ont un plafond. */
+export function countPlacedMotifs(docs) {
+  const seen = {};
+  const bump = (motif) => {
+    if (motif) seen[motif] = (seen[motif] || 0) + 1;
+  };
+
+  for (const doc of Object.values(docs || {})) {
+    for (const kind of SHELF_KINDS) {
+      const shelf = doc?.shelves?.[kind];
+      if (!shelf) continue;
+      for (const row of shelf.rows || []) {
+        for (const it of row.items || []) {
+          if (it.t === "d") bump(it.motif);
+          /* UNE BOÎTE CONTIENT AUSSI DES OBJETS, et les oublier était la
+             façon la plus simple de rendre le plafond contournable :
+             range une lanterne dans une catégorie, et elle cesse d'être
+             comptée. */
+          else if (it.t === "c") for (const s of it.items || []) if (s.t === "d") bump(s.motif);
+        }
+      }
+      for (const w of shelf.wall || []) bump(w.motif);
+    }
+  }
+  return seen;
 }

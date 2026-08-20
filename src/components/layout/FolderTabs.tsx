@@ -23,6 +23,8 @@ import {
   KeyRound,
   Languages,
   Coins,
+  Route,
+  Rss,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { PurseTally } from "../play/Tally";
@@ -44,6 +46,7 @@ export type View =
   | "credits"
   | "reco"
   | "constellation"
+  | "program"
   | "import"
   | "thread"
   | "lists"
@@ -76,6 +79,27 @@ interface FolderTabsProps {
    * server: the action is then not even mounted.
    */
   sync: "up-to-date" | "running" | "waiting" | "error" | "no-account" | "absent";
+  /** Du neuf au hall, qu'on n'a pas encore regardé. */
+  hallNews?: boolean;
+  /**
+   * Ce que la veille Letterboxd a trouvé et qu'on n'a pas encore
+   * regardé. À zéro, l'action n'est PAS MONTÉE — voir son commentaire au
+   * pied du rail.
+   */
+  letterboxdCount?: number;
+  /**
+   * La dernière passe de la veille n'a pas abouti.
+   *
+   * PIERRE TOMBALE : l'action n'était montée QUE sur un compte non nul,
+   * et la feuille est le seul endroit qui sache dire « on n'a pas pu
+   * demander ». Une veille qui échoue toujours rendait donc son propre
+   * message d'erreur INATTEIGNABLE — l'écran était rigoureusement
+   * identique à « il n'y a rien de neuf », qui est le cas normal. C'est
+   * exactement la confusion que ce projet a retirée de quatre vues.
+   */
+  letterboxdTrouble?: boolean;
+  /** Ouvre la feuille de la veille. */
+  onLetterboxd?: () => void;
 }
 
 /* THE ICON IS NOT AN ORNAMENT: it is what is left of the tab when the
@@ -105,6 +129,12 @@ const TABS: Record<string, TabDef> = {
     color: C.cobalt,
     icon: Sparkles,
   },
+  /* `Route` AND NOT `Network` OR `Share2`. Those two draw a graph, and a
+     graph is what the constellation already is on this very bar — the
+     lineages are read for their ORDER first, and the map is what makes
+     that order make sense. Plum comes back here from the Credits, which
+     never sits in the same bar as Explore. */
+  program: { key: "program", label: "views.program", color: C.plum, icon: Route },
   almanac: { key: "almanac", label: "views.almanac", color: C.moss, icon: CalendarDays },
   thread: { key: "thread", label: "views.thread", color: C.cobalt, icon: Users2 },
   lists: { key: "lists", label: "views.lists", color: C.moss, icon: ListChecks },
@@ -174,12 +204,41 @@ export const GROUPS: TabGroup[] = [
     icon: Clapperboard,
     members: ["library", "watchlist", "credits"],
   },
+  /* LES QUATRE EXPLORATIONS SONT DES PASTILLES, ET NON UN GROUPE. Elles
+     tenaient sous une pastille « Explorer » qui les cachait toutes les
+     quatre derrière un clic, et un groupe ne se justifie que quand ses
+     membres se lisent l'un APRÈS l'autre — ce que font le classeur (on
+     range, puis on regarde ce qu'on a) et le hall (on lit le fil, puis
+     on ouvre une liste). Ces quatre-là ne s'enchaînent pas : on va à
+     l'une OU à l'autre. Un groupe d'un seul membre est donc la bonne
+     forme, et `SubTabs` ne dessine rien pour lui de lui-même. */
   {
-    key: "explore",
-    label: "groups.explore",
-    color: C.cobalt,
+    key: "reco",
+    label: "views.reco",
+    color: C.vermillion,
     icon: Compass,
-    members: ["reco", "constellation", "almanac"],
+    members: ["reco"],
+  },
+  {
+    key: "constellation",
+    label: "views.constellation",
+    color: C.cobalt,
+    icon: Sparkles,
+    members: ["constellation"],
+  },
+  {
+    key: "program",
+    label: "views.program",
+    color: C.plum,
+    icon: Route,
+    members: ["program"],
+  },
+  {
+    key: "almanac",
+    label: "views.almanac",
+    color: C.moss,
+    icon: CalendarDays,
+    members: ["almanac"],
   },
   {
     key: "hall",
@@ -241,10 +300,16 @@ function Tab({
   active,
   onClick,
   phone,
+  mark,
 }: {
   t: Pill;
   active: boolean;
   onClick: () => void;
+  /* UNE PASTILLE SUR LA PASTILLE : il y a du neuf derrière. Un POINT et
+     jamais un nombre — le rail fait trente-deux pixels de large, un
+     chiffre y serait illisible, et « combien » ne change de toute façon
+     rien à ce qu'on fait. Le compte exact se lit au guichet. */
+  mark?: boolean;
   /* ON A PHONE, THIS IS NO LONGER A BINDER TAB.
 
      The pill draws its shape from the spine it butts against: rounded on
@@ -267,13 +332,16 @@ function Tab({
       data-tour={`tab-${t.key}`}
       data-tab-tab
       onClick={onClick}
-      title={name}
-      aria-label={name}
+      title={mark ? `${name} — ${say("groups.news")}` : name}
+      aria-label={mark ? `${name} — ${say("groups.news")}` : name}
       aria-current={active ? "page" : undefined}
       style={{
         all: "unset",
         cursor: "pointer",
         boxSizing: "border-box",
+        /* Le point se pose en coordonnées de la pastille, donc elle doit
+           être son référent. */
+        position: "relative",
         width: phone ? 40 : 32,
         height: phone ? 40 : 32,
         /* AND THAT PACK DOWN RATHER THAN OVERFLOW.
@@ -334,6 +402,24 @@ function Tab({
       }}
     >
       <Icon size={16} />
+      {mark && (
+        <span
+          /* `aria-hidden` : la nouvelle est ANNONCÉE dans le nom du
+             bouton, pas dessinée deux fois. Une synthèse vocale qui lit
+             « le hall, point » n'apprend rien. */
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: phone ? 6 : 4,
+            right: phone ? 6 : 5,
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: C.card,
+            boxShadow: `0 0 0 1.5px ${alpha(C.ink, 0.45)}`,
+          }}
+        />
+      )}
     </button>
   );
 }
@@ -524,6 +610,9 @@ export function FolderTabs({
   setView,
   onAdd,
   onImport,
+  letterboxdCount = 0,
+  letterboxdTrouble = false,
+  onLetterboxd,
   onSearch,
   onSkin,
   onLanguage,
@@ -531,6 +620,7 @@ export function FolderTabs({
   onKey,
   onAccount,
   sync,
+  hallNews,
 }: FolderTabsProps) {
   /* TWO TABS THAT ONLY APPEAR IF THERE IS SOMEBODY OPPOSITE.
 
@@ -714,6 +804,10 @@ export function FolderTabs({
                  ailleurs selon l'humeur du souvenir est une pastille
                  dont on ne sait plus ce qu'elle fait. La barre de
                  sous-onglets, juste dessous, montre le reste. */
+              /* LE POINT NE VIT QUE SUR LE HALL, et il vient d'`App` :
+                 c'est lui qui tient le fil. Le rail ne lit rien du
+                 serveur — il dessine ce qu'on lui dit. */
+              mark={g.key === "hall" && hallNews}
               onClick={() => setView(g.members[0]!)}
             />
           ))}
@@ -827,6 +921,33 @@ export function FolderTabs({
           {/* LE COMPTE, JUSTE AVANT LA PEAU. Le sélecteur affiche des
               prix : ce qu'on a et ce qu'il permet sont côte à côte. */}
           <PurseTally onOpen={() => setView("counter")} phone={phone} />
+
+          {/* LA VEILLE LETTERBOXD, ET ELLE N'EST LÀ QUE S'IL Y A QUELQUE
+              CHOSE.
+
+              C'est la seule action du rail qui apparaisse et disparaisse,
+              et c'est ce qui la rend acceptable : une pastille permanente
+              annonçant « rien de neuf » quatre-vingt-dix-neuf jours sur
+              cent est un objet qu'on apprend à ne plus voir. Rien à
+              regarder tant qu'il n'y a rien.
+
+              ELLE NE DÉTOURNE PAS LE BOUTON D'IMPORT, qui est juste en
+              dessous et qui a déjà un travail : un bouton qui fait deux
+              choses selon l'état ne dit plus laquelle il va faire. */}
+          {letterboxdCount || letterboxdTrouble ? (
+            <RoundAction
+              onClick={() => onLetterboxd?.()}
+              tour="letterboxd-watch"
+              label={
+                letterboxdCount
+                  ? t("letterboxdWatch.pill", { count: letterboxdCount })
+                  : t("letterboxdWatch.pillTrouble")
+              }
+              icon={Rss}
+              finger={phone}
+              badge={letterboxdCount ? C.pine : C.burgundy}
+            />
+          ) : null}
 
           {/* L'IMPORT ET LA SAUVEGARDE, au pied du rail.
 

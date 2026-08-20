@@ -23,13 +23,14 @@ import type { ReactNode } from "react";
 import { Search, UserPlus, UserMinus, Users } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { bare, inked, underlineInput } from "../theme/styles";
-import { Guideline, Label, ViewHeading } from "../components/ui";
+import { Guideline, Label, Trouble, ViewHeading, Waiting } from "../components/ui";
 import { Stamp } from "../components/atmosphere/hall";
 import { STAMP_INK, stampLabel } from "../components/play/stamps";
 import { PosterArt } from "../components/film/PosterArt";
 import { initialsOf } from "../domain/film";
 import { tiltOf } from "../domain/seeded";
 import { feed } from "../hooks/useHall";
+import { HallWindow } from "../components/layout/HallWindow";
 import {
   unfollow,
   profileOf,
@@ -65,27 +66,33 @@ export function ThreadView({ connected }: { connected: boolean }) {
     feed
       .load()
       .then(show)
-      .catch(() => setNouvelles([]));
+      /* LE FIL SE TAISAIT DE DEUX FAÇONS ET N'EN MONTRAIT QU'UNE. Une
+         liste vide et une requête refusée arrivaient toutes les deux
+         ici, et l'écran affichait la même chose : rien. On dit
+         maintenant laquelle des deux. */
+      .catch((e: Error) => {
+        setNouvelles([]);
+        setSouci(e.message);
+      });
   }, [connected, show]);
 
   if (!serverConfigured()) {
     return (
       <Page>
-        <Guideline>
-          Aucun serveur n'est réglé : le classeur vit entièrement chez vous, et il n'y a personne à
-          suivre.
-        </Guideline>
+        <Guideline>{t("threadView.noServer")}</Guideline>
       </Page>
     );
   }
 
+  /* LA VITRINE, ET NON UNE PHRASE. Les quatre guichets répondaient
+     chacun « il faut un compte — le bouton au pied du rail », ce qui
+     donne un itinéraire sans rien dire de ce qu'il y a derrière. Voir
+     `HallWindow` pour ce qu'elle montre, et surtout pour ce qu'elle se
+     refuse à montrer. */
   if (!connected) {
     return (
       <Page>
-        <Guideline>
-          Il faut un compte pour suivre quelqu'un — at bouton au pied du rail. Votre collection,
-          elle, n'en a pas besoin.
-        </Guideline>
+        <HallWindow />
       </Page>
     );
   }
@@ -101,7 +108,12 @@ export function ThreadView({ connected }: { connected: boolean }) {
       /* The server answers the same thing for "does not exist" and
          "does not show themselves": we take up that silence, without
          inventing which of the two. */
-      setSouci(`Personne ne sharing sa collection sous « ${name} ».`);
+      /* LA PHRASE ÉTAIT CASSÉE, et par un remplacement automatique :
+         elle disait « Personne ne sharing sa collection sous … » — un
+         mot français remplacé par sa traduction anglaise au milieu
+         d'une phrase française. Elle est écrite en dur depuis toujours ;
+         elle passe donc aux clés, comme le reste. */
+      setSouci(t("threadView.noSuchPerson", { name }));
     }
   };
 
@@ -132,11 +144,7 @@ export function ThreadView({ connected }: { connected: boolean }) {
             <Search size={12} /> {t("threadView.look")}
           </button>
         </div>
-        {souci && (
-          <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 8 }}>
-            {souci}
-          </div>
-        )}
+        {souci && <Trouble>{souci}</Trouble>}
         {trouve && (
           <div
             style={{
@@ -212,8 +220,14 @@ export function ThreadView({ connected }: { connected: boolean }) {
                 )}
                 {/* A collection closed again does not vanish from the
                     list: one stays subscribed, and the feed goes quiet.
-                    Saying so avoids believing in a breakdown. */}
-                {a.ouverte === false && (
+                    Saying so avoids believing in a breakdown.
+
+                    ET ÇA NE S'EST JAMAIS AFFICHÉ. Le serveur envoie
+                    `open` ; cette ligne lisait `ouverte`, donc elle
+                    comparait `undefined` à `false` — faux, toujours.
+                    Quatrième de la famille dans ce dépôt, après
+                    `liste_id`, `per` et le `Profile` qui l'épelait. */}
+                {a.open === false && (
                   <em style={{ opacity: 0.7 }}>{t("threadView.closedAgain")}</em>
                 )}
                 <button
@@ -232,7 +246,10 @@ export function ThreadView({ connected }: { connected: boolean }) {
       {/* ---- le fil ---- */}
       <div data-tour="thread-news">
         <Label>{t("threadView.lately")}</Label>
-        {news === null && <Guideline tight>{t("threadView.opening")}</Guideline>}
+        {/* LE SQUELETTE OFFICIEL, ET PAS UNE PHRASE. `Waiting` porte
+            `role="status"` et `aria-live` : une ligne de texte muette
+            dit à l'œil qu'on attend et ne le dit à personne d'autre. */}
+        {news === null && <Waiting lines={3} label={t("threadView.opening")} />}
         {news?.length === 0 && (
           <Guideline tight>
             {subscriptions.length === 0 ? t("threadView.followNobody") : t("threadView.nothingNew")}

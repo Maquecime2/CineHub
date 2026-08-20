@@ -76,10 +76,42 @@ export async function openPostgres(url: string): Promise<Db> {
 /* ------------------------------------------------------------
    THE BASELINE, LAID DOWN
    ------------------------------------------------------------
-   One migration for now, and a file you read rather than a stack of
-   unreadable increments. When there is a second one, this is where the
-   list will be kept — and the day there are many, the table that says
-   which ones are laid down. */
+   Files you read rather than a stack of unreadable increments. There are
+   two now, and THE LIST IS HERE so that nobody has to remember it in
+   three places — le serveur au démarrage, les tests, et le contrôle qui
+   relit le schéma s'en servent tous.
+
+   TOUJOURS PAS DE TABLE DE MIGRATIONS, et c'est encore le bon choix :
+   chaque fichier est conditionnel de bout en bout, donc rejouable, donc
+   il n'y a rien à retenir de ce qui a déjà été posé. Le jour où l'un
+   d'eux cessera de l'être — une donnée à transformer plutôt qu'une
+   colonne à ajouter — c'est ce jour-là qu'il faudra la table, et pas
+   avant. */
+export const SCHEMA_FILES = [
+  "001_baseline.sql",
+  "002_collection.sql",
+  "003_quiz_timer.sql",
+  "004_challenge_kinds.sql",
+  "005_challenge_criterion.sql",
+  "006_list_poster.sql",
+  "007_challenge_race.sql",
+  "008_weekly_quiz.sql",
+] as const;
+
 export async function applySchema(db: Db, schemaSql: string): Promise<void> {
   await db.exec(schemaSql);
+}
+
+/**
+ * Tous les fichiers de schéma, dans l'ordre, lus depuis `sql/`.
+ *
+ * L'ORDRE COMPTE : `002` étend une contrainte que `001` pose et
+ * s'appuie sur des tables qu'il crée. Une boucle sur un `readdir` aurait
+ * marché aujourd'hui et se serait trompée le jour d'un `010`.
+ */
+export async function applyAllSchemas(
+  db: Db,
+  read: (file: string) => Promise<string>
+): Promise<void> {
+  for (const file of SCHEMA_FILES) await applySchema(db, await read(file));
 }

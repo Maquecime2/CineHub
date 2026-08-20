@@ -10,14 +10,26 @@ import { CommaInput, InkStars, Label } from "../ui";
 import { makeFilm } from "../../domain/film";
 import type { Film, FilmStatus } from "../../types";
 import { useViewport } from "../../hooks/useViewport";
+import { useEscape } from "../../hooks/useEscape";
 
+/* DEUX LIBELLÉS, ET LES DEUX ÉTAIENT FAUX. Le premier était du français
+   écrit en dur ; le second était une CLÉ de traduction rendue telle
+   quelle — le bouton affichait « views.watchlist » en toutes lettres,
+   mot pour mot le défaut des onglets de l'almanach. Une phrase rangée
+   dans un tableau de constantes n'est ni un attribut ni du texte JSX :
+   `literals.test.ts` ne peut pas la voir, et il le dit désormais.
+
+   DES CLÉS DE `film.*`, ET SURTOUT PAS `views.watchlist` : celle-là
+   nomme un ONGLET du classeur. Ces deux boutons nomment l'ÉTAT d'une
+   fiche, et les deux doivent se lire dans le même registre. */
 const STATUSES: { k: FilmStatus; l: string }[] = [
-  { k: "watched", l: "Film vu" },
-  { k: "watchlist", l: "views.watchlist" },
+  { k: "watched", l: "film.statusWatched" },
+  { k: "watchlist", l: "film.statusWatchlist" },
 ];
 
 export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f: Film) => void }) {
   const { t } = useTranslation();
+  useEscape(onClose);
   const [f, setF] = useState<Film>(() => makeFilm());
   const set = <K extends keyof Film>(k: K, v: Film[K]) => setF((p) => ({ ...p, [k]: v }));
   const { phone } = useViewport();
@@ -86,17 +98,17 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             color: C.ink,
           }}
         >
-          Nouvelle fiche
+          {t("film.newCard")}
         </div>
         <div style={{ height: 1, background: C.line, margin: "14px 0 20px" }} />
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ flex: 2 }}>
-            <Label>Titre</Label>
+            <Label>{t("film.titleField")}</Label>
             <input
               style={underlineInput}
               value={f.title}
               onChange={(e) => set("title", e.target.value)}
-              placeholder="Le titre du film"
+              placeholder={t("film.titlePlaceholder")}
             />
           </div>
           <div style={{ flex: 1 }}>
@@ -115,16 +127,16 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             style={underlineInput}
             value={f.director}
             onChange={(e) => set("director", e.target.value)}
-            placeholder="Nom"
+            placeholder={t("film.nameField")}
           />
         </div>
         <div style={{ marginTop: 16 }}>
-          <Label>Genres (virgules)</Label>
+          <Label>{t("film.genresField")}</Label>
           <CommaInput
             style={underlineInput}
             value={f.genres}
             onChange={(v) => set("genres", v)}
-            placeholder="Drame, Science-fiction"
+            placeholder={t("film.genresPlaceholder")}
           />
         </div>
         <div style={{ marginTop: 16 }}>
@@ -137,7 +149,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
           />
         </div>
         <div style={{ marginTop: 18 }}>
-          <Label>Cette fiche</Label>
+          <Label>{t("film.thisCard")}</Label>
           <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
             {STATUSES.map((o) => (
               <button
@@ -155,14 +167,14 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
                   border: `1px solid ${f.status === o.k ? C.pine : C.line}`,
                 }}
               >
-                {o.l}
+                {t(o.l)}
               </button>
             ))}
           </div>
         </div>
         {f.status === "watched" && (
           <div style={{ marginTop: 16 }}>
-            <Label>Votre note</Label>
+            <Label>{t("film.yourRating")}</Label>
             <InkStars value={f.rating} onChange={(v) => set("rating", v)} size={22} />
           </div>
         )}
@@ -172,7 +184,7 @@ export function FilmModal({ onClose, onSave }: { onClose: () => void; onSave: (f
             style={{ ...ruledTextarea, minHeight: 70 }}
             value={f.review}
             onChange={(e) => set("review", e.target.value)}
-            placeholder="Ce que ce film vous a fait ressentir…"
+            placeholder={t("film.feelingPlaceholder")}
           />
         </div>
         <button

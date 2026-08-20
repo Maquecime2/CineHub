@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSky, buildSkyWithCrew, neighbourhood, relax, suggestLinks, workKey } from "./sky";
 import { makeFilm } from "./film";
-import { makeThread } from "./threads";
+import { effectiveThreads, makeThread } from "./threads";
 import type { Film, LinkedWork } from "../types";
 
 let n = 0;
@@ -377,6 +377,24 @@ describe("threads in the sky", () => {
     const thread = makeThread({ label: "x", motif: "hero-dies" });
     const { nodes } = buildSky([a], {}, { threads: [thread] });
     expect(nodes.filter((n) => n.filmId === a.id)).toHaveLength(1);
+  });
+
+  /* THE STAR NOBODY ASKED FOR. Laying the same motif on two cards is the
+     whole gesture now — there is no promotion left to forget, and nothing
+     is stored until somebody changes the star's name or its colour. */
+  it("hangs a star with nothing stored at all", () => {
+    const cards = [film("A", { motifs: ["hero-dies"] }), film("B", { motifs: ["hero-dies"] })];
+    const { nodes } = buildSky(cards, {}, { threads: effectiveThreads(cards, []) });
+    expect(nodes.find((n) => n.kind === "thread")?.motif).toBe("hero-dies");
+  });
+
+  it("names and counts the star in the reader's language", () => {
+    const cards = [film("A", { motifs: ["hero-dies"] }), film("B", { motifs: ["hero-dies"] })];
+    const { nodes } = buildSky(cards, {}, { threads: effectiveThreads(cards, []), name: (k) => k });
+    const star = nodes.find((n) => n.kind === "thread");
+    expect(star?.label).toBe("motifs.labels.hero-dies");
+    // and not "2 films", which read the same in French
+    expect(star?.sub).toBe("constellation.filmCount");
   });
 });
 

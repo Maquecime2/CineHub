@@ -22,7 +22,7 @@ import { allMotifs, motifById, motifLabel, motifWording } from "./motifs";
 import { say, saying, words } from "./wording";
 import type { NameOf } from "./motifs";
 import type { Wording } from "./wording";
-import { threadMembers } from "./threads";
+import { threadLabel, threadMembers } from "./threads";
 import { census } from "./people";
 import type { Thread } from "./threads";
 import type { Film, Note } from "../types";
@@ -197,7 +197,12 @@ export function searchEverywhere(
   /* ---- the threads ---- */
   const byThread: Hit[] = [];
   for (const thread of threads) {
-    const onLabel = rankOf(thread.label || "", t, 1);
+    /* THE NAME IS NOT IN THE ROW ANY MORE, and searching `thread.label`
+       alone found nothing at all for the normal case: a gathering is
+       called whatever its motif is called, in the language of the day,
+       unless somebody wrote another name over it. */
+    const shown = threadLabel(thread, name);
+    const onLabel = rankOf(shown, t, 1);
     const onNote = rankOf(thread.note || "", t, 3);
     const rank = onLabel ?? onNote;
     if (rank == null) continue;
@@ -205,7 +210,7 @@ export function searchEverywhere(
     byThread.push({
       kind: "thread",
       key: `thread:${thread.id}`,
-      title: words(thread.label),
+      title: words(shown),
       subtitle: (() => {
         const m = thread.motif ? motifById(thread.motif) : undefined;
         const count = name("search.filmCount", { count: n });

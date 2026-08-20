@@ -11,12 +11,21 @@
    ============================================================ */
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowLeft, Users, Search, Download, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  Search,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { underlineInput, tap } from "../theme/styles";
 import { StampCorner, PushPin } from "../components/atmosphere";
 import { Cardstock, SectionTitle, Guideline, Label, InkStars, Honours } from "../components/ui";
 import { PosterArt } from "../components/film/PosterArt";
+import { FilmQuickView } from "../components/film/FilmQuickView";
 import {
   census,
   searchPeople,
@@ -25,11 +34,15 @@ import {
   companions,
   averageRating,
   isRegular,
+  sortPeople,
+  SORT_KEYS,
   PERSON_ROLES,
   type Person,
+  type SortKey,
 } from "../domain/people";
 import { initialsOf, makeFilm } from "../domain/film";
 import { filmKey } from "../domain/importing";
+import { byAudience } from "../domain/proposals";
 import { motifById } from "../domain/motifs";
 import { tiltOf } from "../domain/seeded";
 import { useTranslation } from "react-i18next";
@@ -45,6 +58,15 @@ interface CreditsViewProps {
   onOpen: (filmId: string) => void;
   onAddToWatchlist: (f: Film) => void;
 }
+
+/* COMBIEN DE NOMS LA PAGE POSE AVANT QU'ON EN DEMANDE PLUS.
+
+   Soixante : de quoi remplir l'écran et le suivant sur un grand moniteur,
+   assez peu pour que la grille se dessine sans qu'on l'attende. Le
+   nombre est ici et pas dans le composant parce qu'il se règle en le
+   lisant — c'est un arbitrage entre deux gênes, pas une constante de
+   calcul. */
+const PAGE = 60;
 
 /* The threshold that keeps the directory walkable — and the reason for
    it — now live in `domain/people`, beside the census that produces the
@@ -70,6 +92,13 @@ export function CreditsView({
     return (
       <Dossier
         p={open}
+        /* LES VOISINS, DANS L'ORDRE DU RÉPERTOIRE. On entrait dans une
+           fiche et on n'en sortait que par « retour » : passer d'un
+           réalisateur au suivant demandait de revenir à la liste, de la
+           reparcourir, et de recliquer. `census` rend déjà les gens
+           triés, le mieux fourni d'abord — c'est le même ordre que la
+           grille, donc « suivant » mène où l'œil l'attend. */
+        people={people}
         films={films}
         onRetour={() => onOpenPerson(null)}
         onOpen={onOpen}
@@ -180,6 +209,21 @@ function Directory({
   const [q, setQ] = useState("");
   const [roles, setRoles] = useState<KinshipRole[]>([]);
   const [all, setTous] = useState(false);
+  const [sort, setSort] = useState<SortKey>("films");
+  /* CE QU'ON MONTRE AVANT QU'ON EN DEMANDE PLUS.
+
+     UNE COLLECTION BIEN FOURNIE PORTE DES MILLIERS DE NOMS, et cette
+     page en dessinait autant de cartes : une carte est un bouton, une
+     punaise, une inclinaison semée et deux survols qui réécrivent une
+     transformation. À trois mille, l'onglet met une seconde à répondre
+     et le champ de recherche saute une lettre sur deux.
+
+     La page arrive donc RÉDUITE, et on en demande plus. Ce n'est pas
+     une pagination — il n'y a ni page suivante ni numéros — c'est un
+     seuil qu'on repousse, et il repart à sa valeur dès qu'on change de
+     tri, de rôle ou de recherche : ce qu'on vient de demander est
+     toujours en tête. */
+  const [shown, setShown] = useState(PAGE);
 
   const list = useMemo(() => {
     let out = people;
@@ -188,10 +232,22 @@ function Directory({
        because one is looking for somebody in particular, and not finding
        them because they have only one film would be the opposite of
        searching. */
-    if (q.trim()) return searchPeople(out, q);
-    return all ? out : out.filter(isRegular);
-  }, [people, q, roles, all]);
+    if (q.trim()) out = searchPeople(out, q);
+    else if (!all) out = out.filter(isRegular);
+    return sortPeople(out, sort);
+  }, [people, q, roles, all, sort]);
 
+  /* Le seuil repart en tête à chaque changement de cadrage. Le faire
+     dans le rendu plutôt que dans un effet évite un rendu intermédiaire
+     où l'on montrerait mille noms avant de retomber à soixante. */
+  const cadre = `${q}|${roles.join()}|${all}|${sort}`;
+  const [lastCadre, setLastCadre] = useState(cadre);
+  if (cadre !== lastCadre) {
+    setLastCadre(cadre);
+    setShown(PAGE);
+  }
+
+  const visible = useMemo(() => list.slice(0, shown), [list, shown]);
   const hiddenCount = people.length - people.filter(isRegular).length;
 
   return (
@@ -227,6 +283,35 @@ function Directory({
           placeholder={t("credits.namePlaceholder")}
           style={{ ...underlineInput, fontFamily: F.body, fontSize: 16, width: 260 }}
         />
+
+        {/* LE TRI, EN PASTILLES ET NON EN LISTE DÉROULANTE. Quatre
+            choix : une liste fermée cacherait les trois qu'on ne
+            regarde pas, et c'est précisément en LES VOYANT qu'on
+            découvre qu'on peut trier par note. */}
+        <span style={{ flex: 1 }} />
+        <span
+          style={{
+            fontFamily: F.mono,
+            fontSize: 9,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: C.inkFaded,
+          }}
+        >
+          {t("credits.sortBy")}
+        </span>
+        <div data-tour="credits-sort" style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {SORT_KEYS.map((k) => (
+            <button
+              key={k}
+              onClick={() => setSort(k)}
+              aria-pressed={sort === k}
+              style={chipLook(sort === k, C.plum)}
+            >
+              {t(`credits.sort.${k}`)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* The sieves by role, which add up and go out when clicked again
@@ -267,7 +352,74 @@ function Directory({
                 ? t("credits.nobodyAmongRegulars")
                 : t("credits.nobodyInThatRole")}
         </div>
-      ) : (
+      ) : null}
+
+      {/* CE QUI REMPLIT LE RÉPERTOIRE, DIT LÀ OÙ IL EST VIDE.
+
+          « Aucun nom » était vrai et sans issue. Ce répertoire ne se
+          remplit pas tout seul : une fiche importée d'ailleurs ne porte
+          souvent QUE le réalisateur, et l'interprétation, l'image, la
+          musique arrivent en complétant par TMDB. Un générique à un seul
+          nom n'est donc pas un défaut de la page — c'est ce que les
+          fiches contiennent, et personne ne pouvait le deviner depuis
+          cet écran.
+
+          Le seuil est nommé au passage : deux noms cachés derrière une
+          règle qu'on ne voit pas, c'est une page qu'on croit cassée. */}
+      {list.length <= 1 && !q.trim() && roles.length === 0 && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: "12px 14px",
+            border: `1px dashed ${alpha(C.plum, 0.5)}`,
+            background: alpha(C.plum, 0.05),
+            fontFamily: F.hand,
+            fontSize: 17,
+            color: C.ink,
+            maxWidth: 560,
+          }}
+        >
+          <div>{t("credits.howItFills")}</div>
+          {hiddenCount > 0 && !all && (
+            <button
+              onClick={() => setTous(true)}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: "pointer",
+                marginTop: 6,
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                color: C.plum,
+                borderBottom: `1px dotted ${alpha(C.plum, 0.6)}`,
+              }}
+            >
+              {t("credits.showHidden", { count: hiddenCount })}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* CE QU'ON MONTRE, SUR CE QU'IL Y A. Le chiffre est là pour que
+          « en voir plus » ne ressemble pas à une page suivante : on dit
+          où l'on en est d'une seule liste. */}
+      {list.length > visible.length && (
+        <div
+          style={{
+            fontFamily: F.mono,
+            fontSize: 9.5,
+            letterSpacing: 0.8,
+            color: C.inkFaded,
+            marginBottom: 8,
+          }}
+        >
+          {t("credits.showing", { shown: visible.length, total: list.length })}
+        </div>
+      )}
+
+      {list.length > 0 && (
         <div
           data-tour="credits-list"
           style={{
@@ -276,9 +428,117 @@ function Directory({
             gap: 14,
           }}
         >
-          {list.map((p) => (
+          {visible.map((p) => (
             <Card key={p.key} p={p} onClick={() => onOuvrir(p.key)} />
           ))}
+        </div>
+      )}
+
+      {list.length > visible.length && (
+        <button
+          onClick={() => setShown((n) => n + PAGE)}
+          style={{
+            all: "unset",
+            ...tap,
+            cursor: "pointer",
+            display: "block",
+            margin: "16px auto 0",
+            padding: "6px 16px",
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: C.plum,
+            border: `1px solid ${alpha(C.plum, 0.5)}`,
+          }}
+        >
+          {t("credits.more", { count: Math.min(PAGE, list.length - visible.length) })}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   SAUTER À QUELQU'UN, SANS RESSORTIR
+   ============================================================
+
+   LA RECHERCHE N'EXISTAIT QUE SUR LE RÉPERTOIRE. On ouvrait une fiche
+   avec un autre nom déjà en tête — c'est même le cas ordinaire, on lit
+   « avec Un Tel » et on veut voir Un Tel — et il fallait revenir à la
+   liste, retrouver le champ, retaper.
+
+   ELLE RÉPOND EN LISTE ET NON EN PAGE. Un champ qui n'ouvre qu'en
+   validant demande de connaître l'orthographe exacte ; ces cinq lignes
+   sous le champ montrent ce qu'on va ouvrir avant qu'on l'ouvre, ce qui
+   est aussi la seule façon de rattraper un accent qu'on ne sait pas
+   mettre. `searchPeople` est le même tamis que le répertoire — deux
+   recherches qui ne trouvent pas la même chose seraient deux produits.
+
+   ELLE SE REFERME SUR CHOIX ET SUR ÉCHAPPEMENT, et elle est repliée par
+   défaut : cette page parle d'une personne, pas d'un moteur.
+   ============================================================ */
+function Jump({ people, onOuvrir }: { people: Person[]; onOuvrir: (key: string) => void }) {
+  const { t } = useTranslation();
+  const [q, setQ] = useState("");
+  const hits = q.trim() ? searchPeople(people, q).slice(0, 5) : [];
+
+  return (
+    <div style={{ position: "relative", maxWidth: 420, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Search size={14} color={C.inkFaded} />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setQ("");
+            /* Entrée ouvre le premier de la liste : c'est ce qu'on
+               regarde en tapant, donc c'est ce qu'on attend. */
+            if (e.key === "Enter" && hits[0]) {
+              onOuvrir(hits[0].key);
+              setQ("");
+            }
+          }}
+          placeholder={t("credits.jumpPlaceholder")}
+          aria-label={t("credits.jumpPlaceholder")}
+          style={{ ...underlineInput, fontFamily: F.hand, fontSize: 16 }}
+        />
+      </div>
+
+      {q.trim() && (
+        <div style={{ marginTop: 4 }}>
+          {hits.length === 0 ? (
+            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded }}>
+              {t("credits.nobodyByThatName")}
+            </div>
+          ) : (
+            hits.map((h) => (
+              <button
+                key={h.key}
+                onClick={() => {
+                  onOuvrir(h.key);
+                  setQ("");
+                }}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  display: "block",
+                  width: "100%",
+                  padding: "3px 2px",
+                  fontFamily: F.body,
+                  fontSize: 14,
+                  color: C.ink,
+                  borderBottom: `1px dotted ${alpha(C.line, 0.8)}`,
+                }}
+              >
+                {h.name}{" "}
+                <span style={{ fontFamily: F.mono, fontSize: 9.5, color: C.inkFaded }}>
+                  {h.films.length}
+                </span>
+              </button>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -467,6 +727,7 @@ function Card({ p, onClick }: { p: Person; onClick: () => void }) {
 
 function Dossier({
   p,
+  people,
   films,
   onRetour,
   onOpen,
@@ -474,6 +735,8 @@ function Dossier({
   onAddToWatchlist,
 }: {
   p: Person;
+  /** Tout le répertoire, dans son ordre : c'est lui qui fait les voisins. */
+  people: Person[];
   films: Film[];
   onRetour: () => void;
   onOpen: (id: string) => void;
@@ -489,11 +752,58 @@ function Dossier({
   const mine = useMemo(() => averageRating(films), [films]);
   const met = useMemo(() => companions(films, p.key), [films, p.key]);
 
+  /* OÙ L'ON EST DANS LE RÉPERTOIRE. Les bords ne bouclent pas : arriver
+     au dernier et retomber sur le premier donne l'impression de tourner
+     en rond sans qu'on sache qu'on a fait le tour. Un bouton absent le
+     dit mieux. */
+  const at = people.findIndex((x) => x.key === p.key);
+  const before = at > 0 ? people[at - 1] : null;
+  const after = at >= 0 && at < people.length - 1 ? people[at + 1] : null;
+
   return (
     <div style={{ padding: "34px 44px 70px", maxWidth: 1000, position: "relative" }}>
-      <button onClick={onRetour} style={back}>
-        <ArrowLeft size={13} /> {t("credits.backToCredits")}
-      </button>
+      {/* LA BARRE DE NAVIGATION, ET C'EST TOUT CE QUI MANQUAIT À CETTE
+          PAGE. Le retour, les deux voisins nommés — un bouton qui dit
+          « suivant » sans dire QUI ne donne aucune raison de le presser
+          —, et la recherche, qui n'existait que sur le répertoire : on
+          entrait ici avec un nom en tête et il fallait ressortir pour le
+          taper. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+          marginBottom: 4,
+        }}
+      >
+        <button onClick={onRetour} style={back}>
+          <ArrowLeft size={13} /> {t("credits.backToCredits")}
+        </button>
+
+        <span style={{ flex: 1 }} />
+
+        {before && (
+          <button
+            onClick={() => onOpenPerson(before.key)}
+            title={before.name}
+            style={{ ...back, marginBottom: 0 }}
+          >
+            <ChevronLeft size={13} /> {before.name}
+          </button>
+        )}
+        {after && (
+          <button
+            onClick={() => onOpenPerson(after.key)}
+            title={after.name}
+            style={{ ...back, marginBottom: 0 }}
+          >
+            {after.name} <ChevronRight size={13} />
+          </button>
+        )}
+      </div>
+
+      <Jump people={people} onOuvrir={onOpenPerson} />
 
       {/* The face takes the icon's place when there is one to show: two
           round marks side by side say the same thing twice. Without a
@@ -738,6 +1048,12 @@ interface Missing {
   year: number | null;
   poster: string;
   voteAverage: number;
+  /** Combien de gens l'ont noté — voir `domain/proposals`. */
+  voteCount?: number;
+  /* IL ARRIVAIT DÉJÀ DANS LA RÉPONSE, et on le jetait. `toCandidate` le
+     ramène pour chaque proposition, tronqué à 240 : décider si un film
+     nous intéresse sur un titre et une année n'est pas décider. */
+  overview: string;
 }
 
 /* A proposal's poster, in the 2:3 format as everywhere else. A broken
@@ -797,6 +1113,8 @@ function WhatIsMissing({
   const [msg, setMsg] = useState("");
   const [manquants, setManquants] = useState<Missing[]>([]);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  /** La proposition qu'on regarde en entier, par-dessus la grille. */
+  const [quick, setQuick] = useState<Missing | null>(null);
 
   /* Without a key the button does not exist: offering an action that
      cannot succeed is worse than offering nothing. The key is laid from
@@ -807,17 +1125,22 @@ function WhatIsMissing({
     setState("en-cours");
     setMsg("");
     try {
-      const hit = await searchPerson(p.name, apiKey);
+      /* LE MÉTIER PART AVEC LA QUESTION, et pas seulement avec la
+         seconde : chercher « qui porte ce nom » puis « qu'a-t-il
+         réalisé » revenait à demander la filmographie de réalisateur
+         d'un homonyme acteur, que TMDB classe plus haut. */
+      const role = p.roles[0]!;
+      const hit = await searchPerson(p.name, apiKey, { role });
       if (!hit) {
         setState("fait");
         setMsg(t("credits.tmdbNobody"));
         return;
       }
-      /* We ask about the best furnished title: it is the one for which
-         "what is missing" means something. An actor seen twice as a
-         director is not judged on their thirty acting roles. */
-      const role = p.roles[0]!;
-      const everything = await personFilmography(hit.id, apiKey, { role: role });
+      /* `roles` comes in `PERSON_ROLES` order and not by count, so
+         directing wins whenever somebody has directed anything at all —
+         which is what one is asking about on the page of a film-maker
+         who also acts. */
+      const everything = await personFilmography(hit.id, apiKey, { role });
 
       /* What we already have, by TMDB identifier first — the safest —
          then by the import's title+year key, which already neutralises
@@ -830,10 +1153,15 @@ function WhatIsMissing({
       );
       const byTitle = new Set(films.map((f) => filmKey(f)));
 
-      const rest = (everything as Missing[])
-        .filter((c) => c.title && !perTmdb.has(String(c.tmdbId)))
-        .filter((c) => !byTitle.has(filmKey({ title: c.title, year: c.year || "" })))
-        .sort((a, b) => (b.year || 0) - (a.year || 0));
+      /* LE MÊME ORDRE QUE LE SÉLECTEUR DES FILIATIONS : le plus vu
+         d'abord, la date à défaut. Cette liste se rangeait par année et
+         l'autre autrement, pour la même question posée au même endroit
+         de TMDB. */
+      const rest = byAudience(
+        (everything as Missing[])
+          .filter((c) => c.title && !perTmdb.has(String(c.tmdbId)))
+          .filter((c) => !byTitle.has(filmKey({ title: c.title, year: c.year || "" })))
+      );
 
       setManquants(rest);
       setState("fait");
@@ -929,6 +1257,32 @@ function WhatIsMissing({
                 {c.year || t("credits.yearUnknown")}
                 {c.voteAverage ? ` · ${c.voteAverage.toFixed(1)}/10` : ""}
               </div>
+              {/* DE QUOI ÇA PARLE, EN CLAIR SUR LA VIGNETTE. Trois lignes
+                  suffisent à écarter la moitié des propositions ; la vue
+                  rapide, elle, en dit tout. */}
+              {c.overview && (
+                <div
+                  style={{
+                    fontFamily: F.body,
+                    fontSize: 11,
+                    lineHeight: 1.35,
+                    color: alpha(C.ink, 0.7),
+                    margin: "0 0 8px",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {c.overview}
+                </div>
+              )}
+              <button
+                onClick={() => setQuick(c)}
+                style={{ ...chipLook(false, C.plum), marginBottom: 5 }}
+              >
+                {t("credits.seeMore")}
+              </button>
               <button
                 onClick={() => add(c)}
                 disabled={inside}
@@ -940,6 +1294,39 @@ function WhatIsMissing({
           );
         })}
       </div>
+
+      {/* LA PROPOSITION EN ENTIER. Elle n'est PAS au classeur : `inBinder`
+          est faux, donc ni note, ni séance, ni statut — les montrer à zéro
+          affirmerait qu'on n'a pas aimé un film qu'on n'a pas vu. Et rien
+          n'est écrit nulle part, faute de fiche à écrire. */}
+      {quick && (
+        <FilmQuickView
+          film={makeFilm({
+            id: `tmdb:${quick.tmdbId}`,
+            title: quick.title,
+            year: quick.year || "",
+            poster: quick.poster,
+            synopsis: quick.overview,
+            director: p.roles[0] === "réalisation" ? p.name : "",
+            tmdbRating: quick.voteAverage || null,
+            tmdbId: quick.tmdbId,
+          })}
+          inBinder={false}
+          action={
+            <button
+              onClick={() => {
+                add(quick);
+                setQuick(null);
+              }}
+              disabled={addedIds.has(quick.tmdbId)}
+              style={{ ...chipLook(addedIds.has(quick.tmdbId), C.ochre) }}
+            >
+              {addedIds.has(quick.tmdbId) ? t("credits.inWatchlist") : t("credits.addToWatchlist")}
+            </button>
+          }
+          onClose={() => setQuick(null)}
+        />
+      )}
     </div>
   );
 }

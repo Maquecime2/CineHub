@@ -4,7 +4,7 @@
 import { useTranslation } from "react-i18next";
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Layer } from "../ui/Layer";
-import { X, Trash2, Upload, ChevronLeft, Eye, EyeOff, Users, UserX, Download } from "lucide-react";
+import { X, Trash2, ChevronLeft, Eye, EyeOff, Users, UserX, Download } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap, tapSquare, COARSE, TAP } from "../../theme/styles";
 import { wallStyle, materialStyle, PLANK_SHADOW } from "../../theme/surfaces";
@@ -30,11 +30,11 @@ import {
   listHiddenDecor,
   toggleDecorHidden,
   subscribeCustomDecor,
-  addCustomDecor,
   removeCustomDecor,
   showCustomDecor,
   takeCustomDecor,
 } from "../../services/customDecor";
+import { listWonDecor, subscribeWonDecor, wonDecorByKey } from "../../services/wonDecor";
 import { accountOpen, serverConfigured, sharedDecor } from "../../services/server";
 import { CustomDraw } from "./CustomDraw";
 import { FilmBox, DecorItem, WallItem, CategoryBox, dividerSkin, DividerHead } from "./items";
@@ -75,6 +75,7 @@ const GutterAct = ({ label, onClick, ink = C.inkFaded }) => (
    keystroke would pass through 1 before 12, and the shelf would fold up
    under one's fingers at every digit typed. */
 export const PerRowField = React.memo(function PerRowField({ value, onChange, title, max }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(value == null ? "" : String(value));
   useEffect(() => {
     setDraft(value == null ? "" : String(value));
@@ -113,7 +114,7 @@ export const PerRowField = React.memo(function PerRowField({ value, onChange, ti
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
           onClick={() => onChange(auto ? Math.min(Number(draft) || 6, max || Infinity) : null)}
-          title={auto ? "Fixer un nombre" : "Laisser remplir la largeur"}
+          title={auto ? t("shelf.fixCount") : t("shelf.fillWidth")}
           style={{
             all: "unset",
             ...tap,
@@ -267,7 +268,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
             }}
           >
             <PerRowField
-              title="BOÎTIERS PAR LIGNE DE BOIS"
+              title={t("shelf.casesPerRow")}
               value={row.perRow ?? null}
               max={capMax}
               onChange={(n) => acts.setRow(row.id, { perRow: n })}
@@ -282,7 +283,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
                 margin: "12px 0 3px",
               }}
             >
-              NOM DE LA LIGNE
+              {t("shelf.rowNameLabel")}
             </div>
             <input
               value={draft}
@@ -294,7 +295,7 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
                   setOpen(false);
                 }
               }}
-              placeholder="sans nom"
+              placeholder={t("shelf.unnamed")}
               style={{
                 all: "unset",
                 boxSizing: "border-box",
@@ -309,14 +310,14 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 12 }}>
               <GutterAct
-                label="+ une ligne au-dessus"
+                label={t("shelf.rowAbove")}
                 onClick={() => {
                   acts.addRow(row.id, "before");
                   setOpen(false);
                 }}
               />
               <GutterAct
-                label="+ une ligne en dessous"
+                label={t("shelf.rowBelow")}
                 onClick={() => {
                   acts.addRow(row.id, "after");
                   setOpen(false);
@@ -332,14 +333,14 @@ const RowGutter = React.memo(function RowGutter({ row, shown, acts, capMax }) {
               {!isUnplaced(row) && (
                 <>
                   <GutterAct
-                    label="vider la ligne"
+                    label={t("shelf.emptyRow")}
                     onClick={() => {
                       acts.clearRow(row.id);
                       setOpen(false);
                     }}
                   />
                   <GutterAct
-                    label="supprimer la ligne"
+                    label={t("shelf.deleteRow")}
                     ink={C.burgundy}
                     onClick={() => {
                       acts.removeRow(row.id);
@@ -429,6 +430,7 @@ const ShelfRow = React.memo(function ShelfRow({
   isLast,
   bare,
 }) {
+  const { t } = useTranslation();
   const [shown, setShown] = useState(false);
   const ctx = useMemo(() => ({ kind, rowId: row.id, catId: null }), [kind, row.id]);
 
@@ -541,7 +543,7 @@ const ShelfRow = React.memo(function ShelfRow({
                     padding: "44px 4px",
                   }}
                 >
-                  ligne vide — glissez-y un boîtier
+                  {t("shelf.emptyRowHint")}
                 </div>
               )}
               {nodes}
@@ -589,27 +591,24 @@ export function Shelf({
   onEditCat,
   onEditDecor,
   onDecorLabel,
-  onCabinet,
 }) {
   const { t } = useTranslation();
   const cfg = SHELF_KIND[kind];
   const rows = shelf?.rows || [];
 
-  /* The shelf's background, shelf tint included: three things that fought
-     over the same property are now composed in one place. Recomputed only
-     when the decor changes — it is a style that lives on the node the drag
-     hovers a hundred times per gesture. */
+  /* The shelf's background: what one has LAID and nothing else. It used
+     to also carry a tint per kind of shelf — the bedside shelf came out
+     of the box washed in burgundy — which nothing on screen announced
+     and no panel could remove: one chose no wallpaper and got a colour
+     anyway. The border already says which shelf one is on. Recomputed
+     only when the decor changes — it is a style that lives on the node
+     the drag hovers a hundred times per gesture. */
   const skin = useMemo(
     /* With no ink chosen, we do not invent one: `catInk` would return
        burgundy for an absent key, where a wallpaper with no instruction
-       wants the module's discreet tint. */
-    () =>
-      wallStyle(
-        wallDecor,
-        wallDecor?.patternInk ? catInk(wallDecor.patternInk) : undefined,
-        cfg.tint
-      ),
-    [wallDecor, cfg.tint]
+       wants the default ink of `surfaces`. */
+    () => wallStyle(wallDecor, wallDecor?.patternInk ? catInk(wallDecor.patternInk) : undefined),
+    [wallDecor]
   );
 
   return (
@@ -676,23 +675,6 @@ export function Shelf({
         >
           + LIGNE
         </button>
-        <button
-          onClick={() => onCabinet(kind)}
-          title="Poser un objet sur une planche"
-          style={{
-            all: "unset",
-            ...tap,
-            cursor: "pointer",
-            fontFamily: F.mono,
-            fontSize: 9.5,
-            letterSpacing: 1,
-            color: C.inkFaded,
-            border: `1px dashed ${C.line}`,
-            padding: "3px 8px",
-          }}
-        >
-          + DÉCOR
-        </button>
       </div>
       <div
         onDragOver={(e) => {
@@ -717,24 +699,11 @@ export function Shelf({
           transition: "background .15s ease",
         }}
       >
-        {/* the theme's tint, inside the shelf ONLY: repainting the page
-            background would fight with the paper's vignetting */}
-        {theme.tint && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: theme.tint,
-              mixBlendMode: "multiply",
-              pointerEvents: "none",
-              zIndex: 0,
-            }}
-          />
-        )}
-        {/* THE WALL'S TEXTURE — the only one of the three layers that is
-            an overlay, because it blends and a background does not blend.
-            The same way of being as the tint just above: at the back, in
-            multiply, and transparent to the cursor. */}
+        {/* THE WALL'S TEXTURE — the only layer that is an overlay,
+            because it blends and a background does not blend: at the
+            back, in multiply, and transparent to the cursor. It is now
+            the ONLY one: the theme's tint used to sit here too, and it
+            veiled a shelf on which nothing had been laid. */}
         {skin.texture && (
           <div
             aria-hidden
@@ -927,13 +896,13 @@ export function ReserveDrawer({
                 color: C.ink,
               }}
             >
-              Mis de côté
+              {t("shelf.setAsideTitle")}
             </div>
             <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>{count}</div>
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setOpen(false)}
-              title="Fermer"
+              title={t("common.close")}
               style={{ all: "unset", ...tapSquare, cursor: "pointer", color: C.inkFaded }}
             >
               <X size={16} />
@@ -947,11 +916,11 @@ export function ReserveDrawer({
               marginTop: 2,
             }}
           >
-            gardés, pas jetés
+            {t("shelf.keptNotThrown")}
           </div>
           <button
             onClick={() => acts.addRow(null, "end", "reserve")}
-            title="Ajouter une ligne"
+            title={t("shelf.addRow")}
             style={{
               all: "unset",
               ...tap,
@@ -1017,236 +986,6 @@ export function ReserveDrawer({
   );
 }
 
-/* The case one opens. A preview only: the full folder stays the card, one
-   goes there with a click from here. */
-export function CellPreview({ film, onClose, onOpenFile }) {
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const initials = initialsOf(film.title);
-  return (
-    <Layer>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(20,15,10,0.55)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 60,
-          padding: 20,
-        }}
-      >
-        <div
-          data-case
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            width: "min(760px, 100%)",
-            perspective: 1400,
-            animation: "caseIn .3s ease both",
-          }}
-        >
-          <div
-            style={{
-              position: "relative",
-              display: "flex",
-              background: C.card,
-              border: `1px solid ${C.line}`,
-              minHeight: 330,
-              boxShadow: "6px 14px 40px rgba(0,0,0,0.42)",
-              overflow: "hidden",
-            }}
-          >
-            <button
-              onClick={onClose}
-              style={{
-                all: "unset",
-                ...tapSquare,
-                position: "absolute",
-                top: 10,
-                right: 12,
-                zIndex: 9,
-                cursor: "pointer",
-                color: C.inkFaded,
-              }}
-            >
-              <X size={18} />
-            </button>
-            {/* the flap, which opens to the left */}
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: "50%",
-                background: C.paperDark,
-                borderRight: `1px solid ${C.line}`,
-                transformOrigin: "left center",
-                backfaceVisibility: "hidden",
-                zIndex: 5,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                animation: "openLid .78s cubic-bezier(.22,.9,.25,1) both",
-              }}
-            >
-              <span
-                style={{
-                  transform: "rotate(-90deg)",
-                  fontFamily: F.mono,
-                  fontSize: 11,
-                  letterSpacing: "0.2em",
-                  color: C.inkFaded,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                N° {fileNoOf(film.id)}
-              </span>
-            </div>
-            <div
-              style={{
-                width: 210,
-                flexShrink: 0,
-                background: C.paperDark,
-                display: "flex",
-                alignItems: "center",
-                padding: 16,
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "2 / 3",
-                  border: `1px solid ${alpha(C.ink, 0.3)}`,
-                  boxShadow: `2px 3px 0 ${alpha(C.ink, 0.18)}`,
-                  animation: "slideOut .7s .25s cubic-bezier(.2,.85,.3,1) both",
-                }}
-              >
-                <PosterArt film={film} height={300} initials={initials} plain />
-              </div>
-            </div>
-            <div style={{ flex: 1, padding: "24px 28px", animation: "sheetIn .5s .45s both" }}>
-              <div
-                style={{
-                  fontFamily: F.title,
-                  fontWeight: 700,
-                  fontSize: 26,
-                  color: C.ink,
-                }}
-              >
-                {film.title}
-              </div>
-              <div
-                style={{
-                  fontFamily: F.body,
-                  fontStyle: "italic",
-                  fontSize: 13.5,
-                  color: C.inkFaded,
-                  marginTop: 2,
-                }}
-              >
-                {film.director || "anonyme"} · {film.year || "s.d."}
-              </div>
-              {film.status !== "watchlist" && (
-                <div style={{ marginTop: 8 }}>
-                  <InkStars value={film.rating || 0} size={16} />
-                </div>
-              )}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
-                {(film.genres || []).map((g) => (
-                  <span
-                    key={g}
-                    style={{
-                      fontFamily: F.mono,
-                      fontSize: 9.5,
-                      border: `1px solid ${C.line}`,
-                      color: C.inkFaded,
-                      padding: "3px 7px",
-                    }}
-                  >
-                    {g}
-                  </span>
-                ))}
-                {film.bedside && (
-                  <span
-                    style={{
-                      fontFamily: F.mono,
-                      fontSize: 9.5,
-                      border: `1px solid ${C.burgundy}`,
-                      color: C.burgundy,
-                      padding: "3px 7px",
-                    }}
-                  >
-                    FILM DE CHEVET
-                  </span>
-                )}
-                {film.archived && (
-                  <span
-                    style={{
-                      fontFamily: F.mono,
-                      fontSize: 9.5,
-                      border: `1px solid ${C.slate}`,
-                      color: C.slate,
-                      padding: "3px 7px",
-                    }}
-                  >
-                    MIS DE CÔTÉ
-                  </span>
-                )}
-              </div>
-              <div
-                style={{
-                  fontFamily: F.body,
-                  fontSize: 14,
-                  lineHeight: 1.65,
-                  color: C.ink,
-                  marginTop: 14,
-                  maxHeight: 120,
-                  overflow: "hidden",
-                }}
-              >
-                {film.review?.trim() ? (
-                  film.review.replace(/\[img:\d+\]/g, "").slice(0, 260)
-                ) : (
-                  <span style={{ fontStyle: "italic", color: C.inkFaded }}>
-                    Pas encore de note. Le boîtier attend son feuillet.
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() => onOpenFile(film.id)}
-                style={{
-                  all: "unset",
-                  ...tap,
-                  cursor: "pointer",
-                  marginTop: 18,
-                  padding: "9px 16px",
-                  background: C.burgundy,
-                  color: C.card,
-                  fontFamily: F.mono,
-                  fontSize: 11,
-                  letterSpacing: 1,
-                }}
-              >
-                OUVRIR LE DOSSIER
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Layer>
-  );
-}
-
 /* Filing by hand. Dropping writes an `order` on every case of the
    arrival shelf: without a stable number, the order would go back to the
    default sort at the next render. */
@@ -1258,7 +997,7 @@ export function CellPreview({ film, onClose, onOpenFile }) {
    other to the back of the shelf, wherever one wants. Mixing them in a
    single grid left the user to discover the difference by botching their
    drop. */
-const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
+const DecorFamily = ({ title, hint, types, leftOf, onDragStart, onDragEnd }) => {
   const { t } = useTranslation();
   const heading = title ?? t("shelf.toStandTitle");
   return (
@@ -1280,20 +1019,35 @@ const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {types.map((d) => {
           const Draw = d.draw;
+          /* `undefined` = pas de plafond (la maison, et ce qu'on a
+             déposé). Un nombre = ce qu'il reste à poser. */
+          const left = leftOf?.(d.key);
+          const spent = left === 0;
           return (
             <div
               key={d.key}
-              draggable
+              draggable={!spent}
               onDragStart={(e) => {
+                if (spent) return e.preventDefault();
                 e.dataTransfer.effectAllowed = "copy";
                 onDragStart(d.key, e.currentTarget);
               }}
               onDragEnd={onDragEnd}
-              title={decorLabel(d, t)}
+              title={
+                left === undefined
+                  ? decorLabel(d, t)
+                  : `${decorLabel(d, t)} — ${t("shelf.leftToPlace", { count: left })}`
+              }
               style={{
+                position: "relative",
                 width: 46,
                 height: 46,
-                cursor: "grab",
+                /* ÉPUISÉ NE VEUT PAS DIRE ABSENT. On le laisse en place,
+                   pâli, avec son compte à zéro : le retirer du cabinet
+                   ferait croire qu'on ne le possède plus, alors qu'on
+                   l'a simplement tout posé. */
+                cursor: spent ? "not-allowed" : "grab",
+                opacity: spent ? 0.4 : 1,
                 flexShrink: 0,
                 overflow: "hidden",
                 border: `1px solid ${C.line}`,
@@ -1303,6 +1057,21 @@ const DecorFamily = ({ title, hint, types, onDragStart, onDragEnd }) => {
                 justifyContent: "center",
               }}
             >
+              {left !== undefined && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    right: 1,
+                    bottom: 0,
+                    fontFamily: F.mono,
+                    fontSize: 8.5,
+                    color: spent ? C.burgundy : C.inkFaded,
+                  }}
+                >
+                  {left}
+                </span>
+              )}
               {/* A pattern that STANDS UP has no drawing: it is made of
                 paper and borders, like the box. So the cabinet shows a
                 mock-up of it, instead of looking for a component that does
@@ -1342,6 +1111,11 @@ const useCustomDecor = () =>
 
 const useHiddenDecor = () =>
   useSyncExternalStore(subscribeCustomDecor, listHiddenDecor, listHiddenDecor);
+
+/* Le registre des objets gagnés vit hors de React — il est rempli par la
+   lecture du comptoir — et le cabinet doit se redessiner quand on en
+   gagne un. Même forme que les deux du dessus. */
+const useWonDecor = () => useSyncExternalStore(subscribeWonDecor, listWonDecor, listWonDecor);
 
 const CABINET_BOX = {
   position: "fixed",
@@ -1429,7 +1203,7 @@ function SharedShelf() {
 
   return (
     <>
-      <WorkshopSection title="CHEZ LES AUTRES" />
+      <WorkshopSection title={t("shelf.atOthers")} />
       {shelf.map((d) => (
         <DecorRow
           key={d.id}
@@ -1457,128 +1231,39 @@ function DecorWorkshop({ onBack }) {
   const { t } = useTranslation();
   const custom = useCustomDecor();
   const hiddenKeys = useHiddenDecor();
-  const [wall, setWall] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const fileRef = useRef(null);
 
-  const take = async (files) => {
-    setError(null);
-    setBusy(true);
-    try {
-      /* A refused file does not cancel the others: we import what gets
-         through and report only what failed. */
-      const failed = [];
-      for (const file of Array.from(files)) {
-        try {
-          await addCustomDecor(file, { wall });
-        } catch (e) {
-          failed.push(e?.message || file.name);
-        }
-      }
-      if (failed.length) setError(failed[0]);
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  };
+  /* LE DÉPÔT N'EXISTE PLUS, ET CE QUI RESTE EST L'ARMOIRE.
+
+     On importait une image et elle rejoignait le cabinet. Les objets
+     neufs sortent maintenant d'une pochette, au comptoir : c'est le
+     serveur qui tire, et personne ne dépose plus rien.
+
+     CE PANNEAU NE DISPARAÎT PAS POUR AUTANT. Il tient toujours ce qu'on
+     a déposé AVANT — on le range, on le montre, on le retire — et
+     fermer la porte d'entrée n'est pas vider la pièce. Il dit
+     simplement où l'on trouve les neufs.
+
+     `addCustomDecor` reste dans le service : la synchronisation d'un
+     appareil qui n'a pas encore vu ce changement passe par elle. */
 
   return (
     <div style={CABINET_BOX}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <button
           onClick={onBack}
-          title="Revenir au cabinet"
-          aria-label="Revenir au cabinet"
+          title={t("shelf.backToCabinet")}
+          aria-label={t("shelf.backToCabinet")}
           style={{ all: "unset", cursor: "pointer", color: C.inkFaded, display: "flex" }}
         >
           <ChevronLeft size={13} />
         </button>
-        <CabinetTitle>MES OBJETS</CabinetTitle>
+        <CabinetTitle>{t("shelf.myObjects")}</CabinetTitle>
       </div>
 
-      <CabinetNote style={{ marginBottom: 8 }}>
-        une image, et elle rejoint le cabinet — png, jpg ou svg
-      </CabinetNote>
-
-      {/* The family first: it is what decides where the object will be
-          laid, and choosing it afterwards would mean rewriting the file. */}
-      <div style={{ display: "flex", marginBottom: 8 }}>
-        {[
-          [false, "shelf.toStand"],
-          [true, "shelf.toHang"],
-        ].map(([v, label], i) => (
-          <button
-            key={label}
-            onClick={() => setWall(v)}
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              flex: 1,
-              textAlign: "center",
-              padding: "3px 0",
-              fontFamily: F.mono,
-              fontSize: 9.5,
-              background: wall === v ? C.ink : "transparent",
-              color: wall === v ? C.card : C.inkFaded,
-              border: `1px solid ${wall === v ? C.ink : C.line}`,
-              borderLeft: i ? "none" : undefined,
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,.svg"
-        multiple
-        onChange={(e) => e.target.files?.length && take(e.target.files)}
-        style={{ display: "none" }}
-      />
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={busy}
-        style={{
-          all: "unset",
-          boxSizing: "border-box",
-          cursor: busy ? "progress" : "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          width: "100%",
-          padding: "7px 0",
-          background: C.burgundy,
-          color: C.card,
-          fontFamily: F.mono,
-          fontSize: 10,
-          letterSpacing: 1,
-          opacity: busy ? 0.6 : 1,
-        }}
-      >
-        <Upload size={12} />
-        {busy ? "IMPORT…" : "IMPORTER UNE IMAGE"}
-      </button>
-
-      {error && (
-        <div
-          role="alert"
-          style={{
-            fontFamily: F.hand,
-            fontSize: 14,
-            color: C.burgundy,
-            marginTop: 6,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      <CabinetNote style={{ marginBottom: 10 }}>{t("shelf.wonAtCounter")}</CabinetNote>
 
       <div style={{ marginTop: 12, maxHeight: 300, overflowY: "auto" }}>
-        <WorkshopSection title="LES MIENS" />
+        <WorkshopSection title={t("shelf.mine")} />
         {custom.length === 0 ? (
           <CabinetNote>{t("shelf.nothingImported")}</CabinetNote>
         ) : (
@@ -1621,7 +1306,7 @@ function DecorWorkshop({ onBack }) {
                   )}
                   <RowButton
                     onClick={() => removeCustomDecor(d.key)}
-                    label={`Supprimer « ${decorLabel(d, t)} »`}
+                    label={t("shelf.deleteNamed", { name: decorLabel(d, t) })}
                   >
                     <Trash2 size={12} />
                   </RowButton>
@@ -1636,7 +1321,7 @@ function DecorWorkshop({ onBack }) {
         {/* The house drawings cannot be deleted — they are in the code.
             But one does not need all fifteen, and the cabinet is tidied by
             removing them from the panel. */}
-        <WorkshopSection title="CEUX DE LA MAISON" />
+        <WorkshopSection title={t("shelf.ofTheHouse")} />
         {DECOR_TYPES.map((d) => {
           const hidden = hiddenKeys.includes(d.key);
           const Draw = d.draw;
@@ -1667,7 +1352,9 @@ function DecorWorkshop({ onBack }) {
                 <RowButton
                   onClick={() => toggleDecorHidden(d.key)}
                   label={
-                    hidden ? `Remettre « ${decorLabel(d, t)} »` : `Masquer « ${decorLabel(d, t)} »`
+                    hidden
+                      ? t("shelf.showNamed", { name: decorLabel(d, t) })
+                      : t("shelf.hideNamed", { name: decorLabel(d, t) })
                   }
                 >
                   {hidden ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -1775,11 +1462,29 @@ const DecorRow = ({ label, note, thumb, action, dim }) => {
   );
 };
 
-export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
+export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose }) {
   const { t } = useTranslation();
   const [managing, setManaging] = useState(false);
   // the register moves under the cabinet as soon as one imports from the workshop
   useCustomDecor();
+  /* Le cabinet doit se redessiner quand on gagne un objet : le registre
+     est rempli par la lecture du comptoir, hors de React. */
+  useWonDecor();
+
+  /* CE QU'IL RESTE À POSER, PAR MOTIF.
+
+     LES OBJETS DE LA MAISON N'ONT PAS DE PLAFOND, et c'est ce que ce
+     `undefined` veut dire : ils sont dans le code, ils ne s'épuisent
+     pas, et leur en inventer un serait reprendre quelque chose à
+     quelqu'un. Seuls les objets GAGNÉS se comptent — on en pose autant
+     qu'on en possède, ce qui est la seule chose qui donne un sens à un
+     double. Ceux qu'on avait déposés soi-même restent illimités, eux
+     aussi : ils étaient à nous avant cette règle. */
+  const leftOf = (key) => {
+    const won = wonDecorByKey(key);
+    if (!won) return undefined;
+    return Math.max(0, won.copies - (placed?.[key] || 0));
+  };
 
   return (
     <Layer>
@@ -1793,7 +1498,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             <div style={{ flex: 1 }} />
             <button
               onClick={() => setManaging(true)}
-              title="Importer ou supprimer vos propres objets"
+              title={t("shelf.manageYourObjects")}
               style={{
                 all: "unset",
                 cursor: "pointer",
@@ -1803,7 +1508,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
                 color: C.burgundy,
               }}
             >
-              GÉRER
+              {t("shelf.manage")}
             </button>
             <button
               onClick={onClose}
@@ -1815,6 +1520,7 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
           <DecorFamily
             hint={t("shelf.dragOntoShelf")}
             types={shelfDecorTypes()}
+            leftOf={leftOf}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
@@ -1822,12 +1528,22 @@ export function DecorCabinet({ kind, onDragStart, onDragEnd, onClose }) {
             title={t("shelf.toHangTitle")}
             hint={t("shelf.dragToBack")}
             types={wallDecorTypes()}
+            leftOf={leftOf}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
           />
-          <CabinetNote style={{ marginTop: 10 }}>
-            {t("shelf.shelfAimed", { shelf: t(`shelf.kinds.${kind}.title`) })}
-          </CabinetNote>
+          {/* LE CABINET NE VISE PLUS UNE PLANCHE.
+
+              Il s'ouvrait depuis le haut de CHAQUE rayon, et annonçait
+              « rayon visé : … » — ce qui était faux : c'est le LÂCHER
+              qui décide où l'objet se pose, pas le bouton par lequel on
+              a ouvert le tiroir. Un objet pris depuis le chevet se
+              déposait très bien sur le rayon principal, et l'écran
+              disait le contraire.
+
+              Un seul bouton, hors des planches, et cette phrase-là
+              remplace la précédente : elle dit ce qui est vrai. */}
+          <CabinetNote style={{ marginTop: 10 }}>{t("shelf.dropDecides")}</CabinetNote>
         </div>
       )}
     </Layer>
@@ -1883,15 +1599,15 @@ const OrientField = ({ angle, seeded, onChange }) => {
           step={1}
           value={shown}
           onChange={(e) => onChange(Number(e.target.value))}
-          aria-label="Orientation"
-          title="Faire tourner l'objet"
+          aria-label={t("shelf.orientation")}
+          title={t("shelf.turnTheObject")}
           style={{ flex: 1, minWidth: 0, accentColor: C.ink, cursor: "pointer" }}
         />
         {/* Zero is missed by a degree by hand: the count is also the
             button that falls back on it. */}
         <button
           onClick={() => onChange(0)}
-          title="Remettre d'aplomb"
+          title={t("shelf.setItStraight")}
           style={{
             all: "unset",
             cursor: "pointer",
@@ -1922,7 +1638,7 @@ const OrientField = ({ angle, seeded, onChange }) => {
             color: C.inkFaded,
           }}
         >
-          au hasard
+          {t("shelf.atRandom")}
         </button>
       )}
     </>
@@ -2018,8 +1734,8 @@ export function ItemPalette({
                 if (e.key === "Enter") commitLabel();
                 if (e.key === "Escape") setDraft(label ?? "");
               }}
-              placeholder="sans nom"
-              aria-label="Nom de l'intercalaire"
+              placeholder={t("shelf.unnamed")}
+              aria-label={t("shelf.dividerName")}
               style={{
                 all: "unset",
                 boxSizing: "border-box",

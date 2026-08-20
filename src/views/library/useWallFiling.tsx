@@ -22,7 +22,7 @@
    ============================================================ */
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { ListPlus, Trash2, X } from "lucide-react";
+import { ListPlus, Tag, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../../components/ui/Layer";
@@ -32,7 +32,9 @@ import { ListFiler, type Fileable } from "../../components/film/ListFiler";
 import { FilingPopover } from "../../components/film/FilingPopover";
 import type { Filing as FilingHere } from "../../components/film/filing";
 import { useMyLists } from "../../hooks/useMyLists";
+import { allMotifs, motifLabel } from "../../domain/motifs";
 import type { Film } from "../../types";
+import { posterPathOf } from "../../tmdb";
 import type { Filing } from "./FilmWall";
 
 /* A list holds WORKS, not copies: a card typed in by hand has no
@@ -42,7 +44,12 @@ import type { Filing } from "./FilmWall";
 const fileable = (films: Film[]) => films.filter((f) => f.tmdbId);
 
 const worksOf = (films: Film[]): Fileable[] =>
-  fileable(films).map((f) => ({ tmdbId: f.tmdbId!, title: f.title, year: f.year }));
+  fileable(films).map((f) => ({
+    tmdbId: f.tmdbId!,
+    title: f.title,
+    year: f.year,
+    posterPath: posterPathOf(f.poster),
+  }));
 
 export function useWallFiling(
   films: Film[],
@@ -53,7 +60,22 @@ export function useWallFiling(
 
      La collection est réécrite UNE fois pour tout le lot : voir
      `deleteFilms` dans `App`. */
-  onDeleteFilms?: (ids: string[]) => void
+  onDeleteFilms?: (ids: string[]) => void,
+  /* ÉTIQUETER EN LOT — le troisième verbe de la barre, et le dernier à
+     être arrivé. On classait et on effaçait par trente ; poser un motif
+     se faisait encore fiche par fiche, alors que c'est exactement le
+     geste qu'on fait en série — on vient de voir six films d'un même
+     cinéaste et on veut les marquer d'un mot.
+
+     UN MOTIF, PAS UN THÈME LIBRE. Les deux sont locaux, mais le
+     vocabulaire des motifs est CLOS : trente champs de texte remplis à
+     la main, c'est trente occasions de faute de frappe, et un mot mal
+     orthographié sur six fiches ne se rattrape qu'à la main. Un
+     catalogue fini n'a pas ce défaut.
+
+     Les fiches sont réécrites UNE fois pour tout le lot : voir
+     `updateMany` dans `App`. */
+  onUpdateMany?: (patches: Record<string, Partial<Film>>) => void
 ): {
   bundle: Filing | undefined;
   /** The "choose" button and the footer bar, for the wall to place. */
@@ -67,6 +89,8 @@ export function useWallFiling(
   const lists = useMyLists();
   const [open, setOpen] = useState<{ id: string; at: DOMRect } | null>(null);
   const [selecting, setSelecting] = useState(false);
+  /* Le choix du mot, ouvert par la barre. `null` : fermé. */
+  const [tagging, setTagging] = useState(false);
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   const [asking, setAsking] = useState<ConfirmRequest | null>(null);
 
@@ -78,6 +102,24 @@ export function useWallFiling(
     setSelecting(false);
     setChosen(new Set());
     setOpen(null);
+    setTagging(false);
+  };
+
+  /* POSER UN MOT SUR TOUT LE LOT, en une écriture.
+     `Set` plutôt qu'un `push` : reposer un motif que la fiche porte déjà
+     ne doit pas le doubler, et la barre reste utilisable deux fois de
+     suite sans rien salir. Les fiches qui l'ont déjà ne sont pas dans
+     les correctifs — inutile de les réécrire. */
+  const tagAll = (motifId: string) => {
+    if (!onUpdateMany) return;
+    const patches: Record<string, Partial<Film>> = {};
+    for (const id of chosen) {
+      const f = byId.get(id);
+      if (!f || (f.motifs ?? []).includes(motifId)) continue;
+      patches[id] = { motifs: [...new Set([...(f.motifs ?? []), motifId])] };
+    }
+    if (Object.keys(patches).length) onUpdateMany(patches);
+    setTagging(false);
   };
 
   const choose = useCallback(
@@ -133,12 +175,90 @@ export function useWallFiling(
   /* ONE PANEL FOR THE WHOLE WALL, in a layer, placed from the badge that
      opened it. Hung inside its card it was clipped by the grid, and a
      windowed wall unmounted it the moment one scrolled. */
-  const panel =
-    open && openFilm ? (
-      <FilingPopover at={open.at} onClose={close}>
-        <ListFiler compact works={worksOf([openFilm])} strangers={openFilm.tmdbId ? 0 : 1} />
-      </FilingPopover>
-    ) : null;
+  const panel = (
+    <>
+      {open && openFilm ? (
+        <FilingPopover at={open.at} onClose={close}>
+          <ListFiler compact works={worksOf([openFilm])} strangers={openFilm.tmdbId ? 0 : 1} />
+        </FilingPopover>
+      ) : null}
+
+      {/* LE CHOIX DU MOT, posé au-dessus de la barre.
+
+          UNE LISTE ET PAS UN CHAMP : le vocabulaire est clos, donc on le
+          MONTRE. Un champ de texte sur trente fiches, c'est trente
+          occasions de faute de frappe, et un mot mal orthographié ne se
+          rattrape qu'à la main.
+
+          Par `Layer`, comme la barre elle-même : `position: fixed` dans
+          la colonne de vue ne serait pas fixe du tout (voir CLAUDE.md). */}
+      {tagging && (
+        <Layer>
+          <div
+            onClick={() => setTagging(false)}
+            data-veil
+            style={{ position: "fixed", inset: 0, zIndex: 44 }}
+          />
+          <div
+            role="dialog"
+            /* AVEC SON `count`, sinon rien ne sort. La clé n'existe
+               qu'au pluriel (`_one` / `_other`) : appelée sans compte,
+               i18next ne peut pas choisir et rend la CLÉ telle quelle.
+               Ça ne se voit pas à l'œil — seule une synthèse vocale lit
+               cette étiquette, et elle aurait annoncé
+               « lists.tagTitle ». */
+            aria-label={t("lists.tagTitle", { count: chosen.size })}
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: "calc(96px + var(--safe-bottom))",
+              transform: "translateX(-50%)",
+              zIndex: 45,
+              width: "min(420px, 92vw)",
+              maxHeight: "46vh",
+              overflowY: "auto",
+              background: C.card,
+              border: `1px solid ${C.line}`,
+              boxShadow: `2px 8px 24px ${alpha(C.ink, 0.34)}`,
+              padding: "12px 14px",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1,
+                color: C.inkFaded,
+                marginBottom: 8,
+              }}
+            >
+              {t("lists.tagTitle", { count: chosen.size })}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {allMotifs().map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => tagAll(m.id)}
+                  style={{
+                    all: "unset",
+                    ...tap,
+                    cursor: "pointer",
+                    padding: "5px 10px",
+                    fontFamily: F.body,
+                    fontSize: 13,
+                    color: C.ink,
+                    border: `1px solid ${C.line}`,
+                  }}
+                >
+                  {motifLabel(m, t)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Layer>
+      )}
+    </>
+  );
 
   const bar = (
     <>
@@ -245,6 +365,26 @@ export function useWallFiling(
                 }}
               >
                 <Trash2 size={12} /> {t("lists.deleteChosen", { count: chosen.size })}
+              </button>
+            )}
+
+            {chosen.size > 0 && onUpdateMany && (
+              <button
+                onClick={() => setTagging(true)}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  gap: 5,
+                  padding: "6px 10px",
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                  letterSpacing: 1,
+                  color: C.inkFaded,
+                  border: `1px solid ${C.line}`,
+                }}
+              >
+                <Tag size={12} /> {t("lists.tagChosen", { count: chosen.size })}
               </button>
             )}
 

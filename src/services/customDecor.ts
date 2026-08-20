@@ -14,6 +14,9 @@
    consulting the registry.
    ============================================================ */
 import { store } from "./storage";
+/* A SERVICE HAS NO HOOK: it reads the catalogue from the instance, the
+   same way `Boundary` does. */
+import i18n from "../i18n";
 import { shrinkImage } from "./images";
 import { putImage, deleteImage } from "../db";
 import {
@@ -268,7 +271,7 @@ export async function addCustomDecor(
   if (!write([...read(), entry])) {
     // the registry did not hold: the image has nobody left to name it
     await deleteImage(imageKey).catch(() => {});
-    throw new Error("Espace de stockage plein — l'objet n'a pas été ajouté.");
+    throw new Error(i18n.t("errors.storageFull"));
   }
   return entry;
 }
@@ -446,7 +449,7 @@ export async function takeCustomDecor(remote: RemoteDecor): Promise<CustomDecor 
   };
   if (!write([...read(), entry])) {
     await deleteImage(imageKey).catch(() => {});
-    throw new Error("Espace de stockage plein — l'objet n'a pas été ajouté.");
+    throw new Error(i18n.t("errors.storageFull"));
   }
   /* IT IS ALREADY OVER THERE — it came from there. Noting it as pending
      would send somebody else's piece back up under our own prefix. */

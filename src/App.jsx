@@ -1,5 +1,6 @@
 import {
   useState,
+  useSyncExternalStore,
   useEffect,
   useMemo,
   useRef,
@@ -11,16 +12,37 @@ import {
 import { pruneOrphans } from "./db";
 import { CAT_KEYS } from "./shelf-views";
 import { C, F, FONT_IMPORT } from "./theme/tokens";
-import { applySkin, loadSkinKey, saveSkinKey } from "./theme/applySkin";
+import { applySkin, loadSkinKey, saveSkinKey, skinChosen } from "./theme/applySkin";
+import { refreshHand } from "./theme/handwriting";
+import { skinOf } from "./theme/skins";
+import { paperLayer } from "./theme/surfaces";
+import { wornPaper, wornSkin, watchWorn } from "./theme/owned";
+import { Boundary } from "./components/ui/Boundary";
 import i18n, { loadLanguage, setLanguage } from "./i18n";
 import { uid, migrate, editLinkedWork } from "./domain/film";
+import { mergeDuplicate } from "./domain/duplicates";
 import { normalize } from "./domain/search";
 import { inverseOf, strengthOf } from "./domain/relations";
-import { makeThread, normalizeThreads } from "./domain/threads";
+import {
+  makeThread,
+  normalizeThreads,
+  isPlainDefault,
+  countOfMotif,
+  STAR_FROM,
+} from "./domain/threads";
 import { motifById, makeCustomMotif, customMotifs } from "./domain/motifs";
 import { loadThreads, saveThreads as saveThreadsToDisk } from "./services/threads";
+import {
+  loadBonds,
+  loadCourses,
+  saveBonds as saveBondsToDisk,
+  saveCourses as saveCoursesToDisk,
+  saveCoursesSoon as saveCoursesToDiskSoon,
+} from "./services/lineage";
+import { normalizeBonds } from "./domain/bonds";
+import { normalizeCourses, stepOf } from "./domain/course";
 import { loadVocabulary, saveVocabulary, normalizeVocabulary } from "./services/motifs";
-import { store, KEYS } from "./services/storage";
+import { store, KEYS, watchQuota, hydrateVault } from "./services/storage";
 import { loadFilms, knownCollection, saveFilms, forgetCache } from "./services/collection";
 import { PaperGrain } from "./components/atmosphere";
 import { FilmModal } from "./components/film/FilmModal";
@@ -32,11 +54,20 @@ import { useViewport } from "./hooks/useViewport";
 import { usePointerDrag } from "./hooks/usePointerDrag";
 import { SkinPicker } from "./components/layout/SkinPicker";
 import { LanguagePicker } from "./components/layout/LanguagePicker";
-import { Installation, UpdateCard } from "./components/layout/Installation";
+import {
+  Installation,
+  UpdateCard,
+  LoneDeviceCard,
+  QuotaCard,
+  UndoCard,
+} from "./components/layout/Installation";
 import { AccountDrawer } from "./components/layout/AccountDrawer";
 import { TmdbKeyPanel } from "./components/layout/TmdbKeyPanel";
 import { registerTmdbOpener } from "./services/tmdbKey";
+import { registerAccountOpener } from "./services/accountDoor";
 import { useSync } from "./hooks/useSync";
+import { useLetterboxd } from "./hooks/useLetterboxd";
+import { LetterboxdWatchSheet } from "./components/layout/LetterboxdWatchSheet";
 import { useInstallation } from "./hooks/useInstallation";
 /* The module only exists at build time: it is the plugin that makes it,
    with the address of the service worker it has just written. */
@@ -49,10 +80,19 @@ import { DetailView } from "./views/DetailView";
 
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
+import { countPlacedMotifs } from "./shelf-views";
+import { saveSoon, dropSoon, noteWritten } from "./services/saving";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
-import { isFirstRun, shouldHint, shouldSeed, markSeeded } from "./services/onboarding";
-import { binderStillDemo, demoFilms, demoNotes, withoutDemo, DEMO_PREFIX } from "./services/demo";
-import { DemoBanner } from "./components/layout/DemoBanner";
+import { shouldHint } from "./services/onboarding";
+import { demoFilms } from "./services/demo";
+import { Doorstep, Unreachable } from "./components/layout/Doorstep";
+import { readPlace, placeToHash, HOME } from "./domain/address";
+import { shortcutOf } from "./domain/keys";
+import { startMeasuring, pageSeen, doorEvent } from "./services/measure";
+import { mayNudge, noteNudge } from "./services/loneDevice";
+import { markHallSeen, unseenNews } from "./services/hallNews";
+import { feed } from "./hooks/useHall";
+import { myKeys, whoAmI, demoPosters } from "./services/server";
 
 /* ============================================================
    UNE VUE NE SE CHARGE QUE SI ON Y VA
@@ -81,6 +121,7 @@ const ListsView = lazyView(() => import("./views/ListsView"), "ListsView");
 const QuizView = lazyView(() => import("./views/QuizView"), "QuizView");
 const CounterView = lazyView(() => import("./views/CounterView"), "CounterView");
 const ConstellationView = lazyView(() => import("./views/ConstellationView"), "ConstellationView");
+const ProgramView = lazyView(() => import("./views/ProgramView"), "ProgramView");
 const AlmanacView = lazyView(() => import("./views/AlmanacView"), "AlmanacView");
 const SkinLab = lazyView(() => import("./views/dev/SkinLab"), "SkinLab");
 
@@ -106,14 +147,28 @@ export default function App() {
   /* The constellation's threads: questions put to the collection, which
      must stay put from one session to the next. */
   const [fils, setThreads] = useState([]);
+  /* WHAT TIES ONE FILM-MAKER TO ANOTHER, and the runs one means to watch.
+     Two documents and not one: a course is written at every pixel of a
+     drag, a filiation twice a month, and a course is settled where a
+     filiation is not. See `services/lineage`. */
+  const [bonds, setBonds] = useState([]);
+  const [courses, setCourses] = useState([]);
+  /* The star to land on when the map is opened from a card, as
+     `t:<motif>`. Cleared by the map itself: it is a gesture, not data. */
+  const [skyFocus, setSkyFocus] = useState(null);
   /* The vocabulary: the motifs you wrote, and those of the catalogue you
      set aside. The catalogue itself lives in the code — see
      `domain/motifs`. The React state only serves to redraw: it is the
      domain's register that answers `motifById`, everywhere else. */
   const [vocabulary, setVocabulary] = useState({ custom: [], hidden: [] });
   const [loaded, setLoaded] = useState(false);
-  const [view, setView] = useState("library");
-  const [selectedId, setSelectedId] = useState(null);
+  /* L'ADRESSE OUVRE LA VUE, et pas l'inverse. Lue une seule fois, à la
+     construction : ensuite c'est l'état qui mène et l'adresse qui suit
+     (voir plus bas). `null` — adresse vide, ou collection partagée, qui
+     appartient à `main.jsx` — laisse le classeur s'ouvrir chez lui. */
+  const landing = useMemo(() => readPlace(), []);
+  const [view, setView] = useState(landing?.view ?? HOME);
+  const [selectedId, setSelectedId] = useState(landing?.film ?? null);
   /* THE OPEN TAB OF THE FILM FOLDER — "film", "words" or "links". Here
      and not in the card: the guided tour opens it as it opens a view.
      See `OngletFiche` in `views/DetailView`.
@@ -165,18 +220,18 @@ export default function App() {
 
      `metaKey` as much as `ctrlKey` — on a Mac, Ctrl+K clears to end of
      line in a field, and it is Cmd that commands. */
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key?.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        setSearch((o) => !o);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const [skin, setSkin] = useState(loadSkinKey);
+  /* LE PAPIER SUIT LA PEAU. Il vit au serveur — c'est un article qu'on
+     porte — mais il se DESSINE, donc il doit être là au premier rendu et
+     hors ligne. La mémoire locale le tient, comme pour la peau.
+
+     ON S'Y ABONNE, ON NE LE SONDE PLUS. La première version le lisait au
+     montage et le relisait au retour de focus de la fenêtre : il fallait
+     donc RECHARGER LA PAGE pour voir le papier qu'on venait de porter,
+     puisqu'on le porte depuis le comptoir sans jamais quitter l'onglet.
+     `storage`, l'événement du stockage local, ne se déclenche que dans
+     les AUTRES onglets et n'aurait rien rattrapé. Voir `watchWorn`. */
+  const paper = useSyncExternalStore(watchWorn, wornPaper, wornPaper);
   const { t } = useTranslation();
   /* Le carnet est un tiroir, plus un onglet : voir `NotebookDrawer`. */
   const [notebookOpen, setNotebook] = useState(false);
@@ -196,6 +251,75 @@ export default function App() {
     saveSkinKey(skin);
   }, [skin]);
 
+  /* ============================================================
+     LA PEAU DU SERVEUR EST UN DERNIER RECOURS, ET RIEN D'AUTRE
+     ============================================================
+
+     `wornSkin` porte cette promesse dans son commentaire depuis
+     toujours — « retrouver son décor sur une machine neuve » — et
+     n'avait AUCUN lecteur : une doctrine que le code contredisait.
+
+     ELLE NE PASSE JAMAIS DEVANT UN CHOIX LOCAL. `skinChosen` est ce qui
+     fait la différence entre « personne n'a rien choisi ici » et « on a
+     choisi le kraft » — `loadSkinKey` rend le même mot dans les deux
+     cas. Sans cette distinction, revenir du réseau redéguiserait le
+     classeur de quelqu'un qui avait décidé du contraire.
+
+     `paper` est déjà abonné à `watchWorn` juste au-dessus : la bourse
+     arrive après le premier rendu, et c'est cet abonnement qui prévient. */
+  const worn = useSyncExternalStore(watchWorn, wornSkin, wornSkin);
+  useEffect(() => {
+    if (!worn || skinChosen()) return;
+    setSkin(worn);
+  }, [worn]);
+
+  /* ============================================================
+     LA PORTE EST UNE SESSION
+     ============================================================
+
+     Le classeur ne s'ouvre plus sans compte. On demande `/me` au
+     chargement, et la réponse se lit en TROIS états qui ne se
+     confondent jamais :
+
+       « asking »      on demande encore
+       « in »          une personne : le classeur
+       « out »         un refus : la porte, avec la visite et les démos
+       « unreachable » un silence : la reconnexion
+
+     LES DEUX DERNIERS SONT DISTINCTS ET DOIVENT LE RESTER. « Tu n'as pas
+     de compte » et « on n'arrive pas à joindre le serveur » n'appellent
+     pas le même geste, et les confondre proposerait une inscription à
+     quelqu'un qui a déjà un compte et vient d'entrer dans un tunnel.
+     `whoAmI` fait déjà la distinction — un 401/403 est un refus, tout le
+     reste remonte —, on ne fait que la rendre visible.
+
+     `attempt` sert au bouton « réessayer » : l'incrémenter rejoue
+     l'effet. Pas de réessai automatique — une page qui se relance seule
+     toutes les trois secondes martèle un serveur déjà en difficulté.
+
+     ELLE EST DÉCLARÉE ICI, TOUT EN HAUT, ET CE N'EST PAS COSMÉTIQUE.
+     Tout ce qui attend la porte doit pouvoir la citer dans ses
+     dépendances, et un tableau de dépendances est évalué PENDANT le
+     rendu — donc avant cette ligne si elle vivait plus bas. Le corps
+     d'un effet, lui, tourne après : lire `session` dedans marche même
+     déclarée plus bas, et c'est exactement ce qui rend le piège
+     invisible. Le chargement du coffre a passé une soirée à ne jamais
+     partir pour cette raison : il lisait `session` sans en dépendre,
+     ne voyait donc que le « asking » du premier rendu, et l'écran
+     d'attente restait à l'écran pour toujours. */
+  const [session, setSession] = useState("asking");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setSession((s) => (s === "asking" ? s : "asking"));
+    whoAmI()
+      .then((who) => alive && setSession(who ? "in" : "out"))
+      .catch(() => alive && setSession("unreachable"));
+    return () => {
+      alive = false;
+    };
+  }, [attempt]);
+
   /* LOADING HAS BECOME ASYNCHRONOUS, and that is the vault's price. The
      collection moves down into IndexedDB — several gigabytes instead of
      `localStorage`'s five megabytes, which was already warning that it
@@ -203,49 +327,48 @@ export default function App() {
      read from, moves what it finds upstairs down there, and completes
      cards from before the status/watchedAt/tmdbId fields on the way. */
   useEffect(() => {
+    /* RIEN NE SE CHARGE AVANT QUE LA PORTE SOIT PASSÉE. Le coffre est un
+       cache de ce que le serveur tient ; l'ouvrir pour quelqu'un qui
+       n'est pas entré montrerait la collection du dernier connecté. */
+    if (session !== "in") return;
     let alive = true;
-    loadFilms().then(async (loaded) => {
-      if (!alive) return;
-      /* THE DEMONSTRATION BINDER, AND ONLY HERE.
-
-         This is the only place where we know both that the collection is
-         empty and that it always has been. The sowing goes through the
-         store — never through `store.set` — so that the twelve cards go
-         down into the vault like the others, and it comes before
-         `ensureViews`: the shelf is then built on a real collection
-         instead of rebuilding itself on the next render. See
-         `services/demo` for what those twelve films contain, and why. */
-      let migrated = loaded;
-      if (!loaded.length && shouldSeed()) {
-        /* Sown in the language in force AT THAT MOMENT, and never sown
-           again: the example becomes the reader's own cards, which they
-           may rename and rewrite. Re-translating them on a change of
-           language would overwrite what somebody had just written. */
-        migrated = await saveFilms(demoFilms(i18n.t.bind(i18n)));
-        /* The notebook only receives its page if it is empty: somebody
-           may have written before having a single film. */
-        if (!store.get(KEYS.notes, []).length) store.set(KEYS.notes, demoNotes(i18n.t.bind(i18n)));
-        markSeeded();
+    /* LE COFFRE S'OUVRE AVANT QU'ON LISE QUOI QUE CE SOIT. Le carnet et
+       l'agencement des murs y vivent désormais ; leurs lectures sont
+       restées synchrones grâce au miroir, mais le miroir doit être
+       monté. Tout ce qui lit un document — `notebook.load`,
+       `ensureViews`, les fils, le vocabulaire — passe plus bas dans
+       cette même chaîne, donc après. */
+    hydrateVault()
+      .then(loadFilms)
+      .then(async (loaded) => {
         if (!alive) return;
-      }
-      setFilms(migrated);
-      notebook.load();
-      const tabs = store.get("shelf-dividers", []);
-      setDividers(tabs);
-      setThreads(loadThreads());
-      setVocabulary(loadVocabulary());
-      /* The migration reads `order` and `status`, which the store has
-         just normalized: it must therefore come after, and work on the
-         migrated cards — not on what comes off the disk. */
-      setViews(
-        ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
-      );
-      setLoaded(true);
-    });
+        /* PLUS DE SEMIS. Les douze fiches d'exemple vivent sur la
+           porte et nulle part ailleurs — voir `showcase` plus haut. */
+        const migrated = loaded;
+        setFilms(migrated);
+        notebook.load();
+        const tabs = store.get("shelf-dividers", []);
+        setDividers(tabs);
+        setThreads(loadThreads());
+        setBonds(loadBonds());
+        setCourses(loadCourses());
+        setVocabulary(loadVocabulary());
+        /* The migration reads `order` and `status`, which the store has
+           just normalized: it must therefore come after, and work on the
+           migrated cards — not on what comes off the disk. */
+        setViews(
+          ensureViews({ films: migrated, dividers: tabs, wallPrefs: store.get("wall-prefs", {}) })
+        );
+        setLoaded(true);
+      });
     return () => {
       alive = false;
     };
-  }, []);
+    /* `session` EN DÉPENDANCE, sans quoi la garde ci-dessus est un
+       verrou qu'on ne rouvre jamais : au premier rendu elle vaut
+       « asking », l'effet renonce, et rien ne le rejoue quand la porte
+       s'ouvre. */
+  }, [session]);
 
   /* THE GUIDED TOUR. Three states only: the tour running, the help menu,
      and the reminder card. All the rest — which steps, in what order,
@@ -256,6 +379,78 @@ export default function App() {
   const [tourId, setTourId] = useState(null);
   const [tourMenu, setTourMenu] = useState(false);
   const [hint, setHint] = useState(false);
+
+  /* ============================================================
+     ANNULER LE DERNIER GESTE
+     ============================================================
+
+     Trois gestes n'avaient pas de retour : supprimer une fiche, en
+     supprimer plusieurs depuis le mur, retirer l'exemple. Les deux
+     derniers se font d'un clic et sans confirmation.
+
+     LE NETTOYAGE DES ORPHELINES ATTEND LA FENÊTRE, et c'est la seule
+     chose difficile ici. `pruneOrphans` efface les affiches d'IndexedDB
+     ET du miroir : lancé tout de suite, il rendrait une annulation
+     menteuse — les fiches reviendraient sans leurs images. On garde donc
+     le nettoyage en attente, et il ne part que si personne n'annule.
+
+     UNE SEULE ANNULATION EN RÉSERVE. La suivante fait expirer la
+     précédente, nettoyage compris : empiler serait promettre de remonter
+     un historique qu'on ne tient pas.
+
+     SI L'ONGLET SE FERME PENDANT LA FENÊTRE, le nettoyage ne part pas et
+     des images restent orphelines. C'est sans gravité — `pruneOrphans`
+     repasse au prochain effacement — et c'est le bon sens du compromis :
+     une image de trop se rattrape, une image perdue non. */
+  const UNDO_MS = 8000;
+  const [undo, setUndo] = useState(null);
+  const undoHeld = useRef(null);
+  const undoTimer = useRef(null);
+
+  const closeUndo = useCallback((sweep) => {
+    if (undoTimer.current) {
+      clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+    const held = undoHeld.current;
+    undoHeld.current = null;
+    setUndo(null);
+    if (sweep && held?.prune) held.prune();
+  }, []);
+
+  const offerUndo = useCallback(
+    (entry) => {
+      /* La précédente expire MAINTENANT, avec son nettoyage. */
+      closeUndo(true);
+      undoHeld.current = entry;
+      setUndo(entry);
+      undoTimer.current = setTimeout(() => closeUndo(true), UNDO_MS);
+    },
+    [closeUndo]
+  );
+
+  /* PLACÉ APRÈS L'ÉTAT DE LA VISITE, ET PAS PLUS HAUT. Cet effet était
+     écrit au-dessus, avec les autres écouteurs de clavier ; il y lisait
+     `setTourMenu` avant sa déclaration. Ça marchait — un effet ne
+     s'exécute qu'après le rendu — et le lint le refusait quand même,
+     avec raison : ce qui tient par le hasard de l'ordonnancement se
+     casse à la première réorganisation. */
+  /* `/` OUVRE LA RECHERCHE, `?` LA VISITE, et `Ctrl+K` garde sa place.
+     Les deux premières sont des touches NUES : tout le soin est dans
+     `shortcutOf`, qui refuse de les prendre pendant qu'on écrit — une
+     barre oblique tapée dans une critique est une barre oblique. Voir
+     `domain/keys`, où la règle est écrite et éprouvée. */
+  useEffect(() => {
+    const onKey = (e) => {
+      const what = shortcutOf(e);
+      if (!what) return;
+      e.preventDefault();
+      if (what === "search") setSearch((o) => !o);
+      else setTourMenu((o) => !o);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   /* DRAGGING BY FINGER — mounted here, once, for the whole application.
 
@@ -281,14 +476,59 @@ export default function App() {
      collection, and nowhere else. It only starts once the binder is
      loaded: synchronising an empty collection we have not read yet would
      erase everything on the first send. */
+  /* LES DOUZE DE LA VITRINE, et elles ne vont plus nulle part ailleurs.
+
+     Elles étaient SEMÉES dans le classeur au premier lancement, avec un
+     carton qui s'excusait de les y avoir mises. Ça se tenait quand le
+     produit s'ouvrait sans compte : il fallait bien montrer quelque
+     chose. Maintenant que la porte les montre, les semer reviendrait à
+     poser douze films qui ne sont pas les siens dans la collection de
+     quelqu'un qui vient de payer — et le carton d'excuse avec.
+
+     Les affiches viennent du serveur ; sans elles, le classeur dessine
+     les initiales comme il l'a toujours fait. */
+  const { t: say } = useTranslation();
+  const [posters, setPosters] = useState({});
+  useEffect(() => {
+    if (session !== "out") return;
+    demoPosters().then(setPosters);
+  }, [session]);
+  const showcase = useMemo(
+    () => demoFilms(say).map((f) => (posters[f.id] ? { ...f, poster: posters[f.id] } : f)),
+    [say, posters]
+  );
+
   const [accountOpen, setAccountOpen] = useState(false);
+
+  /* LA VITRINE DU HALL OUVRE UN COMPTE SUR PLACE, au lieu de désigner
+     un bouton au pied du rail. Même arrangement que le cartouche de la
+     clé TMDB — et posé ICI, après la déclaration de l'état : écrit plus
+     haut avec les autres inscriptions, il lisait `setAccountOpen` avant
+     qu'elle existe. Ça marchait, et le lint le refusait avec raison. */
+  useEffect(() => registerAccountOpener(() => setAccountOpen(true)), []);
   /* RE-READ WHAT HAS JUST ARRIVED. The shelf arrangements, the notebook,
-     the threads and the vocabulary are read on mount: when the
-     synchronisation brings some in, they have to be asked of the disk
-     again, otherwise the screen keeps the old ones without a word. */
+     the threads, the vocabulary, the filiations and the courses are read
+     on mount: when the synchronisation brings some in, they have to be
+     asked of the disk again, otherwise the screen keeps the old ones
+     without a word. */
+  /* Ce qui compte les tirages de documents. `wall-prefs` se relit plus
+     bas, là où l'état du mur est déclaré : le relire ici demanderait de
+     lire `setWallUi` avant qu'elle existe — le défaut que le lint venait
+     de refuser à `registerAccountOpener` juste au-dessus. */
+  const [docsAt, setDocsAt] = useState(0);
   const rereadDocuments = useCallback(() => {
+    setDocsAt((n) => n + 1);
+    /* L'ASPECT DU CLASSEUR EN FAIT PARTIE DEPUIS QU'IL VOYAGE. La peau
+       et la main sont lues au montage comme le reste ; sans ces deux
+       lignes, une peau choisie sur l'autre ordinateur n'arriverait qu'au
+       prochain rechargement de la page — et on croirait la synchro
+       incomplète alors qu'elle a tout rapporté. */
+    setSkin(loadSkinKey());
+    refreshHand();
     notebook.load();
     setThreads(loadThreads());
+    setBonds(loadBonds());
+    setCourses(loadCourses());
     setVocabulary(loadVocabulary());
     const tabs = store.get("shelf-dividers", []);
     setDividers(tabs);
@@ -308,19 +548,97 @@ export default function App() {
     noteAccount,
   } = useSync(loaded, setFilms, rereadDocuments);
 
+  /* LA VEILLE LETTERBOXD. Elle relit le compte toute seule — à
+     l'ouverture, au retour du réseau, quand l'onglet redevient visible,
+     et tous les quarts d'heure — et ne fait que PROPOSER : rien ne
+     s'écrit sans qu'on ait coché. Voir `hooks/useLetterboxd`. */
+  const vigil = useLetterboxd(loaded, films);
+  const [letterboxdOpen, setLetterboxdOpen] = useState(false);
+
   const installation = useInstallation();
   const {
     needRefresh: [updateReady],
     updateServiceWorker,
   } = useRegisterSW();
 
-  /* The first opening starts the full tour — but AFTER the load,
-     otherwise it points at targets the binder has not laid down yet and
-     opens nothing but a veil over the waiting screen. */
+  /* ============================================================
+     UN COMPTE QUI NE TIENT QU'À CET APPAREIL
+     ============================================================
+
+     La question ne se pose qu'avec un compte ouvert, et la réponse est
+     chez le serveur : c'est le nombre de clés qui dit si le compte est
+     enfermé dans cette machine. On la pose une fois, quand un compte
+     apparaît, et jamais si on a déjà assez insisté.
+
+     ELLE SE TAIT SUR UNE PANNE. Hors ligne, ou serveur muet, on ne sait
+     pas — et une alarme sur une ignorance serait pire que le silence. */
+  /* LE STOCKAGE QUI SE REMPLIT. `services/storage` ne peut pas parler —
+     il est chargé avant l'écran et n'a pas de catalogue — donc il
+     signale, et c'est ici qu'on l'entend. `-1` veut dire « l'écriture a
+     échoué », ce qui est une autre nouvelle qu'une jauge haute. */
+  const [quota, setQuota] = useState(null);
+  useEffect(() => watchQuota(setQuota), []);
+
+  /* ============================================================
+     DU NEUF AU HALL
+     ============================================================
+
+     Le fil se remplit pendant qu'on range ses fiches, et rien ne le
+     disait : il fallait aller voir, donc y penser, donc savoir qu'il y
+     avait quelque chose — ce qui est la question.
+
+     ON LIT LE CACHE, ON NE DEMANDE RIEN. `feed` est déjà chargé par la
+     vue du fil et tenu une minute (`hooks/useHall`) ; interroger le
+     serveur ici ferait une requête de plus à chaque ouverture, pour
+     dessiner un point. Sans compte ou sans serveur, `known()` rend
+     `null` et le point n'existe pas — ce qui est la bonne réponse.
+
+     ET IL S'ÉTEINT EN ENTRANT, pas en sortant : c'est le fait de
+     regarder qui compte, et quelqu'un qui ouvre le fil puis change
+     d'avis a quand même vu ce qu'il y avait. */
+  const [hallNews, setHallNews] = useState(false);
+  useEffect(() => {
+    const known = feed.known();
+    setHallNews(unseenNews(known?.news ?? [], synchro.person?.pseudo) > 0);
+  }, [view, synchro.person]);
+
+  useEffect(() => {
+    if (view !== "thread") return;
+    markHallSeen();
+    setHallNews(false);
+  }, [view]);
+
+  const [loneDevice, setLoneDevice] = useState(false);
+  useEffect(() => {
+    if (!synchro.person || !mayNudge()) return;
+    let alive = true;
+    myKeys()
+      .then((keys) => {
+        if (!alive || keys.length !== 1) return;
+        setLoneDevice(true);
+        /* Comptée à la POSE et non au renvoi : une carte qu'on ignore
+           en changeant d'onglet a été montrée quand même, et la compter
+           seulement quand on la ferme la ferait revenir sans fin. */
+        noteNudge();
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [synchro.person]);
+
+  /* LA VISITE NE S'IMPOSE PLUS, ELLE SE PROPOSE.
+     Elle s'ouvrait d'elle-même à la première seconde de la première
+     visite : un voile opaque sur un mur garni qu'on n'avait pas encore
+     eu le temps de regarder, et le premier geste offert à quelqu'un qui
+     découvre le produit était de s'en débarrasser. On laisse le mur se
+     manipuler, et le carton propose la visite à côté.
+
+     APRÈS LE CHARGEMENT quand même : le carton pointe le pied du rail,
+     qui n'est pas là tant que l'écran d'attente l'est. */
   useEffect(() => {
     if (!loaded) return;
-    if (isFirstRun()) setTourId("global");
-    else if (shouldHint()) setHint(true);
+    if (shouldHint()) setHint(true);
   }, [loaded]);
 
   const playTour = (id) => {
@@ -354,6 +672,100 @@ export default function App() {
     setSelectedId(id);
     setView("detail");
   }, []);
+
+  /* L'IMPORT S'OUVRE DE QUATRE ENDROITS depuis que la porte le propose :
+     le pied du rail, le carton de l'exemple, et les deux murs vides.
+     Une seule fonction, tenue, pour que les quatre fassent la même
+     chose — et surtout pour que `setSelectedId(null)` ne soit pas oublié
+     à l'un des quatre, ce qui rendrait une page d'import sous une fiche
+     restée ouverte. */
+  const openImport = useCallback(() => {
+    setView("import");
+    setSelectedId(null);
+  }, []);
+
+  /* ============================================================
+     L'ÉTAT MÈNE, L'ADRESSE SUIT
+     ============================================================
+
+     Un seul sens d'écriture, et c'est ce qui évite la boucle. Ici on
+     n'écrit QUE l'adresse, jamais l'état ; l'effet d'en dessous ne lit
+     QUE l'adresse pour écrire l'état, et seulement quand le navigateur
+     l'a changée sous nos pieds.
+
+     `pushState` n'émet pas `hashchange` — c'est ce qui rend la
+     séparation praticable. Écrire `location.hash` en émettrait un, et
+     les deux effets se répondraient.
+
+     LE PREMIER PASSAGE REMPLACE AU LIEU D'EMPILER. Arriver sur `/` et y
+     pousser `#/mur` poserait une entrée d'historique vers la même page :
+     un retour arrière qui ne fait rien est pire que pas de retour du
+     tout, puisqu'il faut appuyer deux fois pour sortir. */
+  const addressWritten = useRef(false);
+  useEffect(() => {
+    const place = view === "detail" && selectedId ? { view, film: selectedId } : { view };
+    /* On ne touche pas à l'adresse d'une collection partagée : cette
+       page-là n'est pas la nôtre, et `main.jsx` recharge dessus. */
+    if (location.hash && !readPlace()) return;
+    const wanted = placeToHash(place);
+    /* LE DRAPEAU SE POSE AU PREMIER PASSAGE, PAS À LA PREMIÈRE ÉCRITURE.
+       La nuance a coûté une entrée d'historique : arrivé sur
+       `#/fiche/…`, l'adresse voulue est déjà la bonne, on ne l'écrivait
+       donc pas — et le drapeau restant baissé, le PREMIER changement de
+       vue remplaçait la fiche au lieu de s'empiler par-dessus. Revenir
+       en arrière sautait la fiche d'où l'on venait. */
+    const first = !addressWritten.current;
+    addressWritten.current = true;
+    /* LA VUE SE RAPPORTE ICI, où l'on sait qu'elle a changé — y compris
+       au premier passage, qui est l'arrivée et donc la page qui compte
+       le plus. `pageSeen` coupe l'identifiant d'une fiche ; on lui passe
+       l'endroit et jamais l'adresse, pour qu'il n'y ait pas deux façons
+       de l'appeler dont une mauvaise. */
+    pageSeen(place);
+    if (location.hash === wanted) return;
+    if (first) history.replaceState(null, "", wanted);
+    else history.pushState(null, "", wanted);
+  }, [view, selectedId]);
+
+  /* La mesure se charge une fois, et seulement si une instance est
+     réglée. Sans elle, rien de tout cela n'existe — pas de script, pas
+     de requête. */
+  useEffect(startMeasuring, []);
+
+  /* Le retour arrière, l'avance, et l'adresse collée à la main. Les deux
+     événements plutôt qu'un : `popstate` couvre les boutons du
+     navigateur, `hashchange` la barre d'adresse. Ils se recouvrent
+     souvent, et se rejouer est sans effet — on écrit le même état. */
+  useEffect(() => {
+    const follow = () => {
+      const place = readPlace();
+      /* Rien à nous : soit l'adresse est vide, soit c'est une collection
+         partagée, et `main.jsx` s'en occupe en rechargeant. */
+      if (!place) return;
+      setView(place.view);
+      setSelectedId(place.film ?? null);
+    };
+    addEventListener("popstate", follow);
+    addEventListener("hashchange", follow);
+    return () => {
+      removeEventListener("popstate", follow);
+      removeEventListener("hashchange", follow);
+    };
+  }, []);
+
+  /* UNE FICHE QUI N'EXISTE PLUS. Un lien mis en favori, puis le film
+     supprimé — ou l'adresse d'un autre classeur. `DetailView` ne rend
+     rien sans sa fiche, donc sans cette ligne on resterait sur une
+     colonne vide, avec la bonne adresse et rien dedans.
+
+     APRÈS LE CHARGEMENT SEULEMENT : avant, la collection est vide et
+     toute fiche y semble morte. */
+  useEffect(() => {
+    if (!loaded || view !== "detail" || !selectedId) return;
+    if (films.some((f) => f.id === selectedId)) return;
+    setSelectedId(null);
+    setView(HOME);
+  }, [loaded, view, selectedId, films]);
 
   /* The counterpart of `visiteOuvreVue`, one notch lower: the film
      folder's tab. Stable for the same reason — the tour uses it inside
@@ -400,27 +812,73 @@ export default function App() {
      `useRef` and not a module variable: two binders mounted side by side
      in a test would share the counter. */
   const writeRank = useRef(0);
-  const commitFilms = (next) => {
-    setFilms(next);
+  const write = (next) => {
     const rank = ++writeRank.current;
-    saveFilms(next).then((dated) => {
+    return saveFilms(next).then((dated) => {
       if (rank === writeRank.current) setFilms(dated);
     });
   };
 
-  /* REMOVING THE EXAMPLE. The banner only shows as long as the binder is
-     NOTHING BUT the example: so we erase everything, without having to
-     sort. The notebook page goes with it — it talks about the twelve
-     films. */
-  const removeDemo = () => {
-    commitFilms(withoutDemo(films));
-    notebook.replaceAll(notebook.notes.filter((n) => !n.id.startsWith(DEMO_PREFIX)));
-    setSelectedId(null);
+  const FILMS = "films";
+
+  const commitFilms = (next) => {
+    setFilms(next);
+    /* ET L'ÉCRITURE DIFFÉRÉE QUI ATTENDAIT EST ABANDONNÉE. Elle porte un
+       état PLUS ANCIEN que celui-ci, et partirait après lui : c'est ce
+       qui faisait disparaître une capture insérée dans une critique —
+       l'insertion écrivait tout de suite, la frappe d'avant écrasait
+       trois cents millisecondes plus tard. */
+    dropSoon(FILMS);
+    /* UNE ÉCRITURE IMMÉDIATE AVANCE LA PASSE, ELLE AUSSI. Elle ne le
+       faisait pas : seule la file différée prévenait, donc une note
+       étoilée ou une fiche effacée attendaient le rythme de cinq
+       minutes. Voir `noteWritten`. */
+    noteWritten();
+    return write(next);
+  };
+
+  /* LA MÊME CHOSE, MAIS PAS TOUT DE SUITE — pour ce qu'on TAPE.
+
+     L'écran est à jour immédiatement, comme avant : c'est `setFilms` qui
+     le fait, et il n'a jamais été en cause. Ce qu'on diffère est
+     l'écriture, qui sérialise la collection ENTIÈRE dans le coffre — la
+     faire trente fois par phrase était du travail pour rien, et c'est
+     l'ill que le commentaire ci-dessus disait « déplacée » sans la
+     traiter.
+
+     LE RANG RESTE INDISPENSABLE, et il est maintenant DANS `write` :
+     l'écriture différée revient toujours après la frappe suivante, et
+     c'est exactement le défaut du « laoume s s ». Le grouper n'a fait
+     que l'espacer.
+
+     `saveSoon` garantit le départ avant fermeture de la page et avant
+     passage en arrière-plan — voir `services/saving`. */
+  const commitFilmsSoon = (next) => {
+    setFilms(next);
+    saveSoon(FILMS, () => write(next));
   };
 
   const commitThreads = (next) => {
     setThreads(next);
     saveThreadsToDisk(next);
+  };
+
+  const commitBonds = (next) => {
+    setBonds(next);
+    saveBondsToDisk(next);
+  };
+
+  const commitCourses = (next) => {
+    setCourses(next);
+    saveCoursesToDisk(next);
+  };
+
+  /* WHILE A DRAG IS RUNNING. Reordering fires on every crossed entry;
+     the coalesced write turns forty of them into one, exactly as the
+     typing of a review does. The gesture ends on `commitCourses`. */
+  const commitCoursesSoon = (next) => {
+    setCourses(next);
+    saveCoursesToDiskSoon(next);
   };
 
   const commitVocabulary = (next) => {
@@ -449,9 +907,11 @@ export default function App() {
      name. So we clean up, and that is why the confirmation announces the
      number of cards concerned.
 
-     The threads built on it lose their source and keep the members set
-     by hand: a thread is not destroyed by its motif disappearing, it
-     becomes a list again. */
+     ITS SETTINGS GO WITH IT. They used to be kept, with the motif set to
+     `null`: the gathering then held nothing — its members all came from
+     the motif — drew nothing on the map, and could be deleted from
+     nowhere. A ghost in `localStorage`, in short. The motif IS the
+     gathering now, so deleting one deletes the other. */
   const deleteMotif = (motifId) => {
     commitVocabulary({
       ...vocabulary,
@@ -464,9 +924,8 @@ export default function App() {
           : f
       )
     );
-    const touched = fils.filter((f) => f.motif === motifId);
-    if (touched.length)
-      commitThreads(fils.map((f) => (f.motif === motifId ? { ...f, motif: null } : f)));
+    if (fils.some((f) => f.motif === motifId))
+      commitThreads(fils.filter((f) => f.motif !== motifId));
   };
 
   /* Setting aside, and not deleting: a catalogue motif is not yours, and
@@ -524,15 +983,27 @@ export default function App() {
     thread: () => setView("constellation"),
   };
   const updateFilm = (film) => commitFilms(films.map((f) => (f.id === film.id ? film : f)));
+  /* CE QU'ON TAPE PASSE PAR ICI. Même geste, écriture groupée : voir
+     `commitFilmsSoon`. La fiche s'en sert pour la critique, les notes
+     libres et la légende d'une capture — jamais pour un clic, qui EST
+     déjà une validation. */
+  const updateFilmSoon = (film) => commitFilmsSoon(films.map((f) => (f.id === film.id ? film : f)));
   /* Filing a case renumbers a whole shelf: one write, not thirty. */
   const updateMany = (patches) =>
     commitFilms(films.map((f) => (patches[f.id] ? { ...f, ...patches[f.id] } : f)));
   const deleteFilm = (id) => {
+    const before = films;
     const next = films.filter((f) => f.id !== id);
     commitFilms(next);
-    pruneOrphans(next).catch(console.error); // l'affiche part avec la fiche
     setView("library");
     setSelectedId(null);
+    /* L'affiche part avec la fiche — mais seulement quand la fenêtre
+       d'annulation s'est refermée. */
+    offerUndo({
+      label: "undo.film",
+      films: before,
+      prune: () => pruneOrphans(next).catch(console.error),
+    });
   };
 
   /* PLUSIEURS D'UN COUP, DEPUIS LE MUR. Passer par `deleteFilm` en
@@ -542,9 +1013,51 @@ export default function App() {
   const deleteFilms = (ids) => {
     const gone = new Set(ids);
     if (gone.size === 0) return;
+    const before = films;
     const next = films.filter((f) => !gone.has(f.id));
     commitFilms(next);
-    pruneOrphans(next).catch(console.error);
+    offerUndo({
+      label: "undo.films",
+      count: gone.size,
+      films: before,
+      prune: () => pruneOrphans(next).catch(console.error),
+    });
+  };
+
+  /* FONDRE DES DOUBLONS : UNE SEULE ÉCRITURE, ET ELLE S'ANNULE.
+
+     Une fusion écrit ET efface — la fiche survivante reçoit ce que
+     l'autre portait, l'autre disparaît. Passer par `updateFilm` puis
+     `deleteFilms` aurait fait deux écritures, donc deux départs en
+     synchro, et surtout deux annulations dont l'une aurait pu être
+     jouée sans l'autre.
+
+     `offerUndo` porte la collection D'AVANT en entier : c'est la même
+     porte que la suppression, et c'est ce qui rend le geste réparable
+     alors qu'il touche à ce qu'on a écrit à la main. */
+  const mergeFilms = (pairs) => {
+    if (!pairs?.length) return;
+    const before = films;
+    /* UNE MÊME SURVIVANTE PEUT RECEVOIR PLUSIEURS DOUBLONS. On accumule
+       donc sur le résultat précédent, sinon la seconde fusion repartirait
+       de la fiche d'origine et la première serait perdue. */
+    const merged = new Map();
+    const gone = new Set();
+    for (const { keep, drop } of pairs) {
+      merged.set(keep.id, mergeDuplicate(merged.get(keep.id) ?? keep, drop));
+      gone.add(drop.id);
+    }
+    const next = films.filter((f) => !gone.has(f.id)).map((f) => merged.get(f.id) ?? f);
+    commitFilms(next);
+    offerUndo({
+      label: "undo.merged",
+      count: pairs.length,
+      films: before,
+      /* Les captures de la disparue ont été REPRISES par la survivante :
+         `pruneOrphans` lit ce qui reste référencé, donc il ne touchera
+         pas aux images qu'on vient de sauver. */
+      prune: () => pruneOrphans(next).catch(console.error),
+    });
   };
 
   /* Linking two cards means writing on both sides: opening one or the
@@ -583,31 +1096,47 @@ export default function App() {
     );
   };
 
-  /* Turning a motif into a question put to the whole collection.
+  /* CHANGING SOMETHING ABOUT A MOTIF'S GATHERING.
 
-     The thread does NOT enumerate the films at the moment it is created:
-     it holds the motif, and recomposes itself on every read. That is
-     what makes a card tagged tomorrow enter it without anyone coming
-     back to it — a frozen thread would be wrong within a week.
+     Nothing is created here, because there is nothing to create: a motif
+     laid on two cards is already a star (`effectiveThreads`). What this
+     writes is a DEVIATION from that default — a name of one's own, a
+     colour, a note, a card set by hand, the star put out.
 
-     Setting the same motif again does not create a duplicate: we reopen
-     the one that already exists. */
-  const makeThreadFromMotif = (motifId) => {
-    const existing = fils.find((f) => f.motif === motifId);
-    if (existing) {
-      setView("constellation");
-      return;
-    }
-    const motif = motifById(motifId);
-    if (!motif) return;
-    commitThreads([
-      ...fils,
-      makeThread({
-        label: motif.label,
-        motif: motifId,
-        color: CAT_KEYS[fils.length % CAT_KEYS.length],
-      }),
-    ]);
+     And what stops saying anything is erased rather than kept: a row
+     equal to the default is a row that will contradict the catalogue the
+     day the motif is relabelled. `"fils"` holds the corrections, never a
+     second copy of the vocabulary.
+
+     The gathering does NOT enumerate the films: it holds the motif and
+     recomposes itself on every read. That is what makes a card tagged
+     tomorrow enter it without anyone coming back to it. */
+  const patchMotifThread = (motifId, patch) => {
+    const current = fils.find((f) => f.motif === motifId) || makeThread({ motif: motifId });
+    const next = { ...current, ...patch, motif: motifId, id: motifId };
+    const others = fils.filter((f) => f.motif !== motifId);
+    commitThreads(isPlainDefault(next) ? others : [...others, next]);
+  };
+
+  /* Putting a motif's star out, or lighting it back up.
+
+     Lighting one that the count already lights writes nothing — which is
+     the point: the common case leaves no trace at all. */
+  const setMotifStar = (motifId, on) =>
+    patchMotifThread(motifId, {
+      off: !on,
+      /* Lit by hand below the count, the gathering needs a member of its
+         own to exist at all — the motif alone would not reach `STAR_FROM`
+         and `effectiveThreads` would drop it on the next read. */
+      filmIds:
+        on && countOfMotif(motifId, films) < STAR_FROM && selectedId
+          ? [...new Set([...(fils.find((f) => f.motif === motifId)?.filmIds || []), selectedId])]
+          : fils.find((f) => f.motif === motifId)?.filmIds || [],
+    });
+
+  /* Opening the map on one gathering rather than on the whole sky. */
+  const openMotifInSky = (motifId) => {
+    setSkyFocus(`t:${motifId}`);
     setView("constellation");
   };
 
@@ -639,7 +1168,16 @@ export default function App() {
   /* Restoring means replacing the whole state — the arrangement
      included. A backup from before the views (v ≤ 3) has none: we then
      rebuild them from its dividers, which is what `force` is for. */
-  const restoreBackup = ({ films: f, notes: n, dividers: d, views: v, fils: fl, motifs: mo }) => {
+  const restoreBackup = ({
+    films: f,
+    notes: n,
+    dividers: d,
+    views: v,
+    fils: fl,
+    motifs: mo,
+    filiations: bd,
+    parcours: cs,
+  }) => {
     const migrated = migrate(f);
     /* A RESTORE IS NOT A MODIFICATION. Without this line, the store
        would compare the backup with the collection it replaces, find a
@@ -650,6 +1188,10 @@ export default function App() {
     forgetCache(migrated);
     commitFilms(migrated);
     commitThreads(normalizeThreads(fl || []));
+    /* A backup written before v8 has neither: an empty list and never
+       `undefined`, so the doors below get the array they read. */
+    commitBonds(normalizeBonds(bd || []));
+    commitCourses(normalizeCourses(cs || []));
     commitVocabulary(normalizeVocabulary(mo || {}));
     if (n?.length) notebook.replaceAll(n);
     const tabs = d || [];
@@ -680,7 +1222,23 @@ export default function App() {
   const importFilms = ({ toCreate, toUpdate }) => {
     const patches = new Map(toUpdate.map(({ film, changes }) => [film.id, changes]));
     const merged = films.map((f) => (patches.has(f.id) ? { ...f, ...patches.get(f.id) } : f));
-    commitFilms([...toCreate, ...merged]);
+    /* ON SYNCHRONISE TOUT DE SUITE, ET SEULEMENT ICI.
+
+       Un import est le geste le plus gros du produit — six cents fiches
+       d'un coup — et le seul qu'on VALIDE par un bouton en sachant ce
+       qu'il contient. Le laisser dans la file voulait dire ouvrir le
+       tiroir du compte juste après et y lire « six cents fiches
+       attendent le réseau », ce qui se lit comme un import qui n'a pas
+       pris.
+
+       APRÈS L'ÉCRITURE, PAS AVANT : c'est `saveFilms` qui note ce qu'il
+       y a à envoyer, et une passe partie trop tôt trouverait la file
+       telle qu'elle était. D'où le `then` — `commitFilms` rend sa
+       promesse pour cette raison, et pour elle seule.
+
+       Une passe refusée ne casse rien : le rythme ordinaire reprend, et
+       tout est déjà sur le disque. */
+    commitFilms([...toCreate, ...merged]).then(() => rerunSync());
   };
 
   const selectedFilm = films.find((f) => f.id === selectedId);
@@ -693,12 +1251,23 @@ export default function App() {
     const saved = store.get("wall-prefs", {});
     const one = (wall) => ({
       q: "",
-      genreFilter: "",
-      decadeFilter: null,
+      /* AU PLURIEL : les tamis en acceptent plusieurs. Ni l'un ni
+         l'autre n'est sur le disque — `keep()` plus bas ne garde que le
+         mode, le tri et la vue — donc rien à migrer. */
+      genreFilter: [],
+      decadeFilter: [],
       grouped: false,
       sortBy: saved[wall]?.sortBy || WALLS[wall].defaultSort,
       desc: saved[wall]?.desc ?? true,
-      mode: saved[wall]?.mode || "wall",
+      /* L'ÉTAGÈRE EST LA VUE PRINCIPALE DE LA COLLECTION, et le mur
+         est l'autre angle. Le défaut disait l'inverse : on arrivait sur
+         une grille d'affiches, et le rangement — les rayons, les
+         boîtes, les objets posés — demandait un clic pour exister. Ce
+         classeur range ; il montre ensuite.
+
+         `saved[wall]?.mode` passe devant : c'est un défaut, pas une
+         reprise, et personne ne doit retrouver son choix renversé. */
+      mode: saved[wall]?.mode || "shelf",
       /* The shelves' width is no longer a wall setting: it belongs to
          each row, in the view. All that survives here is the view we
          were looking at. */
@@ -719,6 +1288,38 @@ export default function App() {
       return merged;
     });
 
+  /* LES PRÉFÉRENCES DE MUR ARRIVENT AUSSI PAR LA SYNCHRO, et elles
+     n'étaient relues nulle part : `wallUi` se remplit UNE FOIS, au
+     montage, avant que le tirage ait atterri. Le mode, le tri, la vue
+     regardée et le DÉCOR DE FOND descendaient donc du serveur pour
+     rester invisibles jusqu'au prochain rechargement — ce qui se lit
+     comme « la synchro n'a rien ramené ».
+
+     Seule la part RANGÉE est reprise. La recherche, les tamis et le
+     groupement sont l'humeur du moment : les remplacer sous les doigts
+     de quelqu'un parce qu'un autre appareil s'est réveillé serait pire
+     que de ne rien reprendre. */
+  useEffect(() => {
+    if (!docsAt) return;
+    const saved = store.get("wall-prefs", null);
+    if (!saved) return;
+    setWallUi((s) => {
+      const one = (wall) => {
+        const kept = saved[wall];
+        if (!kept) return s[wall];
+        return {
+          ...s[wall],
+          mode: kept.mode || s[wall].mode,
+          sortBy: kept.sortBy || s[wall].sortBy,
+          desc: kept.desc ?? s[wall].desc,
+          viewId: kept.viewId ?? s[wall].viewId,
+          look: kept.look ?? s[wall].look,
+        };
+      };
+      return { watched: one("watched"), watchlist: one("watchlist") };
+    });
+  }, [docsAt]);
+
   /* A wall's active view: the one we were looking at, or the first — the
      identifier kept on the disk may point at a view since deleted, or
      one from another browser. */
@@ -728,6 +1329,10 @@ export default function App() {
     return kept && list.includes(kept) ? kept : list[0] || null;
   };
 
+  /* Recalculé quand une vue change, et pas à chaque rendu : le balayage
+     traverse toutes les vues, toutes leurs rangées et leurs boîtes. */
+  const placedMotifs = useMemo(() => countPlacedMotifs(views.docs), [views.docs]);
+
   /* Everything a wall's shelf needs, gathered in one place: the view it
      shows, the list of those to switch between, and the gestures that
      make them born, renamed or gone. */
@@ -736,6 +1341,16 @@ export default function App() {
     return {
       shelfView: id ? views.docs[id] : null,
       shelfViews: (views.byWall[wall] || []).map((x) => views.docs[x]).filter(Boolean),
+      /* CE QUI EST DÉJÀ POSÉ, SUR TOUTES LES VUES ET LES DEUX MURS.
+
+         On pose autant d'exemplaires d'un objet gagné qu'on en possède,
+         et c'est ce qui donne un sens aux doubles. Le compte se fait
+         donc ICI, au seul endroit qui voie `views.docs` en entier :
+         une vue est une DISPOSITION de la même collection, pas une
+         étagère de plus, et compter par vue aurait offert un exemplaire
+         gratuit à chaque vue créée. */
+      placed: placedMotifs,
+      onOpenPerson: openPerson,
       onShelfView: shelf.commit,
       onPickView: (next) => setUiFor(wall)({ ...wallUi[wall], viewId: next }),
       onCreateView: (name) => setUiFor(wall)({ ...wallUi[wall], viewId: shelf.create(wall, name) }),
@@ -760,7 +1375,62 @@ export default function App() {
      every time. */
   const backView = who ? "credits" : selectedFilm?.status === "watchlist" ? "watchlist" : "library";
 
-  if (!loaded) {
+  /* LES TROIS ÉCRANS DE LA PORTE, avant tout le reste. Ils viennent
+     AVANT `!loaded` : charger le classeur n'a de sens qu'une fois
+     entré, et l'écran d'attente parlerait d'une ouverture qui n'aura
+     pas lieu. */
+  if (session === "out") {
+    /* LE TIROIR ET LA VISITE VIENNENT AVEC, et ce n'est pas un détail :
+       la porte offre les deux gestes, et ils étaient montés PLUS BAS,
+       dans l'arbre du classeur, dont on sort par ce retour. Le bouton
+       « ouvrir un compte » a donc mis un instant `accountOpen` à vrai
+       sans que rien n'apparaisse — un bouton qui ne fait rien est pire
+       qu'un bouton absent. */
+    return (
+      <>
+        {/* LA FEUILLE GLOBALE MANQUAIT AUX DEUX ÉCRANS DE LA PORTE, et
+            elle y manquait depuis toujours. Elle n'était montée que dans
+            l'arbre du classeur et dans l'écran d'attente — c'est-à-dire
+            APRÈS être entré. Or c'est elle qui porte les polices, les
+            deux durées de mouvement, le bloc « moins d'animations », les
+            correctifs du téléphone et le contour de focus : la toute
+            première page qu'on voit du produit n'avait aucun des cinq.
+            Trouvé en regardant la page pour de vrai, pas en la
+            relisant. */}
+        <style>{FONT_IMPORT}</style>
+        <PaperGrain />
+        <Doorstep films={showcase} onTour={() => setTourId("global")} />
+        {accountOpen && (
+          <AccountDrawer
+            report={synchro}
+            onClose={() => setAccountOpen(false)}
+            onSync={rerunSync}
+            /* Un compte qui s'ouvre depuis la porte fait entrer : on
+               repose la question au serveur plutôt que de deviner. */
+            onAccountChange={() => setAttempt((n) => n + 1)}
+          />
+        )}
+        {tourId && (
+          <TourOverlay
+            tourId={tourId}
+            onClose={closeTour}
+            onView={tourOpensView}
+            onTab={setDetailTab}
+          />
+        )}
+      </>
+    );
+  }
+  if (session === "unreachable") {
+    return (
+      <>
+        <style>{FONT_IMPORT}</style>
+        <Unreachable busy={false} onRetry={() => setAttempt((n) => n + 1)} />
+      </>
+    );
+  }
+
+  if (!loaded || session === "asking") {
     return (
       <div
         style={{
@@ -796,6 +1466,33 @@ export default function App() {
     >
       <style>{FONT_IMPORT}</style>
       <PaperGrain />
+      {/* LE PAPIER, SOUS TOUT ET SUR LE FOND DE PEAU.
+
+          C'est une COUCHE et non un fond : le fond de la page est une
+          recette de la peau — plusieurs dégradés superposés — et lui
+          ajouter une image l'aurait remplacée au lieu de s'y ajouter.
+
+          Il prend l'encre de la peau EN COURS, résolue : un `var()`
+          écrit dans un SVG embarqué ne résout rien, il n'a pas la racine
+          du document pour parent. C'est la même contrainte que les
+          motifs de l'étagère, et c'est pour cela que `paperLayer` prend
+          une couleur et jamais un jeton.
+
+          Il vient de la mémoire locale, comme la peau : une page qui
+          attend le réseau pour savoir sur quel papier elle est écrite
+          est une page qui clignote à chaque ouverture. */}
+      {paperLayer(paper, skinOf(skin).c.ink) && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 1,
+            pointerEvents: "none",
+            ...paperLayer(paper, skinOf(skin).c.ink),
+          }}
+        />
+      )}
       <FolderTabs
         view={view}
         setView={(v) => {
@@ -806,10 +1503,7 @@ export default function App() {
           setPerson(null);
         }}
         onAdd={() => setShowModal(true)}
-        onImport={() => {
-          setView("import");
-          setSelectedId(null);
-        }}
+        onImport={openImport}
         onSearch={() => setSearch(true)}
         onSkin={() => setSkinPicker(true)}
         onLanguage={() => setLanguagePicker(true)}
@@ -817,7 +1511,34 @@ export default function App() {
         onHelp={() => setTourMenu((o) => !o)}
         onAccount={() => setAccountOpen(true)}
         sync={synchro.state}
+        hallNews={hallNews}
+        letterboxdCount={vigil.count}
+        letterboxdTrouble={vigil.failed}
+        onLetterboxd={() => setLetterboxdOpen(true)}
       />
+      {letterboxdOpen && (
+        <LetterboxdWatchSheet
+          proposal={vigil.proposal}
+          busy={vigil.busy}
+          filling={vigil.filling}
+          failed={vigil.failed}
+          onRefresh={vigil.refresh}
+          onSettle={async (chosen) => {
+            /* LE MÊME CHEMIN D'ÉCRITURE QUE L'IMPORT MANUEL, et pas un
+               second : `settle` rend un `ImportDiff`, donc la même
+               fusion, la même écriture et la même passe de synchro
+               derrière. Ce qui n'a pas été coché est écarté par le hook,
+               et ne reviendra plus sur aucun appareil. */
+            /* ON ATTEND, parce que `settle` demande maintenant à TMDB
+               de compléter ce qui a été coché avant de rendre les
+               fiches : refermer sans attendre écrirait les lignes nues
+               et perdrait la passe qu'on vient de payer. */
+            importFilms(await vigil.settle(chosen));
+            setLetterboxdOpen(false);
+          }}
+          onClose={() => setLetterboxdOpen(false)}
+        />
+      )}
       {accountOpen && (
         <AccountDrawer
           report={synchro}
@@ -934,108 +1655,208 @@ export default function App() {
             de la colonne ne dit rien, ce qui est exactement ce qu'il y a
             à dire pendant si peu de temps — et surtout elle ne fait pas
             sauter la mise en page en arrivant. */}
-          <Suspense fallback={<div style={{ minHeight: "60vh" }} aria-hidden />}>
-            {view === "library" && !selectedId && (
-              <LibraryView
-                onDeleteFilms={deleteFilms}
-                wall="watched"
-                films={watched}
-                ui={wallUi.watched}
-                setUi={setUiFor("watched")}
-                onUpdateMany={updateMany}
-                {...viewProps("watched")}
-                onOpen={openFilm}
-              />
-            )}
-            {view === "watchlist" && !selectedId && (
-              <LibraryView
-                onDeleteFilms={deleteFilms}
-                wall="watchlist"
-                films={watchlist}
-                allFilms={films}
-                ui={wallUi.watchlist}
-                setUi={setUiFor("watchlist")}
-                onUpdateMany={updateMany}
-                {...viewProps("watchlist")}
-                onOpen={openFilm}
-              />
-            )}
-            {view === "detail" && selectedFilm && (
-              <DetailView
-                film={selectedFilm}
-                films={films}
-                signedIn={!!synchro.person}
-                /* THE TAB IS HELD HERE, as the view already is: the guided
+          {/* LA DIGUE EST DEHORS, LE SUSPENSE DEDANS, et cet ordre est
+              le seul qui marche. `Suspense` connaît l'ATTENTE, jamais
+              l'ÉCHEC : un `import()` refusé — un déploiement pendant
+              qu'un onglet est ouvert, un réseau coupé — le traverse et
+              démonte l'arbre entier. Il n'y avait aucune frontière
+              d'erreur dans tout le projet, donc une page blanche, sans
+              rail ni message.
+
+              `resetKey` porte la vue : une vue tombée doit se relever
+              quand on change d'onglet, sans quoi le rail deviendrait
+              inerte après la première chute. */}
+          <Boundary resetKey={view} what={t("trouble.viewFell")}>
+            <Suspense fallback={<div style={{ minHeight: "60vh" }} aria-hidden />}>
+              {view === "library" && !selectedId && (
+                <LibraryView
+                  onDeleteFilms={deleteFilms}
+                  wall="watched"
+                  films={watched}
+                  ui={wallUi.watched}
+                  setUi={setUiFor("watched")}
+                  onUpdateMany={updateMany}
+                  {...viewProps("watched")}
+                  onOpen={openFilm}
+                  onImport={openImport}
+                  onAdd={() => setShowModal(true)}
+                  /* La fiche rapide complète ce qui lui manque — une
+                     fois, par fiche — et l'écrit : voir `FilmQuickView`. */
+                  onUpdateFilm={updateFilm}
+                  courses={courses}
+                  onOpenRun={() => setView("program")}
+                />
+              )}
+              {view === "watchlist" && !selectedId && (
+                <LibraryView
+                  onDeleteFilms={deleteFilms}
+                  wall="watchlist"
+                  films={watchlist}
+                  allFilms={films}
+                  ui={wallUi.watchlist}
+                  setUi={setUiFor("watchlist")}
+                  onUpdateMany={updateMany}
+                  {...viewProps("watchlist")}
+                  onOpen={openFilm}
+                  onImport={openImport}
+                  onAdd={() => setShowModal(true)}
+                  /* La fiche rapide complète ce qui lui manque — une
+                     fois, par fiche — et l'écrit : voir `FilmQuickView`. */
+                  onUpdateFilm={updateFilm}
+                  courses={courses}
+                  onOpenRun={() => setView("program")}
+                />
+              )}
+              {view === "detail" && selectedFilm && (
+                <DetailView
+                  film={selectedFilm}
+                  films={films}
+                  signedIn={!!synchro.person}
+                  /* THE TAB IS HELD HERE, as the view already is: the guided
                tour must be able to open "Links" before going there to
                find the red thread. See `visiteOuvreOnglet`. */
-                tab={detailTab}
-                onTab={setDetailTab}
-                onBack={() => {
-                  setView(backView);
-                  setSelectedId(null);
-                }}
-                /* `credits.` AND NOT `detail.`: the sentence has always lived
+                  tab={detailTab}
+                  onTab={setDetailTab}
+                  onBack={() => {
+                    setView(backView);
+                    setSelectedId(null);
+                  }}
+                  /* `credits.` AND NOT `detail.`: the sentence has always lived
                  with the credits, and this asked for it under the card's
                  own heading — so the back link read
                  "detail.backToCredits", in full, on screen. */
-                backTo={who ? i18n.t("credits.backToCredits") : undefined}
-                onUpdate={updateFilm}
-                onDelete={deleteFilm}
-                onLinkFilm={linkFilms}
-                onRemoveLink={removeLink}
-                onEditLink={editLink}
-                onMakeThread={makeThreadFromMotif}
-                vocabulary={vocabulary}
-                onCreateMotif={createMotif}
-                onDeleteMotif={deleteMotif}
-                onHideMotif={hideMotif}
-                onOpen={(id) => setSelectedId(id)}
-                onOpenPerson={openPerson}
-                onAddToWatchlist={addFilm}
-              />
-            )}
-            {view === "credits" && (
-              <CreditsView
-                films={films}
-                who={who}
-                onOpenPerson={setPerson}
-                onOpen={openFilm}
-                onAddToWatchlist={addFilm}
-              />
-            )}
-            {view === "reco" && (
-              <RecoView films={films} onAddToWatchlist={addFilm} onOpen={openFilm} />
-            )}
-            {view === "constellation" && (
-              <ConstellationView
-                films={constellationFilms}
-                fils={fils}
-                onLinkFilm={linkFilms}
-                onOpen={openFilm}
-              />
-            )}
-            {/* The almanac reads the screening log: so it looks at the cards
+                  backTo={who ? i18n.t("credits.backToCredits") : undefined}
+                  onUpdate={updateFilm}
+                  onUpdateSoon={updateFilmSoon}
+                  onDelete={deleteFilm}
+                  onLinkFilm={linkFilms}
+                  onRemoveLink={removeLink}
+                  onEditLink={editLink}
+                  fils={fils}
+                  onStarMotif={setMotifStar}
+                  onOpenInSky={openMotifInSky}
+                  vocabulary={vocabulary}
+                  onCreateMotif={createMotif}
+                  onDeleteMotif={deleteMotif}
+                  onHideMotif={hideMotif}
+                  onOpen={(id) => setSelectedId(id)}
+                  onOpenPerson={openPerson}
+                  onAddToWatchlist={addFilm}
+                  /* LE PROGRAMME SUIT LA FICHE. On lit, on ne touche à
+                     rien : `stepOf` prend l'épinglé d'abord. */
+                  placing={stepOf(courses, selectedFilm.id)}
+                  onOpenRun={() => {
+                    setSelectedId(null);
+                    setView("program");
+                  }}
+                />
+              )}
+              {view === "credits" && (
+                <CreditsView
+                  films={films}
+                  who={who}
+                  onOpenPerson={setPerson}
+                  onOpen={openFilm}
+                  onAddToWatchlist={addFilm}
+                />
+              )}
+              {view === "reco" && (
+                <RecoView
+                  films={films}
+                  onAddToWatchlist={addFilm}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                />
+              )}
+              {view === "constellation" && (
+                <ConstellationView
+                  films={constellationFilms}
+                  fils={fils}
+                  focus={skyFocus}
+                  onPatchThread={patchMotifThread}
+                  onDeleteMotif={deleteMotif}
+                  onLinkFilm={linkFilms}
+                  onOpen={openFilm}
+                />
+              )}
+              {/* LES FILIATIONS LISENT `films` ET NON `constellationFilms`.
+                  Celui-là vaut « vus, non archivés » — exactement la
+                  mauvaise moitié : on planifie ce qu'on n'a PAS vu, et
+                  revoir un film est un jalon légitime. Le sélecteur met
+                  « à voir » en tête, il n'exclut rien. */}
+              {view === "program" && (
+                <ProgramView
+                  films={films}
+                  courses={courses}
+                  bonds={bonds}
+                  onCourses={commitCourses}
+                  onCoursesSoon={commitCoursesSoon}
+                  onBonds={commitBonds}
+                  onAddFilm={addFilm}
+                  onUpdateFilm={updateFilm}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                />
+              )}
+              {/* The almanac reads the screening log: so it looks at the cards
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
-            {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
-            {view === "thread" && <ThreadView connected={!!synchro.person} />}
-            {view === "lists" && <ListsView connected={!!synchro.person} />}
-            {view === "quiz" && <QuizView connected={!!synchro.person} />}
-            {view === "counter" && <CounterView connected={!!synchro.person} />}
-            {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
-            {view === "import" && (
-              <ImportView
-                onImport={importFilms}
-                films={films}
-                notes={notebook.notes}
-                dividers={dividers}
-                views={views}
-                fils={fils}
-                motifs={vocabulary}
-                onRestore={restoreBackup}
-              />
-            )}
-          </Suspense>
+              {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
+              {view === "thread" && <ThreadView connected={!!synchro.person} />}
+              {/* LES MÊMES PIÈCES QUE LES FILIATIONS. Remplir une liste et
+                  bâtir un parcours posent la même question — « quel film ? » —
+                  et n'avaient pas la même réponse : ici on ne cherchait que
+                  des titres sur TMDB, sans le classeur, sans filmographie et
+                  sans affiche. C'est le même `FilmPicker` maintenant, donc les
+                  mêmes fiches lui arrivent. */}
+              {view === "lists" && (
+                <ListsView
+                  connected={!!synchro.person}
+                  /* QUI JE SUIS, pour que le tableau de marque sache
+                     quel tampon est le mien. Le serveur rend des
+                     pseudonymes, pas un « c'est vous » : il compte pour
+                     tous les participants de la même façon. */
+                  me={synchro.person?.pseudo ?? null}
+                  films={films}
+                  onUpdateFilm={updateFilm}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                />
+              )}
+              {view === "quiz" && <QuizView connected={!!synchro.person} />}
+              {view === "counter" && (
+                <CounterView
+                  connected={!!synchro.person}
+                  onGo={(where) => setView(where)}
+                  /* PORTER UNE PEAU, C'EST LA METTRE. Le comptoir le
+                     disait au serveur et pas à l'écran : on payait des
+                     jetons et rien ne bougeait. Il passe par l'état
+                     d'ici, seul écrivain de la peau. */
+                  onSkinWorn={setSkin}
+                />
+              )}
+              {view === "skinlab" && import.meta.env.DEV && <SkinLab />}
+              {view === "import" && (
+                <ImportView
+                  onImport={importFilms}
+                  films={films}
+                  notes={notebook.notes}
+                  dividers={dividers}
+                  views={views}
+                  fils={fils}
+                  motifs={vocabulary}
+                  filiations={bonds}
+                  parcours={courses}
+                  onRestore={restoreBackup}
+                  onMerge={mergeFilms}
+                  onSeeWall={() => {
+                    setSelectedId(null);
+                    setView(HOME);
+                  }}
+                />
+              )}
+            </Suspense>
+          </Boundary>
         </div>
       </div>
       {notebookOpen && (
@@ -1056,8 +1877,48 @@ export default function App() {
           block of any `position: fixed` inside it: the veil would have
           anchored on the column instead of the window, and the hole
           would have aimed beside the mark on every change of view. */}
-      {updateReady ? (
+      {/* UNE SEULE À LA FOIS, et dans cet ordre. La version neuve
+          d'abord : elle attend déjà, et rien d'autre ne se joue tant
+          qu'on n'a pas rechargé. Le compte seul ensuite, parce que c'est
+          le seul des trois qui puisse coûter quelque chose. L'invitation
+          à installer en dernier, qui ne perd rien à attendre. */}
+      {/* L'ANNULATION PASSE DEVANT TOUT : c'est la seule carte qui a une
+          date limite. Les autres disent un état qui sera encore là dans
+          une minute. */}
+      {undo ? (
+        <UndoCard
+          what={t(undo.label, { count: undo.count })}
+          onUndo={() => {
+            const held = undoHeld.current;
+            /* Sans balayage : le nettoyage tombe, donc les affiches
+               restent, donc les fiches reviennent entières. */
+            closeUndo(false);
+            if (!held) return;
+            commitFilms(held.films);
+            if (held.notes) notebook.replaceAll(held.notes);
+          }}
+          onDismiss={() => closeUndo(true)}
+        />
+      ) : quota !== null ? (
+        <QuotaCard
+          failed={quota < 0}
+          megabytes={Math.round(quota / 100_000) / 10}
+          onBackup={() => {
+            setQuota(null);
+            openImport();
+          }}
+          onDismiss={() => setQuota(null)}
+        />
+      ) : updateReady ? (
         <UpdateCard onReload={() => updateServiceWorker(true)} />
+      ) : loneDevice ? (
+        <LoneDeviceCard
+          onOpenAccount={() => {
+            setLoneDevice(false);
+            setAccountOpen(true);
+          }}
+          onDismiss={() => setLoneDevice(false)}
+        />
       ) : (
         installation.invite && (
           <Installation
@@ -1068,17 +1929,6 @@ export default function App() {
         )
       )}
 
-      {/* THE EXAMPLE ANNOUNCES ITSELF, AND ON EVERY VIEW: it is the whole
-          collection that is not yours, not one tab.
-
-          MOUNTED HERE AND NOT IN THE VIEW COLUMN, and through `Layer`
-          like everything that floats. Placed in the flow above the view,
-          it pushed everything down by some sixty pixels — and the
-          almanac, which promises to fit in the window with no scrollbar,
-          started scrolling by exactly that height. A taped card moves
-          nothing, and it is the shape the binder already gives its other
-          sentences (see `Installation`). */}
-      {binderStillDemo(films) && <DemoBanner onRemove={removeDemo} />}
       {tourMenu && <TourMenu view={view} onPlay={playTour} onClose={() => setTourMenu(false)} />}
       <TourOverlay
         tourId={tourId}

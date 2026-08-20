@@ -296,6 +296,16 @@ const detail: Tour = {
       placement: "left",
       optional: true,
     },
+    /* THE STAR, which replaced "make a thread of it". The step is
+       optional because it hangs on a motif being laid: an empty binder
+       must be able to play the tour to the end. */
+    {
+      target: at("motif-star"),
+      tab: "mots",
+      ...says("detail", "motifStar"),
+      placement: "left",
+      optional: true,
+    },
     /* FILING FROM THE CARD. The anchor has existed for a long time and
        no step described it; and what it does has changed — one can now
        make the list from here, where before the whole section vanished
@@ -373,7 +383,7 @@ const constellation: Tour = {
       placement: "bottom",
     },
     {
-      target: at("constellation-fils"),
+      target: at("constellation-motifs"),
       ...says("constellation", "threads"),
       placement: "bottom",
       optional: true,
@@ -383,6 +393,77 @@ const constellation: Tour = {
       ...says("constellation", "keyboard"),
       placement: "top",
       optional: true,
+    },
+  ],
+};
+
+/* LES TROIS ÉTAPES QUI NE SONT PAS `optional` SONT CELLES QUI EXISTENT
+   TOUJOURS : la barre des parcours, le champ d'ajout et le bouton de
+   nouage sont montés même sur un classeur vide. Tout ce qui vise du
+   CONTENU — la file elle-même, la carte, le panneau d'une étape — est
+   facultatif, sans quoi un classeur neuf ne pourrait pas jouer la visite
+   jusqu'au bout. `program-why` en fait partie DEPUIS le plan de travail :
+   le panneau ne se monte plus que sur une étape désignée, alors qu'il
+   était auparavant posé sur chaque ligne.
+
+   L'ORDRE SUIT LA PILE, de haut en bas : parcours, carte, file, panneau
+   — et les placements avec, `right` / `left` ayant été écrits pour deux
+   colonnes qui n'existent plus. */
+const program: Tour = {
+  label: label("program"),
+  steps: [
+    {
+      target: at("program-runs"),
+      ...says("program", "runs"),
+      placement: "bottom",
+    },
+    /* LE BANDEAU ET LE FIL ROUGE NE SONT PAS `optional` : le premier est
+       monté dès qu'un parcours existe et le second avec lui, comme la
+       barre des parcours. Ce qui vise du CONTENU — la carte, la file, le
+       panneau — le reste. */
+    {
+      target: at("program-progress"),
+      ...says("program", "progress"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("program-thread"),
+      ...says("program", "thread"),
+      placement: "bottom",
+      optional: true,
+    },
+    /* TROIS PAS SONT DEVENUS UN, ET C'EST PLUS HONNÊTE QUE TROIS.
+       `program-bond`, `program-harvest` et `program-hints` visaient des
+       boutons qui vivent désormais DANS la feuille de la carte — or une
+       visite ne peut pas ouvrir une modale, et une ancre sous un voile
+       est une ancre morte que `steps.test.ts` ne verrait pas mourir
+       (il vérifie qu'elle existe quelque part, pas qu'on l'atteint). Le
+       pas de la PORTE dit donc les trois choses qui sont derrière.
+       `optional`, parce que la porte n'est montée que sous un fil rouge
+       de filiation. */
+    {
+      target: at("program-map"),
+      ...says("program", "map"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("program-order"),
+      ...says("program", "order"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("program-why"),
+      ...says("program", "why"),
+      placement: "top",
+      optional: true,
+    },
+    {
+      target: at("program-add"),
+      ...says("program", "add"),
+      placement: "top",
     },
   ],
 };
@@ -433,6 +514,15 @@ const importTour: Tour = {
     {
       target: at("import-repair"),
       ...says("import", "repair"),
+      placement: "top",
+      optional: true,
+    },
+    /* LES DOUBLONS. `optional` au sens fort, comme la réparation : le
+       panneau ne se dessine pas du tout quand aucune fiche n'est
+       dépourvue d'identité TMDB, ce qui est le cas d'un classeur sain. */
+    {
+      target: at("import-dupes"),
+      ...says("import", "dupes"),
       placement: "top",
       optional: true,
     },
@@ -497,6 +587,11 @@ const global: Tour = {
        tour, where one arrives with what one has. */
     ...from("reco", reco, "reco-maison"),
     ...from("constellation", constellation, "constellation-start", "constellation-teams"),
+    /* `program-add`, `program-bond` ET `program-harvest`, les ancres
+       toujours montées.
+       La file et la carte sont du contenu : sur le classeur neuf que la
+       visite globale accompagne, elles n'existent pas encore. */
+    ...from("program", program, "program-add", "program-map"),
     ...from("almanac", almanac, "almanac-year"),
     /* Le carnet se prend dans la visite du classeur, puisqu'il s'y
        ouvre : il n'a plus d'onglet, donc plus de visite à lui. */
@@ -525,6 +620,21 @@ const global: Tour = {
       ...says("global", "language"),
       placement: "right",
       view: "library",
+    },
+    /* LA VEILLE LETTERBOXD — `optional`, et pour la raison la plus
+       forte de toutes : cette action n'est montée QUE s'il y a quelque
+       chose à proposer. Sur un classeur neuf, sans compte Letterboxd
+       réglé, elle n'existe pas — et la visite doit se jouer en entier.
+
+       ELLE VISE LA PORTE ET NON LA FEUILLE : une visite ne peut pas
+       ouvrir une modale, et deux éléments portant la même ancre en
+       feraient viser un au hasard. */
+    {
+      target: at("letterboxd-watch"),
+      ...says("global", "letterboxd"),
+      placement: "right",
+      view: "library",
+      optional: true,
     },
     /* THE BINDER INSTALLS ITSELF — and the card that offers it does not
        always appear: the browser decides on its own that a site is
@@ -695,6 +805,18 @@ const lists: Tour = {
       placement: "top",
       optional: true,
     },
+    /* LA PORTE DU DÉFI, ET IL N'Y EN A PLUS QU'UNE. Un défi par liste
+       naissait d'un formulaire enfoui sous l'accordéon d'une liste, un
+       défi par critère d'un second formulaire posé sous le tableau :
+       deux écrans pour un objet, jamais montrés ensemble. L'ancre suit
+       la porte, et elle est TOUJOURS là — à la différence de ce qui
+       vivait dans une liste dépliée. */
+    {
+      target: at("lists-challenge-new"),
+      ...says("lists", "criterion"),
+      placement: "top",
+      optional: true,
+    },
     /* PROLONGER. `optional` au sens fort : le bouton n'existe que pour
        qui a lancé le défi, dans la semaine de sa fin, deux fois au plus
        et avant que les comptes ne soient clos. Presque personne ne le
@@ -702,6 +824,15 @@ const lists: Tour = {
     {
       target: at("lists-extend"),
       ...says("lists", "extend"),
+      placement: "top",
+      optional: true,
+    },
+    /* Et son pendant, plus rare encore : il ne s'affiche que sur un
+       défi FINI et non soldé, ce qui n'existe qu'à certains moments.
+       `optional`, pour la même raison que celui du dessus. */
+    {
+      target: at("lists-second-wind"),
+      ...says("lists", "secondWind"),
       placement: "top",
       optional: true,
     },
@@ -716,6 +847,16 @@ const lists: Tour = {
 const quiz: Tour = {
   label: label("quiz"),
   steps: [
+    /* LE RENDEZ-VOUS D'ABORD, comme à l'écran. `optional` parce qu'une
+       banque sans question jouable ne donne pas de quizz de la semaine :
+       le serveur laisse alors la semaine ouverte, la carte ne se dessine
+       pas, et la visite doit pouvoir se jouer en entier quand même. */
+    {
+      target: at("quiz-weekly"),
+      ...says("quiz", "weekly"),
+      placement: "bottom",
+      optional: true,
+    },
     {
       target: at("quiz-new"),
       ...says("quiz", "compose"),
@@ -737,6 +878,18 @@ const quiz: Tour = {
     {
       target: at("quiz-given"),
       ...says("quiz", "given"),
+      placement: "top",
+      optional: true,
+    },
+    /* LA PORTE, ET NON LA PARTIE. Une visite ne peut pas ouvrir une
+       modale : depuis qu'on joue en plein écran, les quatre pas
+       suivants ne trouvent leur cible que si une partie est DÉJÀ
+       ouverte, et se sautent sinon — ils sont `optional`, comme tout ce
+       tour. Ce pas-ci est celui qui existe toujours, et c'est lui qui
+       dit qu'il y a un jeu derrière. */
+    {
+      target: at("quiz-open"),
+      ...says("quiz", "open"),
       placement: "top",
       optional: true,
     },
@@ -804,6 +957,24 @@ const counter: Tour = {
       placement: "top",
       optional: true,
     },
+    /* LA VITRINE VISE DU CONTENU : elle ne s'affiche que si quelque
+       chose est à portée de bourse, ce qui n'est jamais le cas d'un
+       compte neuf. `optional` est donc obligatoire ici — une visite qui
+       s'arrête sur une cible absente est une visite qu'on ne finit
+       pas. C'est la règle du fichier, et elle vaut aussi pour le studio
+       juste en dessous, que seul le rôle voit. */
+    {
+      target: at("counter-window"),
+      ...says("counter", "window"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("counter-studio"),
+      ...says("counter", "studio"),
+      placement: "top",
+      optional: true,
+    },
     {
       target: at("counter-album"),
       ...says("counter", "album"),
@@ -825,6 +996,7 @@ export const TOURS: Record<string, Tour> = Object.fromEntries(
     detail,
     reco,
     constellation,
+    program,
     almanac,
     import: importTour,
     thread,

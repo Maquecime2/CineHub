@@ -196,7 +196,14 @@ export const PosterArt = React.memo(function PosterArt({
               justifyContent: "center",
             }}
           >
+            {/* LES INITIALES SONT UN DESSIN, PAS UN TEXTE. Sans
+                `aria-hidden` elles entrent dans le NOM ACCESSIBLE de ce
+                qui entoure l'affiche : un bouton « ajouter L'Éclipse »
+                s'annonçait « LÉ L'Éclipse Antonioni », et deux commandes
+                d'une même ligne devenaient impossibles à distinguer. Le
+                titre est écrit juste à côté, en toutes lettres. */}
             <span
+              aria-hidden
               style={{
                 fontFamily: F.title,
                 fontStyle: "italic",

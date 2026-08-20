@@ -2,10 +2,12 @@
    VUE — DOSSIER FILM
    ============================================================ */
 import { useTranslation } from "react-i18next";
+import { shareCard } from "../services/shareImage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Trash2,
+  Share2,
   Plus,
   Link2,
   Paperclip,
@@ -21,6 +23,7 @@ import { searchFilms } from "../domain/search";
 import { putImage } from "../db";
 import { noteMedia } from "../services/media";
 import { imageSize, shrinkImage } from "../services/images";
+import { Saved } from "../components/ui/Saved";
 import {
   Cardstock,
   Confirmation,
@@ -34,13 +37,19 @@ import { TagEditor } from "../components/ui/TagEditor";
 import { MotifPicker } from "../components/film/MotifPicker";
 import { MOTIFS, suggestMotifs } from "../domain/motifs";
 import type { Motif, MotifFamily } from "../domain/motifs";
+import type { Thread } from "../domain/threads";
 import { fetchKeywords } from "../tmdb";
 import { useTmdbKey } from "../services/tmdbKey";
+import { useViewport } from "../hooks/useViewport";
 import { StampCorner, Tape } from "../components/atmosphere";
 import { PosterArt } from "../components/film/PosterArt";
 import { PosterPicker } from "../components/film/PosterPicker";
 import { FilmIdentity } from "../components/film/FilmIdentity";
+import { InRun } from "../components/program/NextUp";
+import type { Placing } from "../domain/course";
 import { TmdbFacts } from "../components/film/TmdbFacts";
+import { FrameStrip } from "../components/film/FrameStrip";
+import { shotsOfFrames, shotsOfStills } from "../components/stills/shots";
 import { Elsewhere } from "../components/film/Elsewhere";
 import { AddToList } from "../components/film/AddToList";
 import { HideFromSharing } from "../components/film/HideFromSharing";
@@ -84,16 +93,19 @@ type TextField = "review" | "notes";
 export type CardTab = "film" | "mots" | "liens";
 
 const CARD_TABS: { key: CardTab; label: string }[] = [
-  { key: "film", label: "LE FILM" },
-  { key: "mots", label: "MES MOTS" },
-  { key: "liens", label: "LES LIENS" },
+  /* The label is a KEY: the dividers are named in the catalogue like
+     everything else on screen. */
+  { key: "film", label: "detail.tabFilm" },
+  { key: "mots", label: "detail.tabWords" },
+  { key: "liens", label: "detail.tabLinks" },
 ];
 
 function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) => void }) {
+  const { t: t2 } = useTranslation();
   return (
     <div
       role="tablist"
-      aria-label="Les parties du dossier"
+      aria-label={t2("detail.folderParts")}
       style={{
         display: "flex",
         gap: 6,
@@ -127,7 +139,7 @@ function TabBar({ valeur, onChange }: { valeur: CardTab; onChange: (o: CardTab) 
               borderRadius: "var(--tag-radius)",
             }}
           >
-            {o.label}
+            {t2(o.label)}
           </button>
         );
       })}
@@ -141,6 +153,11 @@ interface DetailViewProps {
   /** What the back button announces. Default: "RETOUR AU MUR". */
   backTo?: string;
   onUpdate: (f: Film) => void;
+  /* CE QU'ON TAPE, écrit un peu après la dernière touche plutôt qu'à
+     chacune. Facultatif : sans lui, tout retombe sur `onUpdate` et le
+     comportement est celui d'avant — c'est ce qui permet de monter
+     cette vue dans un test sans monter tout le classeur. */
+  onUpdateSoon?: (f: Film) => void;
   onDelete: (id: string) => void;
   films?: Film[];
   /** Links two cards of the wall: the link is laid on both sides, the
@@ -160,8 +177,16 @@ interface DetailViewProps {
   onOpenPerson?: (name: string) => void;
   /** Files a proposal from the wake into the "à voir" list. */
   onAddToWatchlist?: (f: Film) => void;
-  /** Turns a pattern into a question asked of the whole collection. */
-  onMakeThread?: (motifId: string) => void;
+  /** Where this card stands in a run, if it stands in one — `stepOf`. */
+  placing?: Placing | null;
+  /** The way back to the run this card is a step of. */
+  onOpenRun?: () => void;
+  /** What was changed about the motifs' gatherings — the stars come from the cards. */
+  fils?: Thread[];
+  /** Lights a motif's star on the map, or puts it out. */
+  onStarMotif?: (motifId: string, on: boolean) => void;
+  /** Opens the map on this motif's gathering. */
+  onOpenInSky?: (motifId: string) => void;
   /** Your own vocabulary: your patterns, and the catalogue ones set aside. */
   vocabulary?: { custom: Motif[]; hidden: string[] };
   /** Returns the identifier of the written pattern, to lay it on the card at once. */
@@ -186,15 +211,20 @@ export function DetailView({
   onBack,
   backTo,
   onUpdate,
+  onUpdateSoon,
   onDelete,
   films = [],
   onLinkFilm,
   onRemoveLink,
-  onMakeThread,
+  fils = [],
+  onStarMotif,
+  onOpenInSky,
   onEditLink,
   onOpen,
   onOpenPerson,
   onAddToWatchlist,
+  placing,
+  onOpenRun,
   vocabulary = { custom: [], hidden: [] },
   onCreateMotif,
   onDeleteMotif,
@@ -205,6 +235,14 @@ export function DetailView({
 }: DetailViewProps) {
   const { t: t2 } = useTranslation();
   const apiKey = useTmdbKey();
+  /* LA LARGEUR DÉCIDE, PAS LE DOIGT. Une pellicule en colonne veut de la
+     place ; sous le seuil du téléphone elle repasse dessous, parce que
+     deux cent trente pixels pris sur trois cent quatre-vingt-dix ne
+     laissent plus de quoi écrire. */
+  const { phone: narrow } = useViewport();
+  /* Le repli sur `onUpdate` n'est pas une politesse : c'est ce qui fait
+     que cette vue se monte seule, dans un test, sans le classeur. */
+  const saveText = onUpdateSoon ?? onUpdate;
   /* The local fallback follows the controlled one rather than fight it:
      one or the other answers, never both at once. */
   const [ongletLocal, setOngletLocal] = useState<CardTab>("film");
@@ -218,6 +256,10 @@ export function DetailView({
      pattern — have nothing in common but the fact that one may have made
      a mistake. */
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  /* Ce que le partage a donné, dit À LA PLACE du libellé du bouton. Une
+     ligne de plus en dessous aurait fait sauter la colonne pour deux
+     mots. */
+  const [shared, setShared] = useState("");
   const [linkType, setLinkType] = useState<LinkType>("book");
   const [linkTitle, setLinkTitle] = useState("");
   const [linkCreator, setLinkCreator] = useState("");
@@ -412,7 +454,7 @@ export function DetailView({
        we cap the review column (see below) and let all the rest — the
        poster, the rail, the red thread — take up the table. */
     <div style={{ padding: "34px 44px 70px", position: "relative" }}>
-      <StampCorner text="DOSSIER" />
+      <StampCorner text={t2("detail.stamp")} />
       <button
         onClick={onBack}
         style={{
@@ -432,7 +474,7 @@ export function DetailView({
             from somebody's folder does not send you back to the wall
             from there, and announcing it that way would be one more
             lie. */}
-        <ArrowLeft size={14} /> {backTo || "RETOUR AU MUR"}
+        <ArrowLeft size={14} /> {backTo || t2("detail.backToWall")}
       </button>
 
       {/* ---- THE COVER, WHICH DOES NOT CHANGE TAB ----
@@ -483,7 +525,7 @@ export function DetailView({
               color: C.ink,
             }}
           >
-            {film.title || "Sans titre"}
+            {film.title || t2("detail.untitled")}
           </div>
           <div style={{ fontFamily: F.mono, fontSize: 11.5, color: C.inkFaded, marginTop: 7 }}>
             {[film.year || null, film.director || null].filter(Boolean).join("  ·  ")}
@@ -500,11 +542,17 @@ export function DetailView({
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: "1 1 420px", minWidth: 0, maxWidth: 620 }}>
             <Cardstock tour="detail-catalog">
-              <Label>Fiche catalogue</Label>
+              <Label>{t2("detail.catalogueCard")}</Label>
               {/* Title, year, director and genres: read-only here, and
                 fixable in one click — it is the only way to correct a
                 card the import identified wrongly. */}
               <FilmIdentity film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
+              {/* CE QUE CE FILM EST DANS UN PLAN. Une fiche ne disait
+                  rien du programme où on l'avait posée : on retrouvait
+                  un film sans savoir qu'il était la troisième étape de
+                  quelque chose, ni pourquoi il y était. Muet quand il
+                  n'est nulle part. */}
+              <InRun placing={placing ?? null} onOpenRun={onOpenRun ?? (() => {})} />
               {film.status === "watchlist" ? (
                 <button
                   /* It used to lay `watchedAt` on its own. Since a log
@@ -539,7 +587,7 @@ export function DetailView({
                     width: "100%",
                   }}
                 >
-                  JE L'AI VU
+                  {t2("detail.iSawIt")}
                 </button>
               ) : (
                 <>
@@ -562,7 +610,7 @@ export function DetailView({
                       fontSize: 10,
                     }}
                   >
-                    remettre « à voir »
+                    {t2("detail.backToWatchlist")}
                   </button>
                 </>
               )}
@@ -593,6 +641,17 @@ export function DetailView({
                 is there that one sees what is missing, and asks for it
                 again. */}
               <TmdbFacts film={film} onUpdate={onUpdate} onOpenPerson={onOpenPerson} />
+              {/* LES PHOTOGRAMMES DE TMDB, ET LOIN DE VOS CAPTURES. Les
+                  deux sont des images du film et n'ont rien d'autre en
+                  commun : celles-ci sont hébergées par TMDB, ne coûtent
+                  rien, ne s'annotent pas et ne s'effacent pas ; celles du
+                  haut sont les vôtres, elles vivent dans le coffre de cet
+                  appareil et comptent dans votre quota. Les poser côte à
+                  côte laisserait croire qu'on peut légender les
+                  premières. */}
+              {!!film.frames?.length && (
+                <FrameStrip shots={shotsOfFrames(film.frames)} title={film.title} />
+              )}
               {/* What other public film libraries say about the same
                 film. Stays entirely silent with no server, no account,
                 or when nobody has said anything — a card that lives alone
@@ -625,18 +684,19 @@ export function DetailView({
           ============================================================ */}
       {tab === "mots" && (
         <div style={{ display: "flex", gap: 34, flexWrap: "wrap", alignItems: "flex-start" }}>
-          {/* 760 px: beyond that, the eye loses the next line on coming
-            back to the margin. It is the only column that has a reason to
-            be bounded. */}
-          <div style={{ flex: "1 1 420px", maxWidth: 760, minWidth: 0, position: "relative" }}>
-            {/* THE LOG OF SCREENINGS, AT THE HEAD OF YOUR WORDS. It is
-              the richest data on the card and the only one the almanac
-              reads; it had but a quarter of a column. */}
-            {film.status !== "watchlist" && (
-              <Cardstock tour="detail-watchlog" style={{ marginBottom: 18 }}>
-                <WatchLog film={film} onUpdate={onUpdate} />
-              </Cardstock>
-            )}
+          {/* LE PLAFOND EST DESCENDU SUR LA COLONNE DE TEXTE.
+
+              Il valait 760 px ICI, et la raison était juste : au-delà,
+              l'œil perd la ligne suivante en revenant à la marge. Mais
+              depuis que la pellicule s'est installée À CÔTÉ du texte, ce
+              plafond bornait les deux — la colonne de vignettes se
+              retrouvait à deux cent trente pixels sur un écran qui en
+              offrait mille, et n'affichait qu'une image de front.
+
+              Ce qui doit être borné est la LIGNE DE TEXTE, et elle
+              seule. Le plafond est donc posé plus bas, sur la colonne
+              d'écriture, et ce bloc prend la table. */}
+          <div style={{ flex: "1 1 420px", minWidth: 0, position: "relative" }}>
             <Paperclip
               size={26}
               color={C.inkFaded}
@@ -652,64 +712,127 @@ export function DetailView({
               border is no longer a halo laid AROUND the block but the
               card's own thin line, changing ink: it is the same object,
               pointed at. */}
-            <Cardstock
-              tour="detail-review"
-              onFocusCapture={() => setFocusField("review")}
+            {/* LA CRITIQUE ET SA PELLICULE, CÔTE À CÔTE.
+
+                La pellicule était SOUS les champs. Insérer une capture
+                demandait alors quatre gestes — poser le curseur,
+                descendre, cliquer, remonter — et on les fait dix fois
+                en écrivant. À droite, la vignette est à portée : on la
+                prend et on la pose dans la phrase.
+
+                ELLE PASSE DESSOUS SUR UN ÉCRAN ÉTROIT. Une colonne de
+                deux cent trente pixels prise sur trois cent quatre-vingt
+                -dix ne laisse plus de quoi écrire, et c'est le texte qui
+                compte ici. */}
+            <div
               style={{
-                borderColor: focusField === "review" && stills.length > 0 ? C.burgundy : C.line,
+                display: "flex",
+                flexDirection: narrow ? "column" : "row",
+                alignItems: "flex-start",
+                gap: 18,
               }}
             >
-              <RichField
-                label="Critique personnelle"
-                minHeight={120}
-                value={film.review || ""}
-                onChange={(review) => onUpdate({ ...film, review })}
-                stills={stills}
-                onOpenStill={setLightbox}
-                onInsertToken={(fn) => {
-                  inserters.current.review = fn;
+              <div
+                style={{
+                  flex: "1 1 420px",
+                  minWidth: 0,
+                  /* LA LIGNE DE TEXTE, ET C'EST TOUT CE QUI EST BORNÉ. */
+                  maxWidth: narrow ? undefined : 760,
+                  width: narrow ? "100%" : undefined,
                 }}
-                placeholder={t2("detail.reviewPlaceholder")}
-              />
-            </Cardstock>
-            <Cardstock
-              onFocusCapture={() => setFocusField("notes")}
-              style={{
-                marginTop: 18,
-                borderColor: focusField === "notes" && stills.length > 0 ? C.burgundy : C.line,
-              }}
-            >
-              <RichField
-                label="Notes libres"
-                minHeight={70}
-                value={film.notes || ""}
-                onChange={(notes) => onUpdate({ ...film, notes })}
-                stills={stills}
-                onOpenStill={setLightbox}
-                onInsertToken={(fn) => {
-                  inserters.current.notes = fn;
+              >
+                {/* LE JOURNAL DES SÉANCES OUVRE LA COLONNE. Il était
+                    AU-DESSUS de la rangée, donc la pellicule commençait
+                    une carte plus bas que lui et le haut de l'écran
+                    portait un vide à droite. Descendu ici, les deux
+                    colonnes partent de la même ligne.
+
+                    C'est la donnée la plus riche de la fiche et la seule
+                    que lit l'almanach ; elle avait un quart de colonne. */}
+                {film.status !== "watchlist" && (
+                  <Cardstock tour="detail-watchlog" style={{ marginBottom: 18 }}>
+                    <WatchLog film={film} onUpdate={onUpdate} />
+                  </Cardstock>
+                )}
+                <Cardstock
+                  tour="detail-review"
+                  onFocusCapture={() => setFocusField("review")}
+                  style={{
+                    borderColor: focusField === "review" && stills.length > 0 ? C.burgundy : C.line,
+                  }}
+                >
+                  <RichField
+                    label={t2("detail.personalReview")}
+                    minHeight={120}
+                    value={film.review || ""}
+                    onChange={(review) => saveText({ ...film, review })}
+                    stills={stills}
+                    onOpenStill={setLightbox}
+                    onInsertToken={(fn) => {
+                      inserters.current.review = fn;
+                    }}
+                    placeholder={t2("detail.reviewPlaceholder")}
+                  />
+                  {/* LA MENTION EST SOUS LA CRITIQUE, ET SOUS ELLE SEULE.
+                      C'est le seul texte long du produit — celui qu'on
+                      écrit d'un bloc, et le seul devant lequel on se
+                      demande si ça part quelque part. La répéter sous
+                      chaque champ en ferait un meuble. */}
+                  <Saved />
+                </Cardstock>
+                <Cardstock
+                  onFocusCapture={() => setFocusField("notes")}
+                  style={{
+                    marginTop: 18,
+                    borderColor: focusField === "notes" && stills.length > 0 ? C.burgundy : C.line,
+                  }}
+                >
+                  <RichField
+                    label={t2("detail.freeNotes")}
+                    minHeight={70}
+                    value={film.notes || ""}
+                    onChange={(notes) => saveText({ ...film, notes })}
+                    stills={stills}
+                    onOpenStill={setLightbox}
+                    onInsertToken={(fn) => {
+                      inserters.current.notes = fn;
+                    }}
+                    placeholder={t2("detail.notesPlaceholder")}
+                  />
+                </Cardstock>
+              </div>
+
+              <div
+                style={{
+                  /* ELLE PREND CE QUI RESTE, et le rangement suit : la
+                     pellicule pose autant de colonnes que la place le
+                     permet, au lieu d'une seule file. */
+                  flex: narrow ? undefined : "1 1 300px",
+                  minWidth: 0,
+                  width: narrow ? "100%" : undefined,
+                  position: narrow ? undefined : "sticky",
+                  /* ELLE SUIT LE TEXTE QU'ON DÉROULE. Une critique
+                     longue laissait la pellicule loin au-dessus, et le
+                     geste redevenait un aller-retour. */
+                  top: 16,
                 }}
-                placeholder={t2("detail.notesPlaceholder")}
-              />
-            </Cardstock>
-
-            {/* THE FILM STRIP, UNDER THE TEXT IT ILLUSTRATES.
-
-              It was right at the bottom of the page. But "insert" lays
-              the thumbnail where the cursor is, in the field one is
-              writing in: the board and the text answer each other at
-              every gesture, and keeping them two screens apart forced a
-              round trip for every image. */}
-            <div style={{ marginTop: 18 }}>
-              <StillsStrip
-                film={film}
-                onUpdate={onUpdate}
-                onOpen={setLightbox}
-                onInsert={insertToken}
-                highlight={lightbox}
-                onAddFiles={addStills}
-                busy={busy}
-              />
+              >
+                <StillsStrip
+                  film={film}
+                  narrow={!narrow}
+                  /* PAS DE `onUpdateSoon` ICI, ET CE N'EST PAS UN OUBLI :
+                     la légende d'une capture part déjà au FLOU du champ,
+                     ce qui est plus fort qu'un délai — le geste de sortir
+                     du champ est une validation, et il n'y a rien à
+                     grouper puisqu'il n'arrive qu'une fois. */
+                  onUpdate={onUpdate}
+                  onOpen={setLightbox}
+                  onInsert={insertToken}
+                  highlight={lightbox}
+                  onAddFiles={addStills}
+                  busy={busy}
+                />
+              </div>
             </div>
           </div>
 
@@ -745,12 +868,16 @@ export function DetailView({
               the ones are your words, the others the common vocabulary a
               question can bear on. */}
             <Cardstock tour="detail-tags">
-              <Label>Motifs</Label>
+              <Label>{t2("detail.motifs")}</Label>
               <MotifPicker
                 motifs={film.motifs || []}
                 suggestions={suggested}
                 onChange={(motifs) => onUpdate({ ...film, motifs })}
-                onMakeThread={onMakeThread}
+                films={films}
+                fils={fils}
+                onStar={onStarMotif}
+                onOpenInSky={onOpenInSky}
+                onOpenFilm={onOpen}
                 hiddenOnes={hiddenOnes}
                 onHide={onHideMotif}
                 /* Creating and laying are one single gesture: one does
@@ -788,7 +915,7 @@ export function DetailView({
             {/* The shelf's two filings, reachable without going there:
               they change the shelf, not the card. */}
             <Cardstock style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <Label>Ce qu'on en fait</Label>
+              <Label>{t2("detail.whatWeDoWithIt")}</Label>
               {/* No bedside for a film one has not seen: that shelf is
                   the one of what gets rewatched, and the watchlist's
                   shelf does not open it. The button would have changed
@@ -847,14 +974,40 @@ export function DetailView({
               >
                 {film.archived ? (
                   <>
-                    <ArchiveRestore size={12} /> remettre en rayon
+                    <ArchiveRestore size={12} /> {t2("detail.putBackOnShelf")}
                   </>
                 ) : (
                   <>
-                    <Archive size={12} /> mettre de côté
+                    <Archive size={12} /> {t2("detail.setAside")}
                   </>
                 )}
               </button>
+              {/* PARTAGER LA FICHE EN IMAGE. Au-dessus de la sortie
+                définitive et sous les rangements : c'est un geste
+                ordinaire, pas une fin. Il dit ce qu'il a fait — partagé
+                ou enregistré ne sont pas la même nouvelle, et un silence
+                après un clic est ce qui fait recliquer. */}
+              <button
+                onClick={async () => {
+                  setShared(t2("detail.sharing"));
+                  const how = await shareCard(film, t2("detail.shareSignature"));
+                  setShared(how === "failed" ? "" : t2(`detail.share.${how}`));
+                }}
+                style={{
+                  all: "unset",
+                  ...tap,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  color: C.inkFaded,
+                  fontFamily: F.mono,
+                  fontSize: 10,
+                }}
+              >
+                <Share2 size={12} /> {shared || t2("detail.shareImage")}
+              </button>
+
               {/* The final exit keeps its distance from the two filings:
                 setting aside and deleting look alike enough to be
                 confused, and one of the two cannot be undone. */}
@@ -883,7 +1036,7 @@ export function DetailView({
                   marginTop: 2,
                 }}
               >
-                <Trash2 size={12} /> supprimer définitivement
+                <Trash2 size={12} /> {t2("detail.deleteForGood")}
               </button>
             </Cardstock>
           </div>
@@ -909,11 +1062,9 @@ export function DetailView({
           <div style={{ flex: "1 1 380px", minWidth: 0 }}>
             <Cardstock tour="detail-thread">
               <SectionTitle icon={<Link2 size={15} color={C.burgundy} />}>
-                Le fil rouge
+                {t2("detail.theRedThread")}
               </SectionTitle>
-              <Guideline>
-                les œuvres qui répondent à ce film — livres, peintures, autres films
-              </Guideline>
+              <Guideline>{t2("detail.redThreadHint")}</Guideline>
 
               <ThreadBoard
                 film={film}
@@ -935,7 +1086,7 @@ export function DetailView({
                 }}
               >
                 <div>
-                  <Label>Type</Label>
+                  <Label>{t2("detail.linkKind")}</Label>
                   <select
                     value={linkType}
                     onChange={(e) => {
@@ -1070,17 +1221,17 @@ export function DetailView({
                           marginTop: 3,
                         }}
                       >
-                        pas au mur — sera relié comme simple mention
+                        {t2("detail.notOnTheWall")}
                       </div>
                     )}
                 </div>
                 <div style={{ flex: 1, minWidth: 140 }}>
-                  <Label>Auteur·rice / artiste</Label>
+                  <Label>{t2("detail.author")}</Label>
                   <input
                     style={underlineInput}
                     value={linkCreator}
                     onChange={(e) => setLinkCreator(e.target.value)}
-                    placeholder="Nom"
+                    placeholder={t2("detail.nameField")}
                     disabled={!!picked}
                   />
                 </div>
@@ -1090,7 +1241,7 @@ export function DetailView({
                 {picked && (
                   <>
                     <div style={{ minWidth: 160 }}>
-                      <Label>Nature du lien</Label>
+                      <Label>{t2("detail.linkNature")}</Label>
                       <select
                         value={linkRelation}
                         onChange={(e) => setLinkRelation(e.target.value as Relation | "")}
@@ -1105,7 +1256,7 @@ export function DetailView({
                       </select>
                     </div>
                     <div style={{ minWidth: 150 }}>
-                      <Label>Strength</Label>
+                      <Label>{t2("detail.linkStrength")}</Label>
                       <select
                         value={linkForce}
                         onChange={(e) => setLinkForce(strengthOf(Number(e.target.value)))}
@@ -1121,7 +1272,7 @@ export function DetailView({
                   </>
                 )}
                 <div style={{ flex: 1.4, minWidth: 180 }}>
-                  <Label>Pourquoi ce lien ?</Label>
+                  <Label>{t2("detail.whyThisLink")}</Label>
                   <input
                     style={underlineInput}
                     value={linkNote}
@@ -1170,7 +1321,7 @@ export function DetailView({
       <Confirmation request={request} onClose={() => setRequest(null)} />
       {lightbox != null && (
         <StillLightbox
-          stills={stills}
+          shots={shotsOfStills(stills)}
           index={lightbox}
           onClose={() => setLightbox(null)}
           onIndex={setLightbox}

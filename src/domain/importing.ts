@@ -1,6 +1,7 @@
 /* ============================================================
    IMPORT — reading the CSV, matching, merging
    ============================================================ */
+import { canonicalGenres } from "./genres";
 import { makeFilm, mergeWatches, withWatches } from "./film";
 import type { Film, FilmStatus, ImportDiff, ImportRow, ParsedCsv, Year } from "../types";
 
@@ -190,27 +191,49 @@ export function diffImport(
 ): ImportDiff {
   const byTmdb = new Map(existing.filter((f) => f.tmdbId).map((f) => [String(f.tmdbId), f]));
   const byKey = new Map(existing.map((f) => [filmKey(f), f]));
+  /* LES TITRES SOUS LESQUELS UNE FICHE A DÉJÀ ÉTÉ CONNUE.
+
+     Une fiche jamais rapprochée de TMDB n'a que son TITRE pour se faire
+     reconnaître, et un titre n'est pas une identité : « Scenes from a
+     Marriage » et « Scènes de la vie conjugale » sont le même film et
+     deux clés. Le fichier qu'on redépose portait l'une, le classeur
+     tenait l'autre — rien ne se rencontrait, une fiche se créait, et
+     cela RECOMMENÇAIT À CHAQUE IMPORT.
+
+     On ne devine pas mieux : on RETIENT. `aka` est ce que la fusion d'un
+     doublon a appris, et il ne contient que ce qu'on a validé soi-même.
+     Il passe APRÈS `filmKey` : un titre qui se reconnaît lui-même n'a
+     besoin de personne. Voir `domain/duplicates`. */
+  const byAka = new Map<string, Film>();
+  for (const f of existing) for (const k of f.aka ?? []) if (!byAka.has(k)) byAka.set(k, f);
 
   const toCreate: ImportDiff["toCreate"] = [];
   const toUpdate: ImportDiff["toUpdate"] = [];
   const unchanged: ImportDiff["unchanged"] = [];
 
   for (const r of rows) {
-    const match = (r.tmdbId && byTmdb.get(String(r.tmdbId))) || byKey.get(filmKey(r));
+    const key = filmKey(r);
+    const match = (r.tmdbId && byTmdb.get(String(r.tmdbId))) || byKey.get(key) || byAka.get(key);
     if (!match) {
       const fresh = makeFilm({
         title: r.title,
         year: r.year,
         director: r.director || "",
         poster: r.poster || "",
-        genres: r.genres || [],
+        /* UNE SEULE ORTHOGRAPHE PAR GENRE, ici aussi : une sauvegarde
+           porte ce qu'elle portait le jour où elle a été écrite, et
+           TMDB sert les genres dans la langue demandée. Voir
+           `domain/genres`. */
+        genres: canonicalGenres(r.genres),
         cast: r.cast || [],
         crew: r.crew || {},
         runtime: r.runtime ?? null,
         language: r.language || "",
         countries: r.countries || [],
         tmdbRating: r.tmdbRating ?? null,
+        synopsis: r.synopsis || "",
         keywords: r.keywords,
+        frames: r.frames,
         tmdbId: r.tmdbId || null,
         rating: r.rating ?? 0,
         status,
@@ -239,7 +262,8 @@ export function diffImport(
     const changes: Partial<Film> = {};
     if (r.rating != null && r.rating !== match.rating) changes.rating = r.rating;
     if (r.director && !match.director) changes.director = r.director;
-    if (r.genres?.length && !(match.genres || []).length) changes.genres = r.genres;
+    if (r.genres?.length && !(match.genres || []).length)
+      changes.genres = canonicalGenres(r.genres);
     /* THE CAST IS FILLED IN, IT IS NOT CORRECTED. Like the genres: we only
        fill the void. A card from before the harvest receives one on the
        first re-import; a card that already has one keeps it, because we do
@@ -255,6 +279,11 @@ export function diffImport(
     if (r.language && !match.language) changes.language = r.language;
     if (r.countries?.length && !(match.countries || []).length) changes.countries = r.countries;
     if (r.tmdbRating != null && match.tmdbRating == null) changes.tmdbRating = r.tmdbRating;
+    if (r.synopsis && !match.synopsis) changes.synopsis = r.synopsis;
+    /* `== null` et non `!length` : une liste vide est une RÉPONSE — TMDB
+       n'a pas de photogramme de ce film — et la réécrire éternellement
+       est la boucle que `keywords` documente juste en dessous. */
+    if (r.frames && match.frames == null) changes.frames = r.frames;
     /* KEYWORDS ARE WRITTEN EVEN WHEN EMPTY, and that is indispensable.
 
        The "only fill the void" rule is enough everywhere else. Here it

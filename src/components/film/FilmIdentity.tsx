@@ -11,6 +11,7 @@ import { underlineInput, tap } from "../../theme/styles";
 import { CommaInput, Label } from "../ui";
 import { getTmdbKey } from "../../services/tmdbKey";
 import { searchMovie, getDetails } from "../../tmdb";
+import { forgetTmdbFacts } from "../../domain/film";
 import type { Film, Year } from "../../types";
 
 const tinyButton = (ink: string) => ({
@@ -49,6 +50,10 @@ export function FilmIdentity({
      card must leave with the right film, not the old one (often absent). */
   const [tmdbId, setTmdbId] = useState<Film["tmdbId"]>(film.tmdbId);
   const [poster, setPoster] = useState(film.poster);
+  /* Ce que TMDB vient de dire du NOUVEAU film. On le garde ici plutôt
+     que de le poser tout de suite : tant qu'on n'a pas validé, la fiche
+     n'a pas changé d'identité. */
+  const [fresh, setFresh] = useState<Partial<Film> | null>(null);
   const [msg, setMsg] = useState("");
 
   const open = () => {
@@ -60,6 +65,7 @@ export function FilmIdentity({
     });
     setTmdbId(film.tmdbId);
     setPoster(film.poster);
+    setFresh(null);
     setMsg("");
     setEditing(true);
   };
@@ -90,6 +96,17 @@ export function FilmIdentity({
         year: p.year || info.year || "",
       }));
       setTmdbId(info.tmdbId);
+      setFresh({
+        cast: info.cast,
+        crew: info.crew,
+        runtime: info.runtime,
+        language: info.language,
+        countries: info.countries,
+        tmdbRating: info.tmdbRating,
+        synopsis: info.synopsis,
+        keywords: info.keywords,
+        frames: info.frames,
+      });
       // a poster already chosen stays its own; we only fill a gap
       if (!poster && info.poster) setPoster(info.poster);
       setMsg(
@@ -106,8 +123,21 @@ export function FilmIdentity({
   const save = () => {
     const title = draft.title.trim();
     if (!title) return;
+    /* L'identifiant a changé : ce n'est plus le même film, donc ce que
+       TMDB avait rempli parle d'un autre. On l'oublie, sinon le
+       remplissage — qui ne comble que des trous — ne le réécrira jamais
+       et la fiche gardera les plans et le résumé du mauvais film. Ce
+       qu'on a écrit soi-même n'y touche pas. */
+    const changedId = tmdbId !== film.tmdbId && !!film.tmdbId;
+    /* `forgetTmdbFacts` d'abord, la moisson par-dessus : ce que la
+       nouvelle requête n'a pas ramené (une durée inconnue, aucun plan)
+       ne doit pas rester celui de l'ancien film. Et sans requête — un
+       identifiant changé autrement — on se contente d'oublier, ce qui
+       rouvre les trous que `TmdbFacts` sait combler. */
+    const stale = changedId ? { ...forgetTmdbFacts(), ...(fresh ?? {}) } : {};
     onUpdate({
       ...film,
+      ...stale,
       title,
       year: draft.year,
       director: draft.director.trim(),
@@ -158,7 +188,7 @@ export function FilmIdentity({
                       {onOpenPerson ? (
                         <button
                           onClick={() => onOpenPerson(clean)}
-                          title={`Ce que j'ai de ${clean}`}
+                          title={t("credits.whatIHaveOf", { name: clean })}
                           style={{
                             all: "unset",
                             ...tap,
@@ -200,7 +230,7 @@ export function FilmIdentity({
         padding: "10px 12px",
       }}
     >
-      <Label>Titre</Label>
+      <Label>{t("film.titleField")}</Label>
       <input
         style={underlineInput}
         value={draft.title}
@@ -222,21 +252,21 @@ export function FilmIdentity({
           style={underlineInput}
           value={draft.director}
           onChange={(e) => set("director", e.target.value)}
-          placeholder="Nom"
+          placeholder={t("film.nameField")}
         />
       </div>
       <div style={{ marginTop: 10 }}>
-        <Label>Genres (virgules)</Label>
+        <Label>{t("film.genresField")}</Label>
         <CommaInput
           style={underlineInput}
           value={draft.genres}
           onChange={(v) => set("genres", v)}
-          placeholder="Drame, Science-fiction"
+          placeholder={t("film.genresPlaceholder")}
         />
       </div>
 
       <button onClick={relookup} style={{ ...tinyButton(C.pine), marginTop: 12 }}>
-        retrouver sur TMDB
+        {t("identity.findOnTmdb")}
       </button>
       {msg && (
         <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded, marginTop: 4 }}>

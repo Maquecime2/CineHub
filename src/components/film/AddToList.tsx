@@ -19,6 +19,7 @@
    ============================================================ */
 import { serverConfigured } from "../../services/server";
 import { ListFiler } from "./ListFiler";
+import { posterPathOf } from "../../tmdb";
 import type { Film } from "../../types";
 
 export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean }) {
@@ -26,7 +27,16 @@ export function AddToList({ film, signedIn }: { film: Film; signedIn: boolean })
 
   return (
     <div data-tour="detail-lists" style={{ marginTop: 18 }}>
-      <ListFiler works={[{ tmdbId: film.tmdbId, title: film.title, year: film.year }]} />
+      <ListFiler
+        works={[
+          {
+            tmdbId: film.tmdbId,
+            title: film.title,
+            year: film.year,
+            posterPath: posterPathOf(film.poster),
+          },
+        ]}
+      />
     </div>
   );
 }

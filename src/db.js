@@ -8,6 +8,7 @@
    synchronous access is convenient there.
    ============================================================ */
 
+import i18n from "./i18n";
 import {
   listCustomDecor,
   customDecorImageKeys,
@@ -119,6 +120,11 @@ async function tx(mode, fn, magasin = POSTERS) {
    string. */
 export const putDoc = (key, value) => tx("readwrite", (s) => s.put(value, key), DOCS);
 export const getDoc = (key) => tx("readonly", (s) => s.get(key), DOCS);
+export const deleteDoc = (key) => tx("readwrite", (s) => s.delete(key), DOCS);
+/* TOUT CE QUE LE MAGASIN TIENT, la collection comprise. Le tri est
+   l'affaire de l'appelant : `services/storage` ne monte en mémoire que
+   ce qu'il a déclaré coffrable, et `films` n'en est pas. */
+export const allDocKeys = () => tx("readonly", (s) => s.getAllKeys(), DOCS);
 
 export const putImage = (key, blob) => tx("readwrite", (s) => s.put(blob, key));
 export const getImage = (key) => tx("readonly", (s) => s.get(key));
@@ -224,6 +230,8 @@ export async function exportBackup({
   views = null,
   fils = [],
   motifs = null,
+  filiations = [],
+  parcours = [],
 }) {
   const images = {};
   const customDecor = listCustomDecor();
@@ -250,8 +258,12 @@ export async function exportBackup({
        v7 adds the vocabulary: the motifs you wrote yourself, and those of
        the catalogue you set aside. The catalogue itself is not in it — it
        lives in the code, and copying it here would freeze the version of
-       the day. */
-    version: 7,
+       the day.
+       v8 adds the filiations and the viewing courses. The bonds between
+       film-makers are the clearest case yet of something no sweep of the
+       collection could ever work out again: nothing in a card says who
+       taught whom. */
+    version: 8,
     exportedAt: new Date().toISOString(),
     films,
     notes,
@@ -259,13 +271,14 @@ export async function exportBackup({
     views,
     fils,
     motifs,
+    filiations,
+    parcours,
     images,
   };
 }
 
 export async function importBackup(data) {
-  if (data?.format !== "cine-hub-backup")
-    throw new Error("Ce fichier n'est pas une sauvegarde Ciné Hub.");
+  if (data?.format !== "cine-hub-backup") throw new Error(i18n.t("errors.notABackup"));
   // v1 knew only the posters, under the "posters" key
   const images = data.images || data.posters || {};
   for (const [key, dataUrl] of Object.entries(images)) {
@@ -289,5 +302,10 @@ export async function importBackup(data) {
     fils: data.fils || [],
     // likewise for the vocabulary, which arrived in v7
     motifs: data.motifs || null,
+    /* v8: the filiations and the courses. An empty LIST and never
+       `undefined` — the normalising doors read an array, and a binder
+       restored from an older file must still be able to be added to. */
+    filiations: data.filiations || [],
+    parcours: data.parcours || [],
   };
 }

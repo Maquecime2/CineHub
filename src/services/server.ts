@@ -29,6 +29,9 @@
    The trailing slash goes for the same reason: the paths already start
    with a slash, and "…:8787//me" is not "…:8787/me". */
 import { store } from "./storage";
+/* A SERVICE HAS NO HOOK: it reads the catalogue from the instance, the
+   same way `Boundary` does. */
+import i18n from "../i18n";
 import type { Gain } from "../domain/points";
 import { readPerson, type Person, type PersonReply } from "./contract";
 
@@ -112,7 +115,7 @@ function giveUpOn(caller?: AbortSignal): AbortSignal | undefined {
 }
 
 async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
-  if (!serverConfigured()) throw new ServerError("Aucun serveur réglé.", 0);
+  if (!serverConfigured()) throw new ServerError(i18n.t("account.noServer"), 0);
 
   let res: Response;
   try {
@@ -295,6 +298,107 @@ export const accountOpen = (): boolean => serverConfigured() && account !== null
  * is why it needs no round trip of its own and no cache to keep in
  * agreement with anything.
  */
+/* ============================================================
+   LE BUREAU DE MODÉRATION — réservé au rôle
+   ============================================================
+
+   La file est REGROUPÉE PAR CIBLE côté serveur : dix personnes signalant
+   la même fiche font une ligne, avec le nombre d'échos. C'est lui qui
+   dit par où commencer, et c'est lui qui commande le tri.
+
+   Qui a signalé n'en sort pas : on juge un contenu, pas un plaignant.
+   ============================================================ */
+export interface ReportRow {
+  id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  created_at: string;
+  /** Le pseudonyme visé, `null` si son compte a disparu depuis. */
+  about: string | null;
+  echoes: number;
+}
+
+export const reportsToHandle = () =>
+  call<{ reports: ReportRow[] }>("/reports").then((r) => r.reports);
+
+/**
+ * Classer un signalement, et facultativement retirer la fiche du partage.
+ *
+ * `hide` est RÉVERSIBLE — c'est la colonne que l'auteur manipule
+ * lui-même. Fermer un compte ne passe pas par là : cette décision ne
+ * doit pas tenir dans un clic au milieu d'une file d'attente.
+ */
+export const handleReport = (targetType: string, targetId: string, hide = false) =>
+  call<{ closed: number; hidden: boolean }>("/reports/handle", {
+    method: "POST",
+    body: JSON.stringify({ targetType, targetId, hide }),
+  });
+
+/* ============================================================
+   LES IMPORTS — ce qu'il en reste, et en consommer un
+   ============================================================
+
+   Le coût d'un import est dans l'ENRICHISSEMENT — six cents films, six
+   cents interrogations du relais — et il part avant qu'on valide. On
+   demande donc l'autorisation AVANT de faire travailler quelqu'un, et
+   on ne consomme qu'à la validation : un bordereau ouvert puis refermé
+   ne coûte rien.
+
+   `allowance` se tait sur une panne et rend « permis » : refuser un
+   import parce qu'on n'a pas su compter serait punir quelqu'un pour
+   notre propre silence. Le serveur, lui, refusera pour de bon à la
+   consommation s'il le faut — et c'est LUI qui décide.
+   ============================================================ */
+export interface ImportAllowance {
+  used: number;
+  /** `null` : ce palier ne compte pas les imports. */
+  ceiling: number | null;
+  allowed: boolean;
+}
+
+const readAllowance = (r: {
+  used: number;
+  ceiling: number;
+  allowed: boolean;
+}): ImportAllowance => ({
+  used: r.used,
+  /* `Infinity` ne traverse pas JSON — il en sort `null`. On le garde tel
+     quel plutôt que de le retraduire : « pas de plafond » se dessine
+     mieux avec une absence qu'avec un nombre. */
+  ceiling: Number.isFinite(r.ceiling) ? r.ceiling : null,
+  allowed: r.allowed,
+});
+
+export const importAllowance = (): Promise<ImportAllowance> =>
+  call<{ used: number; ceiling: number; allowed: boolean }>("/imports")
+    .then(readAllowance)
+    .catch(() => ({ used: 0, ceiling: null, allowed: true }));
+
+/** Consomme un import. Jette si le palier ne le permet plus. */
+export const spendImport = (): Promise<ImportAllowance> =>
+  call<{ used: number; ceiling: number; allowed: boolean }>("/imports", {
+    method: "POST",
+  }).then(readAllowance);
+
+/* ============================================================
+   LES AFFICHES DE LA VITRINE
+   ============================================================
+
+   La seule route de ce serveur qui ne demande pas de compte : douze
+   adresses fixes, aucune donnée de personne. Elle sert la page que
+   voient les gens qui n'en ont pas encore.
+
+   Elle rend `{}` sur la moindre difficulté — serveur muet, base neuve,
+   clé TMDB absente. Le classeur dessine alors les initiales sur une
+   émulsion teintée, ce qu'il a toujours su faire : la vitrine est moins
+   belle, elle n'est pas cassée.
+   ============================================================ */
+export const demoPosters = (): Promise<Record<string, string>> =>
+  call<{ posters: Record<string, string> }>("/demo/posters")
+    .then((r) => r.posters ?? {})
+    .catch(() => ({}));
+
 export const iAmAdmin = (): boolean => accountOpen() && lastKnownPerson()?.is_admin === true;
 
 /** Be told when the answer changes. Returns an unsubscribe. */
@@ -337,6 +441,20 @@ export async function relayServesTmdb(): Promise<boolean> {
 
 /** What the server holds, in a single object — to take it away with you. */
 export const myData = () => call<Record<string, unknown>>("/my-data");
+
+/** Ce qu'un compte occupe chez nous, et ce qu'il a le droit d'occuper. */
+export interface Usage {
+  media: number;
+  mediaCeiling: number;
+  decors: number;
+  decorCeiling: number;
+  decorBytes: number;
+  decorBytesCeiling: number;
+}
+
+/* UN PLAFOND INVISIBLE EST UN PLAFOND QU'ON DÉCOUVRE EN LE HEURTANT, au
+   pire moment — celui où l'on vient de déposer quelque chose. */
+export const myUsage = () => call<Usage>("/my-usage");
 
 /**
 /**
@@ -582,6 +700,20 @@ export const push = (cards: CardToPush[]) =>
 /** The server's cap, repeated here to cut the sends up. */
 export const PER_SEND = 500;
 
+/* LE SECOND PLAFOND, ET C'EST CELUI QUI A CASSÉ.
+
+   Le serveur en a deux : cinq cents fiches, et le poids du corps. Le
+   premier répond proprement ; le second, dépassé, coupe la connexion en
+   cours d'envoi — le navigateur annonce alors une panne de réseau
+   (`ERR_CONNECTION_RESET`) là où le serveur a refusé, et une file de
+   huit cents fiches ne part JAMAIS sans qu'un mot soit dit.
+
+   On découpe donc sur les DEUX, et cette borne-ci est délibérément la
+   MOITIÉ de celle du serveur (`bodyLimit`, 16 Mio) : le compte se
+   mesure sur les entrées, le corps réel porte en plus son enveloppe
+   JSON, et une marge qui se discute est une marge qu'on n'a pas. */
+export const PER_SEND_BYTES = 8 * 1024 * 1024;
+
 /* ------------------------------------------------------------
    LE RESTE DU CLASSEUR
    ------------------------------------------------------------ */
@@ -613,6 +745,9 @@ export const pushDocs = (documents: DocToPush[]) =>
 
 /** The server's cap for documents. */
 export const DOCS_PER_SEND = 200;
+
+/** Le poids, pour les documents : même raison, même marge. */
+export const DOCS_PER_SEND_BYTES = 8 * 1024 * 1024;
 
 /* ------------------------------------------------------------
    PARTAGER SA COLLECTION
@@ -677,8 +812,12 @@ export interface Profile {
   stamp?: string | null;
   films: number;
   followed?: boolean;
-  /** For the subscriptions list: is their collection still open? */
-  ouverte?: boolean;
+  /* LE SERVEUR ENVOIE `open`, ET IL FALLAIT L'ÉPELER AINSI. Ce champ
+     s'appelait `ouverte`, donc il valait `undefined` à l'exécution —
+     toujours. Personne ne le lisait encore, ce qui est la seule raison
+     pour laquelle il n'a rien cassé : c'est le troisième de cette
+     famille dans ce dépôt, après `liste_id` et `per`. */
+  open?: boolean;
 }
 
 export interface NewsItem {
@@ -704,6 +843,9 @@ export const unfollow = (pseudo: string) =>
   });
 
 export const mySubscriptions = () => call<{ subscriptions: Profile[] }>("/follows");
+
+/** Qui me suit. Le miroir de `mySubscriptions`, pour le sélecteur. */
+export const myFollowers = () => call<{ followers: Profile[] }>("/followers");
 
 export const readFeed = (before?: number | null) =>
   call<{ upTo: number | null; news: NewsItem[] }>(`/feed${before ? `?before=${before}` : ""}`);
@@ -770,34 +912,118 @@ export interface List {
   is_public: boolean;
   owner: string;
   works: number;
+  /**
+   * Quatre CHEMINS d'affiche au plus — les dernières œuvres rangées.
+   *
+   * C'est ce qui fait d'une carte de liste une carte et non une ligne de
+   * tableur. Un tableau VIDE est une réponse : cette liste n'a aucune
+   * affiche à montrer. `posterUrl` (`src/tmdb.js`) compose la taille.
+   *
+   * Facultatif parce qu'un vieux serveur ne l'envoie pas, et
+   * qu'**absent veut dire absent** — jamais « la valeur opposée ».
+   */
+  posters?: string[];
   mienne?: boolean;
-  isMember?: boolean;
+  /**
+   * Suis-je membre de cette liste ?
+   *
+   * `is_member` ET NON `isMember` : le serveur l'écrit ainsi (`AS
+   * is_member`), et c'est la cinquième fois que ce dépôt paie une
+   * orthographe inventée ici plutôt que lue là-bas. Le champ valait
+   * `undefined` à l'exécution, toujours, et rien n'échouait.
+   */
+  is_member?: boolean;
 }
 
 export interface ListWork {
   tmdb_id: string;
   title: string;
   year: string | null;
-  /** Who put it there — `null` if that person has left. */
-  per: string | null;
+  /**
+   * Qui l'a mis là — `null` si cette personne est partie.
+   *
+   * `by` ET NON `per` : le même reste de vocabulaire français que sur
+   * `Challenge` juste dessous, et le même effet — le champ valait
+   * `undefined`, donc aucun nom n'a jamais été affiché sous une œuvre
+   * d'une liste écrite à plusieurs, ce qui est précisément l'endroit où
+   * il sert.
+   */
+  by: string | null;
+  /**
+   * Le CHEMIN de l'affiche chez TMDB (`/xxxx.jpg`), jamais une URL : la
+   * taille se compose au rendu, comme pour `Film.frames`. `posterUrl`
+   * (`src/tmdb.js`) est la seule porte.
+   *
+   * `null` est le cas NORMAL et non un défaut : TMDB n'en a pas pour
+   * tout le monde, et une œuvre rangée avant que la colonne existe n'en
+   * porte pas non plus. `PosterArt` sait déjà quoi faire d'un film sans
+   * affiche — une émulsion teintée — donc rien à traiter ici.
+   */
+  poster_path: string | null;
 }
 
+/* ÉPELÉ COMME LE SERVEUR L'ÉPELLE, ce qui n'était pas le cas.
+   `liste_id` et `per` étaient des restes du vocabulaire français : le
+   serveur envoie `list_id` et `by`, donc ces deux champs valaient
+   `undefined` à l'exécution, toujours. Personne ne s'en plaignait —
+   un champ absent n'est pas une erreur, c'est un `undefined` — mais
+   « ce que ce défi vaut » cherchait l'auteur par un pseudo indéfini,
+   ne trouvait personne, et annonçait donc ZÉRO film vu sur chaque défi
+   du classeur. Le commentaire vingt lignes plus bas signalait déjà le
+   piège pour les quiz ; ici il n'avait pas été refermé. */
 export interface Challenge {
   id: string;
   title: string;
-  liste_id: string;
-  list: string;
+  /** NULL pour un défi par critère : il ne porte pas de liste. */
+  list_id: string | null;
+  /** Le titre de la liste, NULL pour un défi par critère. */
+  list: string | null;
   starts_on: string;
   ends_on: string;
-  per: string | null;
+  by: string | null;
+  /** Combien la liste tient. Le BUT est `target ?? works`. */
   works: number;
+  /* Le serveur envoie `target`, et il faut l'épeler ainsi — c'est le
+     piège que ce dépôt a payé quatre fois. NULL : toute la liste. */
+  target: number | null;
+  /** Ce qui compte : « liste » ou « critique ». En français : le serveur
+      l'écrit dans la ligne, et le catalogue le dit dans la langue du
+      jour. */
+  kind: string;
+  /** Ce sur quoi porte un défi par critère. NULL pour les deux autres. */
+  subject: { decade?: number; country?: string; director?: string } | null;
+  /**
+   * `"ensemble"` ou `"course"`. En COURSE, un film ne compte que pour
+   * le PREMIER qui le valide — même barème, même règlement.
+   *
+   * Épelé comme le serveur l'épelle. Facultatif parce qu'un vieux
+   * serveur ne l'envoie pas, et **absent veut dire absent** : on lit
+   * donc `=== "course"` et jamais `!== "ensemble"`, qui ferait courir
+   * tout défi venu d'un serveur muet.
+   */
+  mode?: string;
   inside?: boolean;
+  /** Le défi est-il le mien ? Le serveur le dit ; on ne le devine plus. */
+  mine?: boolean;
 }
 
 /** One number per participant: the screening log does not go out. */
 export interface Progress {
   pseudo: string;
   done: number;
+  /**
+   * Les identifiants TMDB de ce que `done` compte.
+   *
+   * UN DÉFI ÉTAIT UNE BARRE : on lisait « 3 sur 8 » sans jamais savoir
+   * LESQUELS trois. C'est ce que la grille tamponnée montre, et ce sont
+   * les MÊMES que `done` — un tableau qui afficherait quatre tampons
+   * sous une barre qui en annonce cinq mentirait sur celle qui PAIE.
+   *
+   * Facultatif parce qu'un vieux serveur ne l'envoie pas, et
+   * **absent veut dire absent** : la grille se dessine alors sans
+   * tampon, elle ne prétend pas que rien n'a été vu.
+   */
+  ticked?: string[];
 }
 
 export const myLists = () => call<{ lists: List[] }>("/lists");
@@ -819,7 +1045,17 @@ export const deleteList = (id: string) =>
 
 export const addToList = (
   id: string,
-  o: { tmdbId: string | number; title?: string; year?: string | number }
+  o: {
+    tmdbId: string | number;
+    title?: string;
+    year?: string | number;
+    /* CE QU'ON A SOUS LA MAIN AU MOMENT DU GESTE, et c'est pourquoi il
+       est facultatif : on range une œuvre depuis un résultat TMDB, une
+       fiche du classeur ou un mur, et tous ne portent pas d'affiche.
+       Un chemin — `posterPathOf` s'en charge — que le serveur refuse
+       silencieusement s'il n'en est pas un. */
+    posterPath?: string | null;
+  }
 ) =>
   call<{ added: boolean; fresh: boolean }>(`/lists/${encodeURIComponent(id)}/works`, {
     method: "POST",
@@ -853,10 +1089,20 @@ export const myChallenges = () => call<{ challenges: Challenge[] }>("/challenges
    side reported a mismatch: an undefined field is not an error, it is an
    absent one. */
 export const createChallenge = (d: {
-  listId: string;
+  /** NULL pour un défi par critère. */
+  listId: string | null;
   title: string;
   starts_on: string;
   ends_on: string;
+  /** Combien il en faut. Absent ou `null` : toute la liste. */
+  target?: number | null;
+  /** Ce qui compte. Absent : « liste ». */
+  kind?: string | null;
+  /** Ce sur quoi porte un critère. Le serveur l'exige alors, et la
+      cible avec — « tous les films des années 60 » n'a pas de fin. */
+  subject?: Record<string, unknown> | null;
+  /** « ensemble » ou « course ». Absent : ensemble. */
+  mode?: string | null;
 }) => call<{ id: string }>("/challenges", { method: "POST", body: JSON.stringify(d) });
 
 export const readChallenge = (id: string) =>
@@ -876,6 +1122,21 @@ export const leaveChallenge = (id: string) =>
   call<{ inside: boolean }>(`/challenges/${encodeURIComponent(id)}/participation`, {
     method: "DELETE",
   });
+
+/* `participation` EST LA SIENNE, `participants` EST CELLE DES AUTRES, et
+   les deux routes ne se ressemblent que de loin : la première n'a besoin
+   que du droit de LIRE le défi, la seconde du droit de l'administrer. */
+export const inviteToChallenge = (id: string, pseudo: string) =>
+  call<{ pseudo: string; inside: boolean }>(
+    `/challenges/${encodeURIComponent(id)}/participants/${encodeURIComponent(pseudo)}`,
+    { method: "PUT" }
+  );
+
+export const removeFromChallenge = (id: string, pseudo: string) =>
+  call<{ pseudo: string; inside: boolean }>(
+    `/challenges/${encodeURIComponent(id)}/participants/${encodeURIComponent(pseudo)}`,
+    { method: "DELETE" }
+  );
 
 /* ------------------------------------------------------------
    THE BANK, AND THE QUIZZES DRAWN FROM IT
@@ -924,7 +1185,23 @@ export interface Quiz {
   size: number;
   /** The bank was too thin for the mix, and the quiz says so. */
   softened: boolean;
-  owner: string;
+  /* LE SERVEUR ENVOIE `seconds_per_question`, ET C'EST DONC AINSI QUE
+     CELA S'ÉPELLE ICI. Ce dépôt a déjà payé exactement ce piège deux
+     fois — `liste_id` pour `list_id`, `per` pour `by` — et il ne coûte
+     RIEN à l'exécution : un champ absent n'est pas une erreur, il vaut
+     `undefined`, toujours, et l'écran annonce simplement le mauvais
+     chiffre pour toujours. NULL : pas de chronomètre. */
+  seconds_per_question: number | null;
+  /** NULL pour le quizz de la semaine : il n'appartient à personne. */
+  owner: string | null;
+  /**
+   * Le lundi de la semaine que ce quizz occupe, ou NULL.
+   *
+   * `week` ET NON `semaine` : le serveur l'écrit ainsi, et c'est tout
+   * l'argument. Le piège est écrit trois lignes plus haut, il a déjà
+   * été payé trois fois dans ce dépôt, et il ne lève jamais.
+   */
+  week?: string | null;
   topics: string[];
   /** Mine to invite into and to erase. Never a right to see the answers. */
   mine?: boolean;
@@ -955,6 +1232,8 @@ export interface QuizScore {
   score: number;
   answered: number;
   finished: boolean;
+  /** La durée de la partie, en secondes. Elle ne paie rien : voir le serveur. */
+  seconds: number;
 }
 
 /* ---- the bank ---- */
@@ -1021,6 +1300,9 @@ export const drawQuiz = (q: {
   categoryIds: string[];
   level: string;
   size: number;
+  /** `null` : pas de chronomètre, et c'est le défaut. En entrée le nom
+      est en camel — c'est un corps de requête, pas une ligne. */
+  secondsPerQuestion?: number | null;
 }) =>
   call<{ id: string; softened: boolean; drawn: number }>("/quizzes", {
     method: "POST",
@@ -1036,6 +1318,34 @@ export const readQuiz = (id: string) =>
     attempt: QuizAttempt | null;
     players: string[];
   }>(`/quizzes/${encodeURIComponent(id)}`);
+
+/* ------------------------------------------------------------
+   LE QUIZZ DE LA SEMAINE
+   ------------------------------------------------------------
+
+   LA LECTURE EST CE QUI LE TIRE. Ce serveur n'a aucune tâche de fond :
+   le premier qui demande la semaine la tire, et l'index unique du
+   schéma fait que deux demandes simultanées n'en produisent qu'un. Il
+   n'y a donc rien à « créer » ici, et c'est délibéré — un bouton
+   « lancer le quizz de la semaine » aurait demandé à quelqu'un de
+   décider quand, alors que le calendrier a déjà décidé.
+
+   `quiz: null` N'EST PAS UNE ERREUR. La banque n'a rien de jouable ;
+   la semaine reste ouverte et se tirera dès qu'un admin l'aura
+   remplie. C'est un état que l'écran sait dire. */
+
+export const weeklyQuiz = () =>
+  call<{
+    quiz: Quiz | null;
+    questions?: QuizQuestion[];
+    weight?: number;
+    attempt?: QuizAttempt | null;
+    players?: string[];
+    /** Le classement PUBLIC : tout le monde, et non les seuls invités. */
+    board?: QuizScore[];
+  }>("/quizzes/weekly");
+
+export const weeklyBoard = () => call<{ scores: QuizScore[] }>("/quizzes/weekly/board");
 
 export const renameQuiz = (id: string, title: string) =>
   call<{ done: boolean }>(`/quizzes/${encodeURIComponent(id)}`, {
@@ -1115,24 +1425,61 @@ export interface Rank {
   stamp: string | null;
 }
 
+/** Les quatre familles qu'on PORTE, une à la fois chacune. */
+export type Wearable = "stamp" | "skin" | "paper" | "title";
+
+export type ShopKind = Wearable | "pack" | "power";
+
 export interface ShopItem {
   id: string;
-  kind: "stamp" | "pack" | "skin" | "power";
+  kind: ShopKind;
   price: number;
   /** Pour une peau : la clé qu'elle ouvre dans le catalogue du classeur. */
   grants?: string;
   power?: string;
   draws?: number;
+  /** Pour une pochette venue de la base : son libellé et sa couverture. */
+  label?: { fr: string; en: string };
+  cover?: string;
   owned?: boolean;
   /** Pour un pouvoir : combien il en reste. */
   held?: number;
 }
 
+/**
+ * Un objet d'étagère qui se gagne, tel que le serveur le décrit.
+ *
+ * `wall` et `tintable` sont les deux seules propriétés de dessin qui
+ * viennent de la base, et elles en viennent parce qu'elles ne se
+ * devinent pas d'une image : un objet qui se pend au fond de la rangée
+ * ne se pose pas sur la planche, et une encre qu'on peut remplacer ne se
+ * lit pas dans un PNG.
+ */
+export interface DecorDef {
+  id: string;
+  packId: string;
+  rarity: "common" | "rare" | "gold";
+  /** Clé de blob sous `bank/decor/…`, ou nom d'un dessin embarqué. */
+  media: string;
+  label: { fr: string; en: string };
+  wall: boolean;
+  tintable: boolean;
+}
+
 export interface Holdings {
   items: string[];
-  stickers: { sticker_id: string; copies: number }[];
+  decors: { decor_id: string; copies: number }[];
   powers: Record<string, number>;
-  worn: { stamp: string | null; skin: string | null };
+  worn: Record<Wearable, string | null>;
+}
+
+/** Une pochette, du point de vue de l'admin qui la règle. */
+export interface PackDef {
+  id: string;
+  price: number;
+  label: { fr: string; en: string };
+  cover: string | null;
+  retired: boolean;
 }
 
 export const myPurse = () => call<Purse>("/purse");
@@ -1146,7 +1493,63 @@ export const setLadder = (ladder: "non" | "suivis" | "tous") =>
     body: JSON.stringify({ ladder }),
   });
 
-export const shop = () => call<{ items: ShopItem[] }>("/shop").then((r) => r.items);
+/**
+ * Le présentoir : le catalogue, plus le dictionnaire des objets.
+ *
+ * LES OBJETS VOYAGENT AVEC, et pas sur une seconde requête : le
+ * présentoir dessine une pochette sur ce qu'elle contient, la collection
+ * a besoin du même dictionnaire pour nommer ce qu'on possède, et
+ * L'ÉTAGÈRE en a besoin pour dessiner ce qu'on y pose. Trois écrans, une
+ * réponse.
+ */
+export const shop = () => call<{ items: ShopItem[]; decors: DecorDef[] }>("/shop");
+
+/* ---- le studio des pochettes, réservé au rôle ---- */
+
+export const packCatalogue = () =>
+  call<{ packs: PackDef[]; decors: (DecorDef & { retired: boolean })[] }>("/shop/packs");
+
+export const savePack = (p: {
+  id: string;
+  price: number;
+  labelFr: string;
+  labelEn: string;
+  cover?: string | null;
+}) => call<PackDef>("/shop/packs", { method: "POST", body: JSON.stringify(p) });
+
+export const saveDecor = (s: {
+  id: string;
+  packId: string;
+  rarity: string;
+  media: string;
+  labelFr: string;
+  labelEn: string;
+  wall?: boolean;
+  tintable?: boolean;
+}) => call<DecorDef>("/shop/decors", { method: "POST", body: JSON.stringify(s) });
+
+/** Sortir de l'étal, ou remettre. Ne reprend rien à personne. */
+export const retirePack = (id: string, back = false) =>
+  call<{ id: string; retired: boolean }>(`/shop/packs/${id}${back ? "?back=1" : ""}`, {
+    method: "DELETE",
+  });
+
+export const retireWonDecor = (id: string, back = false) =>
+  call<{ id: string; retired: boolean }>(`/shop/decors/${id}${back ? "?back=1" : ""}`, {
+    method: "DELETE",
+  });
+
+/* EFFACER, ce qui n'est PAS retirer : la vignette quitte aussi la
+   collection de ceux qui l'avaient tirée. Le nombre rendu est ce qu'on
+   vient de leur reprendre, et le serveur est le seul à pouvoir encore le
+   dire — après, la ligne n'existe plus. */
+export const deleteWonDecor = (id: string) =>
+  call<{ id: string; deleted: true; owners: number }>(`/shop/decors/${id}?forever=1`, {
+    method: "DELETE",
+  });
+
+export const deletePack = (id: string) =>
+  call<{ id: string; deleted: true }>(`/shop/packs/${id}?forever=1`, { method: "DELETE" });
 
 export const myHoldings = () => call<Holdings>("/shop/mine");
 
@@ -1176,11 +1579,24 @@ export const sell = (item: string) =>
     body: JSON.stringify({ item }),
   });
 
-export const wear = (what: { stamp?: string | null; skin?: string | null }) =>
-  call<{ stamp: string | null; skin: string | null }>("/shop/worn", {
+/**
+ * Porter, ou retirer avec `null`.
+ *
+ * ON ENVOIE L'IDENTIFIANT DE L'ARTICLE, toujours — y compris pour une
+ * peau, dont le serveur range la CLÉ. L'inverse était le comportement,
+ * et il était faux : la vérification de possession cherchait la clé dans
+ * la table des articles possédés, qui ne contient que des articles.
+ * Porter une peau achetée répondait 403, toujours.
+ */
+export const wear = (what: Partial<Record<Wearable, string | null>>) =>
+  call<Record<Wearable, string | null>>("/shop/worn", {
     method: "PATCH",
     body: JSON.stringify(what),
   });
+
+/** Le second souffle : relancer un défi qu'on a laissé filer. */
+export const secondWind = (challengeId: string) =>
+  call<{ ends_on: string }>(`/challenges/${challengeId}/second-wind`, { method: "POST" });
 
 /* ---- les pouvoirs ---- */
 

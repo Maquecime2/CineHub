@@ -1,5 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { catchUpDocuments, documentsToSend, forgetSentDocuments } from "./documents";
+import {
+  catchUpDocuments,
+  dateOf,
+  documentsToSend,
+  expectFirstPull,
+  fileIncomingDocument,
+  forgetSentDocuments,
+  noteDocument,
+  noteFirstPull,
+} from "./documents";
 import { store } from "./storage";
 
 /* ============================================================
@@ -95,5 +104,96 @@ describe("supprimer un document", () => {
     store.set("shelf-view:v2", { id: "v2" });
     store.remove("shelf-view:v2");
     expect(localStorage.getItem("shelf-view:v2")).toBeNull();
+  });
+});
+
+/* ============================================================
+   LE DÉFAUT INVENTÉ AVANT LE TIRAGE
+
+   Un navigateur neuf n'attend pas la synchro : il ne trouve aucun
+   agencement, en fabrique un et l'écrit. Daté de MAINTENANT, il battait
+   celui que le serveur descendait une seconde plus tard, puis l'écrasait
+   là-bas — l'agencement était perdu pour tous les appareils.
+   ============================================================ */
+describe("la fenêtre du premier tirage", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("date à l'aube ce qui s'écrit avant que le tirage ait atterri", () => {
+    expectFirstPull();
+    store.set("shelf-views", { byWall: {} });
+    noteDocument("shelf-views");
+    expect(dateOf("shelf-views")).toBe(1);
+
+    /* Et le serveur, si vieux soit-il, gagne. */
+    const filed = fileIncomingDocument({
+      key: "shelf-views",
+      updatedAt: 1000,
+      content: { byWall: { watched: ["a"] } },
+    });
+    expect(filed).toBe(true);
+    expect(store.get("shelf-views", null)).toEqual({ byWall: { watched: ["a"] } });
+  });
+
+  it("rend leur date aux gestes une fois le tirage atterri", () => {
+    expectFirstPull();
+    noteFirstPull();
+    noteDocument("shelf-views");
+    expect(dateOf("shelf-views")).toBeGreaterThan(1);
+  });
+
+  /* La garde ne vise que ce qui vient d'être inventé de rien. Un
+     document que ce navigateur connaît déjà garde sa date pleine, sans
+     quoi une copie plus VIEILLE du serveur le remplacerait au tour
+     suivant. */
+  it("laisse sa date pleine à un document déjà connu ici", () => {
+    noteFirstPull();
+    noteDocument("shelf-views");
+    const known = dateOf("shelf-views");
+    expect(known).toBeGreaterThan(1);
+
+    expectFirstPull();
+    noteDocument("shelf-views");
+    expect(dateOf("shelf-views")).toBeGreaterThanOrEqual(known);
+  });
+});
+
+/* ============================================================
+   L'ÉCHO, ET LA BOUCLE À DEUX SESSIONS
+
+   Le magasin date ce qu'on écrit — c'est tout son intérêt. Mais la
+   datation passe par un import dynamique, donc elle atterrit APRÈS :
+   `fileIncomingDocument` avait beau poser la date reçue puis retirer la
+   clé de la file, la note arrivait ensuite et défaisait les deux.
+
+   Chaque document reçu repartait donc au serveur, redaté de maintenant.
+   Entre deux sessions ouvertes cela ne s'arrête jamais : l'une reçoit,
+   redate, renvoie ; l'autre fait de même. Deux navigateurs sur la même
+   adresse épuisaient les cent requêtes par minute du serveur en se
+   renvoyant les mêmes documents.
+   ============================================================ */
+describe("l'écho d'un document reçu", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("ne repart pas au serveur, et garde la date reçue", async () => {
+    noteFirstPull();
+    fileIncomingDocument({ key: "fils", updatedAt: 5000, content: [{ a: 1 }] });
+    expect(dateOf("fils")).toBe(5000);
+    expect(documentsToSend()).toEqual([]);
+
+    /* La note différée atterrit ici. C'est elle qui défaisait tout. */
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dateOf("fils")).toBe(5000);
+    expect(documentsToSend()).toEqual([]);
+  });
+
+  it("laisse repartir un vrai geste posé après coup", async () => {
+    noteFirstPull();
+    fileIncomingDocument({ key: "fils", updatedAt: 5000, content: [{ a: 1 }] });
+    await new Promise((r) => setTimeout(r, 20));
+
+    /* La marque a été consommée par l'écho : ce qui suit est de nous. */
+    noteDocument("fils");
+    expect(dateOf("fils")).toBeGreaterThan(5000);
+    expect(documentsToSend().map((d) => d.key)).toEqual(["fils"]);
   });
 });

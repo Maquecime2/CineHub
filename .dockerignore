@@ -1,0 +1,13 @@
+# Ce que la construction n'a pas à recevoir. Sans ce fichier, `COPY . .`
+# embarque `node_modules` — plusieurs centaines de mégaoctets, réinstallés
+# juste après par `npm ci` — et `.git`, qui contient tout l'historique.
+node_modules
+server/node_modules
+dist
+.git
+.env
+.env.*
+!.env.exemple
+!.env.deploiement.exemple
+coverage
+*.local

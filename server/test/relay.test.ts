@@ -225,3 +225,143 @@ describe("the Letterboxd relay", () => {
     expect(requests).toEqual([]);
   });
 });
+
+/* ============================================================
+   THE WIKIDATA HINTS
+
+   Here the server does not FORWARD a request, it WRITES one — so what is
+   at stake is different from TMDB: not whose key went out, but what
+   query we composed, and whether a client can get a word of its own
+   into it.
+   ============================================================ */
+describe("the Wikidata hints", () => {
+  const answer = (bindings: unknown[]) =>
+    new Response(JSON.stringify({ results: { bindings } }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+
+  const cell = (v: string) => ({ value: v });
+
+  it("refuses whoever has no account: what goes out, goes out under our address", async () => {
+    const r = await app.inject({ method: "GET", url: "/lineage/hints?tmdb=5026" });
+    expect(r.statusCode).toBe(401);
+    expect(requests).toEqual([]);
+  });
+
+  it("asks about the ids given, and hands the triples back as they stand", async () => {
+    vi.stubGlobal("fetch", async (url: string | URL) => {
+      requests.push(String(url));
+      return answer([
+        {
+          tmdb: cell("5026"),
+          p: cell("http://www.wikidata.org/prop/direct/P1066"),
+          aLabel: cell("Kiyoshi Kurosawa"),
+          bLabel: cell("Shigehiko Hasumi"),
+        },
+      ]);
+    });
+    const cookie = await signedIn();
+    const r = await app.inject({
+      method: "GET",
+      url: "/lineage/hints?tmdb=5026,1032",
+      headers: { cookie },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toEqual({
+      links: [{ seed: "5026", from: "Kiyoshi Kurosawa", to: "Shigehiko Hasumi", prop: "P1066" }],
+    });
+    /* The query is OURS. Both ids are in it, and so are the three
+       properties — no more, and nothing the client wrote. */
+    const asked = decodeURIComponent(requests[0] ?? "");
+    expect(asked).toContain("query.wikidata.org/sparql");
+    expect(asked).toContain('"5026"');
+    expect(asked).toContain('"1032"');
+    expect(asked).toContain("wdt:P1066 wdt:P802 wdt:P737");
+    /* The seed sits on BOTH sides, or half the knowledge is missed: a
+       film-maker in the binder is as likely to be named somebody's
+       master as to be their pupil. */
+    expect(asked).toContain("UNION");
+  });
+
+  it("lets nothing but digits and commas through", async () => {
+    const cookie = await signedIn("chantal");
+    /* Unchecked, the parameter writes somebody else's query with our
+       User-Agent on it. */
+    for (const tmdb of ["5026) } UNION { ?x ?y ?z", '5026"', "P1066", "", "5026;1032", "-1"]) {
+      const r = await app.inject({
+        method: "GET",
+        url: `/lineage/hints?tmdb=${encodeURIComponent(tmdb)}`,
+        headers: { cookie },
+      });
+      expect({ tmdb, code: r.statusCode }).toEqual({ tmdb, code: 400 });
+    }
+    expect(requests).toEqual([]);
+  });
+
+  it("stops at fifty, which is what one query is worth", async () => {
+    const cookie = await signedIn("jacques");
+    const many = Array.from({ length: 51 }, (_, i) => 1000 + i).join(",");
+    const r = await app.inject({
+      method: "GET",
+      url: `/lineage/hints?tmdb=${many}`,
+      headers: { cookie },
+    });
+    expect(r.statusCode).toBe(400);
+    expect(requests).toEqual([]);
+  });
+
+  it("drops a person Wikidata could not name", async () => {
+    /* With no French and no English label, the service hands back the
+       Q-item itself. "Q76" is not a film-maker: it would enter the
+       binder as a key and sit on the map as a node for ever. */
+    vi.stubGlobal("fetch", async () =>
+      answer([
+        {
+          tmdb: cell("5026"),
+          p: cell("http://www.wikidata.org/prop/direct/P737"),
+          aLabel: cell("Q131237"),
+          bLabel: cell("Yasujiro Ozu"),
+        },
+      ])
+    );
+    const cookie = await signedIn("agnes");
+    const r = await app.inject({
+      method: "GET",
+      url: "/lineage/hints?tmdb=5026",
+      headers: { cookie },
+    });
+    expect(r.json()).toEqual({ links: [] });
+  });
+
+  it("says it could not ask, rather than answering that there is nothing", async () => {
+    /* The screen tells "we could not ask" apart from "there is
+       nothing", and it can only do that if the failure reaches it. */
+    vi.stubGlobal("fetch", async () => new Response("nope", { status: 500 }));
+    const cookie = await signedIn("melville");
+    const r = await app.inject({
+      method: "GET",
+      url: "/lineage/hints?tmdb=5026",
+      headers: { cookie },
+    });
+    expect(r.statusCode).toBe(502);
+    expect(r.json().error).toBeTruthy();
+  });
+
+  it("keeps a cap of its own: free is not the same as unlimited", async () => {
+    const narrow = await testApp(db, { tmdbKey: "K", hintsCeiling: 2 });
+    const cookie = await signedIn("straub");
+    const codes: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const r = await narrow.inject({
+        method: "GET",
+        url: `/lineage/hints?tmdb=${3000 + i}`,
+        headers: { cookie },
+      });
+      codes.push(r.statusCode);
+    }
+    expect(codes.slice(0, 2)).toEqual([200, 200]);
+    expect(codes[2]).toBe(429);
+    await narrow.close();
+  });
+});

@@ -96,12 +96,12 @@ export const PATTERNS: Record<string, Pattern> = {
   rayuresFines: {
     size: 12,
     draw: (ink) =>
-      svg(12, 12, `<rect x='0' y='0' width='1.5' height='12' fill='${ink}' opacity='0.16'/>`),
+      svg(12, 12, `<rect x='0' y='0' width='1.5' height='12' fill='${ink}' opacity='0.26'/>`),
   },
   rayuresLarges: {
     size: 48,
     draw: (ink) =>
-      svg(48, 48, `<rect x='0' y='0' width='16' height='48' fill='${ink}' opacity='0.10'/>`),
+      svg(48, 48, `<rect x='0' y='0' width='16' height='48' fill='${ink}' opacity='0.17'/>`),
   },
   quadrillage: {
     size: 22,
@@ -109,7 +109,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         22,
         22,
-        `<g fill='none' stroke='${ink}' stroke-width='1' opacity='0.14'>` +
+        `<g fill='none' stroke='${ink}' stroke-width='1' opacity='0.23'>` +
           `<path d='M0 0.5 H22 M0.5 0 V22'/></g>`
       ),
   },
@@ -119,7 +119,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         32,
         32,
-        `<g fill='${ink}' opacity='0.10'><rect x='0' y='0' width='16' height='16'/>` +
+        `<g fill='${ink}' opacity='0.17'><rect x='0' y='0' width='16' height='16'/>` +
           `<rect x='16' y='16' width='16' height='16'/></g>`
       ),
   },
@@ -129,7 +129,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         28,
         28,
-        `<g fill='${ink}' opacity='0.16'><circle cx='7' cy='7' r='2.2'/>` +
+        `<g fill='${ink}' opacity='0.26'><circle cx='7' cy='7' r='2.2'/>` +
           `<circle cx='21' cy='21' r='2.2'/></g>`
       ),
   },
@@ -139,7 +139,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         24,
         24,
-        `<path d='M0 18 L12 6 L24 18' fill='none' stroke='${ink}' stroke-width='2' opacity='0.13'/>`
+        `<path d='M0 18 L12 6 L24 18' fill='none' stroke='${ink}' stroke-width='2' opacity='0.21'/>`
       ),
   },
   ecailles: {
@@ -148,7 +148,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         30,
         30,
-        `<g fill='none' stroke='${ink}' stroke-width='1.4' opacity='0.14'>` +
+        `<g fill='none' stroke='${ink}' stroke-width='1.4' opacity='0.23'>` +
           `<path d='M0 30 A15 15 0 0 1 30 30'/><path d='M-15 15 A15 15 0 0 1 15 15'/>` +
           `<path d='M15 15 A15 15 0 0 1 45 15'/></g>`
       ),
@@ -159,7 +159,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         40,
         40,
-        `<g fill='${ink}' opacity='0.15'>` +
+        `<g fill='${ink}' opacity='0.24'>` +
           `<g transform='translate(10 10)'><circle cx='0' cy='-4' r='2.4'/><circle cx='4' cy='0' r='2.4'/>` +
           `<circle cx='0' cy='4' r='2.4'/><circle cx='-4' cy='0' r='2.4'/></g>` +
           `<g transform='translate(30 30)'><circle cx='0' cy='-4' r='2.4'/><circle cx='4' cy='0' r='2.4'/>` +
@@ -172,7 +172,7 @@ export const PATTERNS: Record<string, Pattern> = {
       svg(
         20,
         20,
-        `<g stroke='${ink}' stroke-width='1.6' stroke-linecap='round' opacity='0.15'>` +
+        `<g stroke='${ink}' stroke-width='1.6' stroke-linecap='round' opacity='0.24'>` +
           `<path d='M3 5 h6'/><path d='M13 14 h5'/></g>`
       ),
   },
@@ -196,6 +196,141 @@ const DEFAULT_INK = "#6E6153";
 /* `ink` is a RESOLVED colour, never a key — see the header. */
 export const patternLayer = (key?: string, ink: string = DEFAULT_INK): CSSProperties | null => {
   const p = PATTERNS[key as string];
+  if (!p) return null;
+  return {
+    backgroundImage: svgUrl(p.draw(ink)),
+    backgroundRepeat: "repeat",
+    backgroundSize: `${p.size}px ${p.size}px`,
+  };
+};
+
+/* ------------------------------------------------------------
+   LES PAPIERS — le fond de la page, et non la robe entière
+   ------------------------------------------------------------
+
+   CE QU'ILS SONT, ET CE QU'ILS NE SONT PAS. Une peau réécrit quatorze
+   jetons de couleur, quatre polices et le fond de page : elle décide de
+   tout. Un papier ne décide que du GRAIN de ce fond, et il le dessine
+   avec l'encre du thème en cours. Les deux se composent donc : six
+   papiers sur dix-sept peaux font quatre-vingt-douze classeurs, là où
+   une dix-huitième peau en aurait fait un.
+
+   C'EST POURQUOI ILS SONT ICI ET PAS DANS `skins.ts`. Un papier n'a ni
+   palette, ni fonte, ni prix à tenir d'accord avec le serveur : il n'a
+   qu'un dessin. `skins.test.ts` n'a rien à en dire, et c'est le signe
+   qu'ils sont au bon endroit.
+
+   ET L'ENCRE ARRIVE RÉSOLUE, comme pour les motifs juste au-dessus : ces
+   dessins partent dans une URL de données, et un `var()` écrit dans un
+   SVG embarqué ne résout rien — il n'a pas la racine du document pour
+   parent. Un papier teinté par un jeton serait un papier invisible, sans
+   un mot d'erreur.
+
+   Les identifiants portent le préfixe de leur article de boutique
+   (`paper-quadrille` → `quadrille`) : c'est `paperOf` qui coupe, une
+   fois, plutôt que chaque appelant. */
+
+type Paper = { size: number; draw: (ink: string) => string };
+
+export const PAPERS: Record<string, Paper> = {
+  quadrille: {
+    size: 24,
+    draw: (ink) =>
+      svg(
+        24,
+        24,
+        `<g fill='none' stroke='${ink}' stroke-width='1' opacity='0.13'>` +
+          `<path d='M0 0.5 H24 M0.5 0 V24'/></g>`
+      ),
+  },
+  millimetre: {
+    size: 50,
+    draw: (ink) =>
+      svg(
+        50,
+        50,
+        `<g fill='none' stroke='${ink}'>` +
+          `<path stroke-width='0.5' opacity='0.10' d='M0 5.25 H50 M0 15.25 H50 M0 25.25 H50 M0 35.25 H50 M0 45.25 H50` +
+          ` M5.25 0 V50 M15.25 0 V50 M25.25 0 V50 M35.25 0 V50 M45.25 0 V50'/>` +
+          `<path stroke-width='1' opacity='0.16' d='M0 0.5 H50 M0.5 0 V50'/></g>`
+      ),
+  },
+  /* Le vergé a ses pontuseaux — des lignes larges et espacées, sous des
+     vergeures serrées. Le seul papier dont le dessin soit anisotrope, et
+     c'est ce qui le rend reconnaissable. */
+  verge: {
+    size: 64,
+    draw: (ink) =>
+      svg(
+        64,
+        64,
+        `<g fill='none' stroke='${ink}'>` +
+          `<path stroke-width='0.6' opacity='0.09' d='M0 2 H64 M0 6 H64 M0 10 H64 M0 14 H64 M0 18 H64` +
+          ` M0 22 H64 M0 26 H64 M0 30 H64 M0 34 H64 M0 38 H64 M0 42 H64 M0 46 H64 M0 50 H64` +
+          ` M0 54 H64 M0 58 H64 M0 62 H64'/>` +
+          `<path stroke-width='1.4' opacity='0.07' d='M8 0 V64 M32 0 V64 M56 0 V64'/></g>`
+      ),
+  },
+  /* Le calque ne se dessine pas, il se VOILE : un lavis très pâle et
+     deux traits de pliure. Un papier translucide n'a pas de trame. */
+  calque: {
+    size: 96,
+    draw: (ink) =>
+      svg(
+        96,
+        96,
+        `<rect width='96' height='96' fill='${ink}' opacity='0.035'/>` +
+          `<g fill='none' stroke='${ink}' stroke-width='0.8' opacity='0.07'>` +
+          `<path d='M0 32 H96 M0 64 H96'/></g>`
+      ),
+  },
+  ondule: {
+    size: 26,
+    draw: (ink) =>
+      svg(
+        26,
+        26,
+        `<g fill='none' stroke='${ink}' stroke-width='2.4' opacity='0.10'>` +
+          `<path d='M0 6 Q6.5 0 13 6 T26 6'/><path d='M0 19 Q6.5 13 13 19 T26 19'/></g>`
+      ),
+  },
+  /* LE KRAFT SOMBRE EST LE SEUL À POSER UNE COULEUR ET PAS UNE TRAME, et
+     il tient donc sa propre teinte plutôt que l'encre du thème. C'est
+     l'exception assumée du lot : sous une peau claire il assombrit la
+     page, sous une peau sombre il ne fait presque rien — ce qui est
+     exactement le comportement d'un papier plus épais. */
+  "kraft-sombre": {
+    size: 140,
+    draw: (ink) =>
+      svg(
+        140,
+        140,
+        `<rect width='140' height='140' fill='${ink}' opacity='0.10'/>` +
+          noise("kr", "0.7", 3, 0.1, 4)
+      ),
+  },
+};
+
+export const PAPER_KEYS = Object.keys(PAPERS);
+
+/** `paper-verge` comme `verge` : la coupe se fait ici, une seule fois. */
+export const paperOf = (key?: string | null): Paper | null =>
+  key ? (PAPERS[key.replace(/^paper-/, "")] ?? null) : null;
+
+/**
+ * Le calque de papier, à poser SOUS le contenu et SUR le fond de peau.
+ *
+ * Rendu comme une couche à part et non comme un fond de la page : le
+ * fond de page est une recette de la peau (des dégradés superposés), et
+ * lui ajouter une image l'aurait remplacée au lieu de s'y ajouter.
+ *
+ * `ink` est une couleur RÉSOLUE, jamais un jeton — voir l'en-tête.
+ */
+export const paperLayer = (
+  key?: string | null,
+  ink: string = DEFAULT_INK
+): CSSProperties | null => {
+  const p = paperOf(key);
   if (!p) return null;
   return {
     backgroundImage: svgUrl(p.draw(ink)),

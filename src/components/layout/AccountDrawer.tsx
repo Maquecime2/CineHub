@@ -11,7 +11,7 @@
    here, it is the normal working of a binder that lives at home. So we
    say what is waiting, not what is missing.
    ============================================================ */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   CloudOff,
@@ -29,12 +29,15 @@ import {
   VolumeX,
   Smartphone,
   Laptop,
+  Scale,
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { Layer } from "../ui/Layer";
-import { Label } from "../ui";
+import { watchWorn, wornTitle } from "../../theme/owned";
+import { Label, Tally } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
+import { LegalPanel } from "./LegalPanel";
 import {
   ADDRESS,
   deleteMyAccount,
@@ -54,10 +57,14 @@ import {
   forgetKey,
   makePairingCode,
   claimPairingCode,
+  myUsage,
   type DeviceKey,
   type Sharing,
   type Person,
+  type Usage as UsageReport,
 } from "../../services/server";
+import { keepTheVault } from "../../services/persistence";
+import { doorEvent } from "../../services/measure";
 import {
   pushState,
   subscribeToPush,
@@ -68,6 +75,7 @@ import { mediaTrouble } from "../../services/media";
 import { forgetSync } from "../../services/sync";
 import { startOver } from "../../services/startOver";
 import type { SyncReport } from "../../services/sync";
+import { useEscape } from "../../hooks/useEscape";
 
 /* WHEN THE LAST SYNCHRONISATION WAS. The date at the end is formatted by
    the reader's language and not by a hard-coded `fr-FR`: "12 January" and
@@ -104,6 +112,18 @@ export function AccountDrawer({
   const [busy, setBusy] = useState(false);
   const [trouble, setTrouble] = useState<string | null>(null);
   const [request, setRequest] = useState<ConfirmRequest | null>(null);
+  /* Les mentions se lisent AVEC OU SANS COMPTE : c'est justement quand
+     on n'en a pas encore qu'on veut savoir ce qu'on s'apprête à
+     accepter. */
+  const [legal, setLegal] = useState(false);
+
+  /* DEUX PANNEAUX EMPILÉS, UNE SEULE TOUCHE. Les mentions s'ouvrent
+     PAR-DESSUS ce tiroir : Échap doit refermer celles-ci d'abord, sinon
+     on se retrouve rendu au mur alors qu'on voulait revenir au compte.
+     Le panneau des mentions écoute aussi pour son propre compte — les
+     deux referment la même chose, donc l'ordre entre eux est sans
+     importance ; ce qui compte est que le tiroir, lui, s'abstienne. */
+  useEscape(() => (legal ? setLegal(false) : onClose()));
 
   const attempt = async (what: (p: string) => Promise<Person>) => {
     setTrouble(null);
@@ -114,6 +134,17 @@ export function AccountDrawer({
          cursor would make the binder believe it had already seen all of
          the new one's collection — which would stay invisible. */
       forgetSync();
+      /* OUVRIR un compte est un geste de la porte ; en REJOINDRE un ne
+         l'est pas — c'est quelqu'un qui était déjà là. Les deux passent
+         par cette fonction, d'où la comparaison plutôt qu'un second
+         paramètre à poser sur les deux boutons. */
+      if (what === signUp) doorEvent("porte:compte-cree");
+      /* L'AUTRE MOMENT OÙ ON DEMANDE LE REMPART. Poser une passkey est
+         le geste d'engagement le plus net du produit, et il vient de
+         passer par une empreinte : le navigateur ne demandera pas mieux.
+         Sans `await` — le compte est ouvert, rien ne doit retenir la
+         main. */
+      void keepTheVault();
       onAccountChange(who);
     } catch (e) {
       /* Refusing one's own fingerprint is not an error to dramatise: one
@@ -149,6 +180,8 @@ export function AccountDrawer({
   const mediaSays = mediaTrouble();
 
   const signedIn = !!report.person;
+  /* La mention portée, relue dès qu'on change de tenue au comptoir. */
+  const title = useSyncExternalStore(watchWorn, wornTitle, () => null);
 
   return (
     <Layer>
@@ -190,6 +223,48 @@ export function AccountDrawer({
               {signedIn ? report.person!.pseudo : t("account.title")}
             </span>
           </div>
+
+          {/* ============================================================
+              LA MENTION QU'ON PORTE, ENFIN DESSINÉE
+              ============================================================
+
+              `wornTitle` n'avait AUCUN lecteur : on achetait un titre au
+              comptoir, on le portait, et il n'apparaissait nulle part.
+              Sur quatre choses qui se portent, deux ne se voyaient
+              jamais — la peau se règle à côté, celle-ci était muette.
+
+              ICI ET NULLE PART AILLEURS, ET CE N'EST PAS UN CHOIX DE
+              MISE EN PAGE. Le titre des AUTRES n'existe pas côté client :
+              `person.title` n'est lu que par une seule requête de tout le
+              serveur (`myHoldings`, soi-même), et aucune des requêtes qui
+              rendent un pseudonyme — œuvres d'une liste, propriétaire,
+              participants, classements — ne le joint. Le descendre est un
+              chantier serveur à lui seul, avec un arbitrage qui n'est pas
+              tranché : le titre suit-il quelqu'un au palmarès public ?
+              C'est pourquoi il n'y a pas de composant partagé : il ne
+              peut pas y avoir un second appelant.
+
+              À CÔTÉ DU `span[data-pseudo]`, JAMAIS DEDANS :
+              `pseudoOfThePage` lit cet attribut pour le partage de lien.
+
+              PAR ABONNEMENT ET NON PAR APPEL DIRECT, sinon porter un
+              titre ne se verrait qu'au rechargement — le défaut exact que
+              `watchWorn` a été écrit pour fermer. */}
+          {signedIn && title && (
+            <span
+              style={{
+                fontFamily: F.mono,
+                fontSize: 10,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+                color: C.inkFaded,
+                border: `1px solid ${C.line}`,
+                padding: "2px 6px",
+              }}
+            >
+              {t(`counter.items.${title}`)}
+            </span>
+          )}
           <button
             onClick={onClose}
             aria-label={t("common.close")}
@@ -202,6 +277,30 @@ export function AccountDrawer({
         <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 20 }}>
           {signedIn ? t("account.signedInNote") : t("account.signedOutNote")}
         </div>
+
+        {/* EN HAUT ET NON EN BAS DU TIROIR. Placé sous les trois boutons
+            d'effacement, le lien ne serait lu que par qui a déjà décidé
+            de partir — or ces conditions se lisent AVANT d'ouvrir un
+            compte, et le tiroir s'ouvre pour qui n'en a pas. */}
+        <button
+          onClick={() => setLegal(true)}
+          style={{
+            all: "unset",
+            ...tap,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 20,
+            fontFamily: F.mono,
+            fontSize: 10,
+            letterSpacing: 1,
+            color: C.inkFaded,
+            borderBottom: `1px solid ${C.line}`,
+          }}
+        >
+          <Scale size={11} /> {t("legal.title")}
+        </button>
 
         {/* ---- the state ---- */}
         <Label>{t("account.sync")}</Label>
@@ -294,7 +393,7 @@ export function AccountDrawer({
             <input
               value={pseudo}
               onChange={(e) => setPseudo(e.target.value)}
-              placeholder="agnes-varda"
+              placeholder={t("account.handlePlaceholder")}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
@@ -400,6 +499,7 @@ export function AccountDrawer({
             <Standing />
 
             <Devices lang={i18n.language} />
+            <Usage />
 
             <Blocks />
 
@@ -543,6 +643,7 @@ export function AccountDrawer({
         )}
 
         <Confirmation request={request} onClose={() => setRequest(null)} />
+        {legal && <LegalPanel onClose={() => setLegal(false)} />}
 
         <div
           style={{
@@ -737,6 +838,73 @@ function Blocks() {
    point: with one key there is exactly one thing to do, and it is the
    one nobody thinks of before the evening they need it.
    ============================================================ */
+/* ============================================================
+   CE QU'ON OCCUPE CHEZ NOUS
+   ============================================================
+
+   Le miroir des médias et les décors ont désormais un plafond — sans
+   quoi une place illimitée qu'on héberge est une facture illimitée. Un
+   plafond qui ne se voit pas est un plafond qu'on découvre en le
+   heurtant, c'est-à-dire au moment où l'on vient de déposer quelque
+   chose et où l'on ne comprend pas pourquoi ça n'a pas marché.
+
+   ELLE SE TAIT SUR UNE PANNE, comme la section des appareils juste
+   au-dessus : hors ligne on ne sait pas, et un compteur inventé vaut
+   moins que pas de compteur.
+
+   CE QU'ELLE NE MONTRE PAS : les fiches. Ranger et noter ne se paient
+   jamais et ne se bornent pas — les afficher ici, à côté de deux
+   jauges, laisserait croire le contraire.
+   ============================================================ */
+function Usage() {
+  const { t } = useTranslation();
+  const [usage, setUsage] = useState<UsageReport | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    myUsage()
+      .then((u) => alive && setUsage(u))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!usage) return null;
+
+  return (
+    <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+      <Label>{t("account.usage")}</Label>
+      <div style={{ marginTop: 6 }}>
+        <Tally
+          label={t("account.usageMedia")}
+          value={`${usage.media} / ${usage.mediaCeiling}`}
+          /* LE VERDICT SE DIT PAR UN MOT, PAS PAR UNE COULEUR — mais un
+             compteur n'est pas un verdict. On teinte seulement quand il
+             ne reste presque rien, et la phrase en dessous le dit. */
+          ink={usage.media >= usage.mediaCeiling ? C.burgundy : undefined}
+        />
+        <Tally
+          label={t("account.usageDecors")}
+          value={`${usage.decors} / ${usage.decorCeiling}`}
+          ink={usage.decors >= usage.decorCeiling ? C.burgundy : undefined}
+        />
+      </div>
+      <div
+        style={{
+          fontFamily: F.hand,
+          fontSize: 15,
+          color: C.inkFaded,
+          marginTop: 6,
+          lineHeight: 1.35,
+        }}
+      >
+        {t("account.usageNote")}
+      </div>
+    </div>
+  );
+}
+
 function Devices({ lang }: { lang: string }) {
   const { t } = useTranslation();
   const [keys, setKeys] = useState<DeviceKey[] | null>(null);

@@ -41,17 +41,36 @@ const coarse = (): boolean =>
 /** True under a finger. Read once, on import. */
 export const COARSE = coarse();
 
+/* ============================================================
+   `all: unset` REND UN BOUTON « inline », ET IL FAUT LE REDIRE
+   ============================================================
+
+   Une seule déclaration manquait, et elle manquait PARTOUT SAUF AU
+   DOIGT. `inked` et `bare` prenaient leur `display: inline-flex` de
+   `tap` — qui est VIDE sous une souris. Sur ordinateur, donc : pas de
+   boîte flexible, donc le `gap: 6` de `inked` inerte, et l'icône posée
+   sur la LIGNE DE BASE du texte au lieu d'être centrée avec lui. Tous
+   les boutons à icône de l'application étaient de travers, et
+   uniquement là où presque tout le monde les regarde.
+
+   La mise en boîte appartient donc au bouton, et `tap` ne garde que ce
+   qui le concerne : une cible qu'un doigt peut atteindre. */
+/* `justifyContent` N'EST PAS DEDANS, ET C'EST LA MOITIÉ DE LA LEÇON. Un
+   bouton qui s'ajuste à son contenu n'a rien à centrer horizontalement —
+   la propriété n'y sert à rien. Elle ne compte QUE lorsqu'une largeur est
+   imposée, c'est-à-dire précisément là où elle nuit : une ligne de
+   résultat étirée sur toute la largeur voyait son affiche et son titre
+   ramenés au milieu. Elle reste donc dans `tap`, où elle a une raison
+   d'être — centrer une icône seule dans une cible de quarante-quatre
+   pixels — et nulle part ailleurs. */
+const BOX: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+};
+
 /** To spread on a control too small for a finger. Empty with a mouse. */
 export const tap: CSSProperties = COARSE
-  ? {
-      minHeight: TAP,
-      /* `all: unset` makes the button inline: without this line the
-         minimum height does not apply, and neither does the padding that
-         centres the text. */
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }
+  ? { minHeight: TAP, ...BOX, justifyContent: "center" }
   : {};
 
 /** The same for a square button — an icon alone, with no text. */
@@ -98,6 +117,7 @@ export const underlineInput: CSSProperties = {
 /** Le bouton plein : un pavé d'encre, ce qu'on fait par-dessus tout. */
 export const inked = (ink: string): CSSProperties => ({
   all: "unset",
+  ...BOX,
   ...tap,
   cursor: "pointer",
   gap: 6,
@@ -120,6 +140,7 @@ export const hollow: CSSProperties = {
 /** Le bouton nu — une icône seule, sans pavé ni bordure. */
 export const bare: CSSProperties = {
   all: "unset",
+  ...BOX,
   ...tap,
   cursor: "pointer",
   color: C.inkFaded,

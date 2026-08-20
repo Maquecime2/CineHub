@@ -103,6 +103,7 @@ export const makeFilm = (partial: Partial<Film> = {}): Film => ({
   language: "",
   countries: [],
   tmdbRating: null,
+  synopsis: "", // what the film is about, in TMDB's words; see `types`
   themes: [],
   motifs: [], // the shared vocabulary; see `domain/motifs`
   rating: 0,
@@ -296,10 +297,18 @@ export const migrate = (films: StoredFilm[] | null | undefined): Film[] =>
     language: f.language || "",
     countries: f.countries || [],
     tmdbRating: f.tmdbRating ?? null,
+    /* Empty is the honest default here, unlike `keywords` just below:
+       "never asked" and "asked, TMDB has none" do not need telling apart
+       for a summary — a film TMDB knows and has no summary for is rare
+       enough that asking again costs nothing, and the alternative is a
+       third state on a field read by every quick view. */
+    synopsis: f.synopsis || "",
     /* NO FALLBACK TO THE EMPTY LIST, unlike all its neighbours: "never
        asked" and "asked, there are none" must stay distinct, otherwise
        completion goes round in circles. See `types`. */
     keywords: f.keywords,
+    /* Ni `|| []` non plus, et pour la même raison : voir `types`. */
+    frames: f.frames,
     themes: f.themes || [],
     motifs: migrateMotifIds(f.motifs),
     linkedWorks: (f.linkedWorks || []).map((w) => ({
@@ -470,3 +479,30 @@ export const editLinkedWork = (
     return f;
   });
 };
+
+/* CHANGER LE `tmdbId` D'UNE FICHE, C'EST DIRE « CE N'EST PAS CE FILM-LÀ ».
+
+   Tout ce que TMDB avait rempli vient de l'ANCIEN identifiant : le
+   synopsis, la distribution, l'équipe, la durée, les plans. Or la règle
+   du remplissage est de COMBLER DES TROUS — `TmdbFacts`, `FilmQuickView`
+   et la fusion d'import écrivent tous sous `== null` ou `!champ`. Rien
+   n'étant vide, rien n'est jamais réécrit : la fiche corrigée garde pour
+   toujours les plans et le résumé du mauvais film, et aucun geste ne peut
+   plus les rattraper.
+
+   On rend donc les champs DÉRIVÉS à leur valeur « jamais demandé », et
+   uniquement eux : la note, la critique, les séances, les captures, le
+   statut, les motifs sont à vous et ne dépendent d'aucun identifiant.
+   `keywords` et `frames` repassent à `undefined` — absent et vide ne
+   disent pas la même chose, et `[]` ferait croire qu'on a demandé. */
+export const forgetTmdbFacts = (): Partial<Film> => ({
+  cast: [],
+  crew: {},
+  runtime: null,
+  language: "",
+  countries: [],
+  tmdbRating: null,
+  synopsis: "",
+  keywords: undefined,
+  frames: undefined,
+});

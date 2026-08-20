@@ -125,7 +125,49 @@ export const mediaAvailable = (): boolean => settings !== null;
 const UUID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 const PRIVATE_PATH = new RegExp(`^p/(${UUID})/([A-Za-z0-9:_.-]{1,120})$`);
 const DECOR_PATH = new RegExp(`^decor/(${UUID})$`);
-const BANK_PATH = new RegExp(`^bank/(${UUID})/([A-Za-z0-9:_.-]{1,120})$`);
+/* LA « CATÉGORIE » EST UN IDENTIFIANT DE CATÉGORIE, OU LE MOT `decor`.
+   Le stock commun n'avait qu'un seul usage — l'image d'une question — et
+   son chemin portait donc l'identifiant de la catégorie. Les objets
+   qu'un admin met dans les pochettes sont exactement le même cas :
+   écrits par le rôle, regardés par tout le monde, sans secret par
+   image. Ils vont donc dans la même branche plutôt que dans une
+   quatrième.
+
+   NE PAS CONFONDRE AVEC `decor/<uuid>` JUSTE AU-DESSUS, et la
+   différence est celle qui compte : `decor/<uuid>` est un bibelot que
+   QUELQU'UN a déposé, et son droit de lecture se demande à la base ;
+   `bank/decor/<clé>` est du stock commun que seul le rôle écrit. Les
+   deux se ressemblent et ne se gardent pas pareil.
+
+   Le mot est ÉCRIT ICI et pas laissé ouvert : `bank/<n'importe quoi>`
+   aurait rendu la branche extensible par le client, et c'est
+   précisément ce que la règle « tout ce qui ne tombe dans aucune
+   branche est refusé » cherche à éviter. */
+/* `sticker` EST LÀ POUR CE QUI A DÉJÀ ÉTÉ DÉPOSÉ, et pour rien d'autre.
+   Le studio a écrit sous ce mot pendant une journée ; les clés sont dans
+   `decor_def.media_key`, donc chez des gens, et les retirer de cette
+   liste rendait leurs images introuvables — un objet gagné qui s'affiche
+   en icône cassée. On n'écrit plus jamais dessous ; on continue de le
+   lire, ce qui est exactement la règle « on retire, on n'efface pas »
+   appliquée à un chemin. */
+/* `cheer` EST LA QUATRIEME BRANCHE, ET ELLE TIENT QUATRE FICHIERS.
+   Les images que la fin d'une partie de quizz affiche selon le palier
+   obtenu — `bank/cheer/perfect`, `held`, `half`, `missed`, et rien
+   d'autre. C'est exactement le meme cas que l'image d'une question :
+   ecrit par le role, regarde par tout le monde, sans secret par image.
+
+   PAS D'EXTENSION DANS LA CLE, ET C'EST CE QUI EVITE UNE TABLE. La cle
+   EST le palier, donc l'ecran de fin la compose sans rien demander a
+   personne ; une extension aurait oblige a ranger quelque part laquelle
+   a ete deposee. Le type est porte par l'en-tete du blob, ou il a
+   toujours ete.
+
+   RIEN N'EST DEPOSE LE JOUR DE LA LIVRAISON, et c'est le cas normal :
+   une image absente rend un ticket parfaitement valide vers un blob qui
+   n'existe pas, la balise `img` echoue, et le rideau garde son tampon,
+   son chiffre et ses confettis. Le repli n'est pas une erreur, c'est
+   l'etat par defaut. */
+const BANK_PATH = new RegExp(`^bank/(${UUID}|decor|sticker|cheer)/([A-Za-z0-9:_.-]{1,120})$`);
 
 export type Mode = "read" | "write";
 

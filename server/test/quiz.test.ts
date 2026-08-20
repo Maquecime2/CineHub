@@ -455,6 +455,187 @@ describe("the scoreboard", () => {
     expect(mine).toMatchObject({ score: 30, answered: 10, finished: true });
   });
 
+  /* ============================================================
+     LE TEMPS SE DIT, ET IL NE PAIE RIEN
+     ============================================================
+
+     Deux parties au même score ne sont pas la même partie, et le tableau
+     ne le disait pas. Mais la vitesse ne doit RIEN rapporter : si elle
+     payait, la première chose à faire pour monter au classement serait
+     de cliquer au hasard très vite.
+     ============================================================ */
+  it("says how long a finished run took, and counts a running one from now", async () => {
+    const { friend, quiz } = await ready();
+    await start(friend.cookie, quiz);
+
+    const running = (await scores(friend.cookie, quiz)).json().scores[0];
+    expect(running.finished).toBe(false);
+    expect(running.seconds).toBeGreaterThanOrEqual(0);
+
+    /* Une partie ouverte il y a une heure et toujours en cours DOIT le
+       montrer : la durée court, elle ne se fige pas au démarrage. */
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '1 hour'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, friend.person.id]
+    );
+    expect((await scores(friend.cookie, quiz)).json().scores[0].seconds).toBeGreaterThanOrEqual(
+      3600
+    );
+  });
+
+  it("pays exactly the same to the quick and to the slow", async () => {
+    const { admin, friend, quiz } = await ready();
+    await invite(friend.cookie, quiz, "maquecime");
+
+    await playAll(friend.cookie, quiz);
+    /* La même partie, les mêmes réponses — mais commencée il y a deux
+       heures. `awardQuiz` ne lit aucun horodatage, et c'est cette ligne
+       qui le tient : le jour où quelqu'un ajoutera un bonus de vitesse,
+       ce test tombera avant que le classement ne se déforme. */
+    await start(admin.cookie, quiz);
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '2 hours'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, admin.person.id]
+    );
+    const qs = (await readQuiz(admin.cookie, quiz)).json().questions;
+    for (const q of qs) await reply_(admin.cookie, quiz, q.id, q.choices[0].id);
+    await finish(admin.cookie, quiz);
+
+    const paid = async (id: string) =>
+      (
+        await db.query<{ kind: string; merit: number }>(
+          `SELECT kind, merit FROM merit_event WHERE person_id = $1 AND kind LIKE 'quiz%'
+            ORDER BY kind`,
+          [id]
+        )
+      ).map((r) => `${r.kind}:${r.merit}`);
+
+    const quick = await paid(friend.person.id);
+    const slow = await paid(admin.person.id);
+    /* `quiz_first` sépare légitimement les deux : c'est l'ORDRE, pas la
+       vitesse. On compare donc tout le reste. */
+    expect(slow.filter((k) => !k.startsWith("quiz_first"))).toEqual(
+      quick.filter((k) => !k.startsWith("quiz_first"))
+    );
+
+    const board = (await scores(friend.cookie, quiz)).json().scores;
+    expect(board.map((s: { score: number }) => s.score)).toEqual([board[0].score, board[0].score]);
+    /* Et pourtant le tableau les distingue — c'est bien le but. */
+    const slowRow = board.find((s: { pseudo: string }) => s.pseudo === "maquecime");
+    expect(slowRow.seconds).toBeGreaterThanOrEqual(7200);
+  });
+
+  /* ============================================================
+     LE CHRONOMÈTRE PAR QUESTION
+
+     Le retard est estampillé À L'INSERT, donc ce qui est éprouvé ici est
+     la requête de `store.answer` et non une lecture. Pour vieillir le
+     départ du délai on recule `answered_at` — la ligne précédente — ou
+     `started_at` pour la première réponse, ce qui est exactement ce que
+     la requête lit.
+     ============================================================ */
+  it("takes a late answer and pays nothing for it, and refuses nothing", async () => {
+    const { friend, category } = await ready();
+    const quiz = (
+      await draw(friend.cookie, { categoryIds: [category], secondsPerQuestion: 30 })
+    ).json().id as string;
+    await start(friend.cookie, quiz);
+    const qs = (await readQuiz(friend.cookie, quiz)).json().questions;
+
+    /* La première réponse compte depuis `started_at`. On la met une
+       heure en arrière : la réponse est juste, et elle est en retard. */
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '1 hour'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, friend.person.id]
+    );
+    /* ACCEPTÉE, ET NON REFUSÉE : la refuser perdrait la réponse et
+       contredirait « on ne revient pas dessus », déjà à l'écran. */
+    expect((await reply_(friend.cookie, quiz, qs[0].id, qs[0].choices[0].id)).statusCode).toBe(200);
+    expect(
+      (
+        await db.query<{ late: boolean }>(
+          "SELECT late FROM quiz_answer WHERE quiz_id = $1 AND question_id = $2",
+          [quiz, qs[0].id]
+        )
+      )[0]!.late
+    ).toBe(true);
+
+    /* La suivante, posée tout de suite, part de `answered_at` de la
+       précédente — donc elle est DANS le délai, malgré le départ vieilli
+       d'une heure. C'est la différence entre « depuis la dernière
+       action » et « depuis le début de la partie ». */
+    await reply_(friend.cookie, quiz, qs[1].id, qs[1].choices[0].id);
+    await finish(friend.cookie, quiz);
+
+    /* Deux bonnes réponses, une seule payée. Le score est donc celui de
+       la SECONDE question uniquement. */
+    const board = (await scores(friend.cookie, quiz)).json().scores[0];
+    expect(board.answered).toBe(2);
+    expect(board.score).toBe(qs[1].points);
+  });
+
+  it("leaves every quiz drawn before the timer untouched", async () => {
+    const { friend, quiz } = await ready();
+    /* NULL VEUT DIRE « PAS DE CHRONOMÈTRE », et rien n'est à
+       rétro-remplir : une soirée tirée sans délai reste sans délai même
+       après des heures. C'est ce que la colonne NULL par défaut achète. */
+    await start(friend.cookie, quiz);
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '9 hours'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, friend.person.id]
+    );
+    const qs = (await readQuiz(friend.cookie, quiz)).json().questions;
+    await reply_(friend.cookie, quiz, qs[0].id, qs[0].choices[0].id);
+    await finish(friend.cookie, quiz);
+
+    expect((await scores(friend.cookie, quiz)).json().scores[0].score).toBe(qs[0].points);
+  });
+
+  it("refuses a delay the schema would refuse, and says so in words", async () => {
+    const { friend, category } = await ready();
+    for (const secondsPerQuestion of [4, 601, 2.5]) {
+      const r = await draw(friend.cookie, { categoryIds: [category], secondsPerQuestion });
+      expect(r.statusCode).toBe(400);
+    }
+    /* Absent et `null` disent tous deux « pas de chronomètre » — ils ne
+       doivent pas tomber dans la garde des bornes. */
+    expect(
+      (await draw(friend.cookie, { categoryIds: [category], secondsPerQuestion: null })).statusCode
+    ).toBe(200);
+  });
+
+  it("keeps quiz_flawless meaning 'right AND in time'", async () => {
+    const { friend, category } = await ready();
+    const quiz = (
+      await draw(friend.cookie, { categoryIds: [category], secondsPerQuestion: 30 })
+    ).json().id as string;
+    await start(friend.cookie, quiz);
+    const qs = (await readQuiz(friend.cookie, quiz)).json().questions;
+
+    /* Toutes justes, une en retard. `quiz_flawless` exige `score ===
+       weight` : le retard baisse le score sans toucher au poids, donc le
+       sans-faute tombe sans qu'une ligne de son code ait changé. */
+    await db.query(
+      `UPDATE quiz_attempt SET started_at = now() - interval '1 hour'
+        WHERE quiz_id = $1 AND person_id = $2`,
+      [quiz, friend.person.id]
+    );
+    for (const q of qs) await reply_(friend.cookie, quiz, q.id, q.choices[0].id);
+    await finish(friend.cookie, quiz);
+
+    const kinds = (
+      await db.query<{ kind: string }>(
+        "SELECT kind FROM merit_event WHERE person_id = $1 AND kind LIKE 'quiz%'",
+        [friend.person.id]
+      )
+    ).map((r) => r.kind);
+    expect(kinds).not.toContain("quiz_flawless");
+  });
+
   it("shows nobody one has blocked", async () => {
     const { admin, friend, quiz } = await ready();
     await invite(friend.cookie, quiz, "maquecime");

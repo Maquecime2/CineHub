@@ -23,7 +23,7 @@ import { hueOf } from "../../theme/ink";
 import { Cardstock, Guideline, NoKey, SectionTitle } from "../../components/ui";
 import { PosterArt } from "../../components/film/PosterArt";
 import { initialsOf, makeFilm } from "../../domain/film";
-import { wakeAtHome, familyOf, byQuotas } from "../../domain/wake";
+import { wakeAtHome, familyOf, byQuotas, reasonsInFull } from "../../domain/wake";
 import type { Neighbour } from "../../domain/wake";
 import { say } from "../../domain/wording";
 import type { Wording } from "../../domain/wording";
@@ -32,6 +32,7 @@ import {
   reinforcementFromOutside,
   alreadyInTheBinder,
   byTmdbId,
+  reasonsInFullAfar,
 } from "../../domain/wakeAfar";
 import type { FarNeighbour } from "../../domain/wakeAfar";
 import { harvestTheWake } from "../../services/wake";
@@ -71,10 +72,20 @@ const QUOTAS = { people: 4, subjects: 4, crowd: 2 };
    posters without reasons is one more shelf; with them it is an
    argument, and one may disagree — which supposes having
    understood. */
+/* Le saut de ligne d'une infobulle native — une raison par ligne. Écrit
+   ainsi plutôt qu'en échappement : ce fichier a déjà mangé un littéral
+   coupé en deux, et un caractère nommé ne se casse pas. */
+const LINE_BREAK = String.fromCharCode(10);
+
 function Proposition({
   title,
   year,
   raison,
+  /* CE QUE « + 5 AUTRES » CACHE. La ligne garde son résumé — quatre
+     lignes sous chaque affiche et plus personne n'en lit une seule —
+     mais le compte ne disait pas QUOI, or c'est exactement ce qu'on est
+     venu chercher ici. */
+  toutes,
   affiche,
   onClick,
   aside,
@@ -83,6 +94,7 @@ function Proposition({
   title: string;
   year: number | string | null;
   raison: Wording;
+  toutes?: Wording[];
   affiche: ReactNode;
   onClick?: () => void;
   /** A note to the right of the title: "à voir", for instance. */
@@ -91,6 +103,9 @@ function Proposition({
   unfolded?: ReactNode;
 }) {
   const { t } = useTranslation();
+  /* Rien à montrer quand tout est déjà dit sur la ligne : une infobulle
+     qui répète la phrase qu'elle survole est une gêne. */
+  const detail = toutes && toutes.length > 1 ? toutes.map((w) => say(w, t)).join(LINE_BREAK) : "";
   const content = (
     <>
       {/* THE POSTER'S CELL IS POSITIONED, AND IT HAS A SIZE.
@@ -135,12 +150,22 @@ function Proposition({
           {year || "s.d."}
         </div>
         <div
+          /* UNE INFOBULLE NATIVE, ET C'EST VOULU. Elle survit au
+             clavier, au tactile long, aux lecteurs d'écran, et ne coûte
+             ni couche ni positionnement — pour une liste qu'on consulte
+             une fois sur dix, un panneau à nous serait du décor à
+             entretenir. Le trait pointillé dit qu'il y a à lire. */
+          title={detail || undefined}
           style={{
             fontFamily: F.hand,
             fontSize: 13.5,
             color: C.inkFaded,
             marginTop: 3,
             lineHeight: 1.35,
+            cursor: detail ? "help" : undefined,
+            textDecoration: detail ? "underline dotted" : undefined,
+            textUnderlineOffset: 3,
+            textDecorationColor: alpha(C.inkFaded, 0.5),
           }}
         >
           {say(raison, t)}
@@ -259,7 +284,7 @@ function Unfold({
         </div>
       ) : (
         <div style={{ fontFamily: F.hand, fontSize: 13.5, color: C.inkFaded }}>
-          TMDB n&apos;en donne aucun résumé.
+          {t("wakePanel.noSummary")}
         </div>
       )}
       <div
@@ -506,7 +531,9 @@ export function WakePanel({
 
   return (
     <Cardstock tour="detail-sillage" style={{ marginTop: 18 }}>
-      <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>Dans le sillage</SectionTitle>
+      <SectionTitle icon={<Waves size={15} color={C.cobalt} />}>
+        {t("wakePanel.label")}
+      </SectionTitle>
       <Guideline>
         ce qui tient de « {film.title} » — par l&apos;équipe, les sujets, les gens à l&apos;affiche
       </Guideline>
@@ -530,7 +557,7 @@ export function WakePanel({
               marginBottom: 4,
             }}
           >
-            CHEZ VOUS
+            {t("wakePanel.atYourPlace")}
           </div>
           {!apiKey && noSubjects && <SubjectsMissing />}
           <div style={{ minHeight: MIN_HEIGHT }}>
@@ -541,6 +568,7 @@ export function WakePanel({
                   title={v.film.title}
                   year={v.film.year}
                   raison={v.reason}
+                  toutes={reasonsInFull(v.links)}
                   aside={v.film.status === "watchlist" ? t("detail.toWatchTag") : undefined}
                   onClick={() => onOpen(v.film.id)}
                   affiche={<Vignette film={v.film} />}
@@ -571,11 +599,11 @@ export function WakePanel({
           </div>
           <div style={{ minHeight: MIN_HEIGHT }}>
             {!apiKey ? (
-              <NoKey what="chercher au-dehors ce qui tient de ce film" />
+              <NoKey what={t("wakePanel.searchOutside")} />
             ) : query ? (
               <Nothing>
                 <Compass size={13} style={{ verticalAlign: "-2px", marginRight: 5 }} />
-                on regarde du côté de l&apos;équipe…
+                {t("wakePanel.lookingAtTheCrew")}
               </Nothing>
             ) : dehors?.length ? (
               dehors.map((v) => (
@@ -584,6 +612,7 @@ export function WakePanel({
                   title={v.title}
                   year={v.year}
                   raison={v.reason}
+                  toutes={reasonsInFullAfar(v.via)}
                   aside={setAsideIds.has(v.tmdbId) ? t("detail.toWatchTag") : undefined}
                   onClick={() => unfold(v)}
                   unfolded={

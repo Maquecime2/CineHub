@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { checkApiKey, enrichRows } from "./tmdb";
+import { checkApiKey, enrichRows, searchPerson, personFilmography } from "./tmdb";
 import { VIA_SERVER, setTmdbKey } from "./services/tmdbKey";
 
 const CACHE_KEY = "tmdb-cache";
@@ -594,5 +594,89 @@ describe("the server's relay", () => {
     await checkApiKey("la-mienne");
     expect(appels[0]).toContain("api.themoviedb.org");
     expect(appels[0]).toContain("api_key=la-mienne");
+  });
+});
+
+/* ============================================================
+   THE PERSON BEHIND A NAME
+   ============================================================
+
+   `results[0]` IS TMDB'S POPULARITY RANKING AND NOTHING ELSE, and that
+   is a whole class of wrong answer rather than a rough edge: ask for a
+   director who shares a name with a better-known actor, get the actor,
+   then ask what the actor DIRECTED — and the Credits list films the
+   person one was looking at never signed. It reads as a filter that
+   leaks; it is the wrong person entirely.
+   ============================================================ */
+const people = (results) =>
+  vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json: async () => ({ results }),
+  }));
+
+describe("searchPerson — the trade decides, not the popularity", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  const CROWD = [
+    { id: 1, name: "Jean Dupont", known_for_department: "Acting" },
+    { id: 2, name: "Jean Dupont", known_for_department: "Directing" },
+  ];
+
+  it("takes the one filed under the trade one is asking about", async () => {
+    vi.stubGlobal("fetch", people(CROWD));
+    const hit = await searchPerson("Jean Dupont", "k", { role: "réalisation" });
+    expect(hit.id).toBe(2);
+  });
+
+  it("still takes the first when no trade is named", async () => {
+    vi.stubGlobal("fetch", people(CROWD));
+    expect((await searchPerson("Jean Dupont", "k")).id).toBe(1);
+  });
+
+  /* Un repli, jamais un filtre : TMDB laisse `known_for_department` vide
+     sur quantité de fiches maigres, et les refuser changerait une
+     mauvaise réponse en aucune réponse. */
+  it("falls back on the first when nobody is filed under that trade", async () => {
+    vi.stubGlobal("fetch", people([{ id: 7, name: "Obscur" }]));
+    expect((await searchPerson("Obscur", "k", { role: "réalisation" })).id).toBe(7);
+  });
+
+  it("files the two questions apart, so one is never served for the other", async () => {
+    const spy = people(CROWD);
+    vi.stubGlobal("fetch", spy);
+    await searchPerson("Jean Dupont", "k", { role: "réalisation" });
+    await searchPerson("Jean Dupont", "k", { role: "interprétation" });
+    /* Deux questions, deux appels : une clé commune aurait resservi le
+       réalisateur à qui demandait l'acteur. */
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect((await searchPerson("Jean Dupont", "k", { role: "interprétation" })).id).toBe(1);
+  });
+});
+
+describe("personFilmography — one film, one entry", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not say a title twice because somebody held two jobs on it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        json: async () => ({
+          crew: [
+            { id: 11, title: "Écrit et réalisé", job: "Screenplay" },
+            { id: 11, title: "Écrit et réalisé", job: "Writer" },
+          ],
+        }),
+      }))
+    );
+    const list = await personFilmography(3, "k", { role: "scénario" });
+    expect(list).toHaveLength(1);
+    expect(list[0].tmdbId).toBe(11);
   });
 });

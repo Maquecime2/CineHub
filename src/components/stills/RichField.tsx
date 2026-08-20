@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ruledTextarea } from "../../theme/styles";
+import { C, alpha } from "../../theme/tokens";
 import { Label } from "../ui";
 import { useStillUrls } from "./useStillUrls";
 import { htmlToText, placeCaret, textToHtml } from "./tokens";
@@ -36,18 +37,120 @@ export function RichField({
   const pendingCaret = useRef<number | null>(null); // where to put the caret back after a render
   const urls = useStillUrls(stills);
 
+  /* OÙ ÉTAIT LE CURSEUR LA DERNIÈRE FOIS QU'ON ÉCRIVAIT ICI.
+
+     C'est ce qui manquait, et le défaut se lisait ainsi : on posait le
+     curseur au milieu d'une phrase, on descendait cliquer « insérer »,
+     et le jeton se posait À LA FIN du texte. Le clic sur le bouton
+     déplace la sélection hors du champ ; `window.getSelection()` ne
+     désigne alors plus rien de nous, et le repli était la fin.
+
+     On retient donc la position à chaque fois qu'elle est chez nous, et
+     on s'en sert quand la sélection est partie ailleurs. Le champ n'a
+     pas besoin d'avoir le focus pour savoir où l'on écrivait. */
+  const lastCaret = useRef<number | null>(null);
+
+  /* OÙ EST LE CURSEUR, EN CARACTÈRES DU TEXTE SÉRIALISÉ.
+
+     ON MESURE CE QUI PRÉCÈDE, on ne cherche plus un point d'arrêt.
+
+     La version d'avant passait `{node, offset}` à `htmlToText`, qui ne
+     s'arrête QUE sur un nœud de texte. Or un champ éditable ancre très
+     souvent la sélection sur l'ÉLÉMENT — après une image, en fin de
+     ligne, sur une ligne vide — avec un décalage qui est un indice
+     d'enfant et non une position dans une chaîne. Le parcours ne
+     rencontrait alors jamais son arrêt, allait jusqu'au bout, et rendait
+     la longueur TOTALE : la vignette se posait à la fin du texte, quoi
+     qu'on ait visé.
+
+     C'est aussi ce qui rendait le défaut si difficile à croire, et une
+     épreuve avait beau exister, elle plaçait un `Range` sur un nœud de
+     texte — le seul cas qui marchait.
+
+     Cloner ce qui précède et le sérialiser répond pour TOUS les
+     ancrages, parce que la question posée au navigateur devient « que
+     contient l'intervalle » plutôt que « où t'arrêtes-tu ». */
+  const caretNow = (): number | null => {
+    const el = ref.current;
+    const sel = window.getSelection();
+    if (!el || !sel?.rangeCount) return null;
+    const at = sel.getRangeAt(0);
+    if (!el.contains(at.startContainer)) return null;
+    const before = document.createRange();
+    before.setStart(el, 0);
+    before.setEnd(at.startContainer, at.startOffset);
+    const holder = document.createElement("div");
+    holder.appendChild(before.cloneContents());
+    return htmlToText(holder).length;
+  };
+
+  const rememberCaret = () => {
+    const at = caretNow();
+    if (at != null) lastCaret.current = at;
+  };
+
+  /** Le texte avec le jeton posé à `at`, et le curseur qui suit. */
+  const withTokenAt = (token: string, at: number) => {
+    const where = Math.max(0, Math.min(at, value.length));
+    pendingCaret.current = where + token.length;
+    return `${value.slice(0, where)}${token}${value.slice(where)}`;
+  };
+
   /* Returns the text with the token added, without writing anything: it
      is the caller that decides when to save. A function that triggered a
      save itself would overwrite the stills saved just before. */
-  const withTokenAtCursor = (token: string) => {
+  const withTokenAtCursor = (token: string) =>
+    withTokenAt(token, caretNow() ?? lastCaret.current ?? value.length);
+
+  /* OÙ L'ON SURVOLE, en `Range`.
+
+     `caretPositionFromPoint` est la façon moderne, `caretRangeFromPoint`
+     celle de WebKit ; aucune des deux n'est partout, d'où les deux. */
+  const rangeFromPoint = (x: number, y: number): Range | null => {
     const el = ref.current;
-    const sel = window.getSelection();
-    let at = value.length;
-    if (el && sel?.rangeCount && sel.anchorNode && el.contains(sel.anchorNode)) {
-      at = htmlToText(el, { node: sel.anchorNode, offset: sel.anchorOffset }).length;
+    if (!el) return null;
+    const doc = document as Document & {
+      caretPositionFromPoint?: (
+        x: number,
+        y: number
+      ) => { offsetNode: Node; offset: number } | null;
+      caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    };
+    const spot = doc.caretPositionFromPoint?.(x, y);
+    if (spot?.offsetNode && el.contains(spot.offsetNode)) {
+      const range = document.createRange();
+      range.setStart(spot.offsetNode, spot.offset);
+      range.collapse(true);
+      return range;
     }
-    pendingCaret.current = at + token.length;
-    return `${value.slice(0, at)}${token}${value.slice(at)}`;
+    const got = doc.caretRangeFromPoint?.(x, y);
+    return got?.startContainer && el.contains(got.startContainer) ? got : null;
+  };
+
+  /* LE REPÈRE DE DÉPÔT, ÉCRIT À LA MAIN PLUTÔT QUE RENDU.
+
+     Un `setState` par mouvement de souris pendant un glissement
+     redessinerait le champ entier trente fois par seconde, et le champ
+     contient des images. C'est la règle de l'étagère, pour la même
+     raison. */
+  const markRef = useRef<HTMLDivElement | null>(null);
+
+  const hideMark = () => {
+    if (markRef.current) markRef.current.style.display = "none";
+  };
+
+  const showMark = (x: number, y: number) => {
+    const el = ref.current;
+    const mark = markRef.current;
+    if (!el || !mark) return;
+    const range = rangeFromPoint(x, y);
+    if (!range) return hideMark();
+    const at = range.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    mark.style.display = "block";
+    mark.style.left = `${at.left - box.left + el.scrollLeft}px`;
+    mark.style.top = `${at.top - box.top + el.scrollTop}px`;
+    mark.style.height = `${at.height || parseFloat(getComputedStyle(el).lineHeight) || 18}px`;
   };
   useEffect(() => {
     onInsertToken?.(withTokenAtCursor);
@@ -67,9 +170,47 @@ export function RichField({
     const urlsChanged = sig !== lastSig.current;
     if (!textChanged && !urlsChanged && el.dataset.ready === "1") return;
 
+    /* ============================================================
+       UNE VALEUR QUI REVIENT EN RETARD N'EST PAS UNE VALEUR NEUVE
+
+       « Différente de ce que je viens d'émettre » a l'air d'une garde et
+       n'en est pas une : c'est vrai AUSSI quand la fiche répond avec un
+       texte plus VIEUX que ce qu'on a tapé depuis. Le champ reprenait
+       alors la version d'avant, et les caractères frappés entre-temps
+       disparaissaient — de légers retours en arrière, en pleine phrase.
+
+       La fiche remonte par plusieurs chemins qui ne connaissent pas
+       forcément la dernière lettre : l'écho d'une écriture, un rendu
+       groupé, une synchro. Aucun n'est fautif en soi ; ce qui l'était,
+       c'est de les croire tous plus récents que le champ.
+
+       TANT QU'ON A LA MAIN DANS LE CHAMP, C'EST LE CHAMP QUI FAIT FOI.
+       On ne compare donc pas `value` à ce qu'on a émis, mais à ce que le
+       champ MONTRE : s'il montre déjà notre dernière émission et que
+       `value` en diffère, c'est `value` qui est en retard, et on la
+       laisse passer son tour. Elle reviendra à jour, et l'égalité
+       refermera la question d'elle-même.
+
+       DEUX EXCEPTIONS, ET ELLES SONT DE NATURE DIFFÉRENTE :
+       — une insertion de jeton pose `pendingCaret`, donc elle vient de
+         NOUS et doit s'écrire malgré le focus ;
+       — les vignettes qui arrivent (`urlsChanged`) doivent se dessiner
+         quoi qu'il arrive, mais alors on redessine à partir de ce que le
+         champ montre — jamais à partir du texte en retard.
+       ============================================================ */
+    const focused = document.activeElement === el;
+    const shown = el.dataset.ready === "1" ? htmlToText(el) : null;
+    const late =
+      focused &&
+      pendingCaret.current == null &&
+      shown != null &&
+      shown !== value &&
+      shown === lastEmitted.current;
+    if (late && !urlsChanged) return;
+    const source = late ? shown : value;
+
     // a re-render moves the cursor: we note where it was to put it back
     const sel = window.getSelection();
-    const focused = document.activeElement === el;
     const keep =
       pendingCaret.current != null
         ? pendingCaret.current
@@ -77,9 +218,9 @@ export function RichField({
           ? htmlToText(el, { node: sel.anchorNode, offset: sel.anchorOffset }).length
           : null;
 
-    el.innerHTML = textToHtml(value, stills, urls);
+    el.innerHTML = textToHtml(source, stills, urls);
     el.dataset.ready = "1";
-    lastEmitted.current = value;
+    lastEmitted.current = source;
     lastSig.current = sig;
 
     if (keep != null && (focused || pendingCaret.current != null)) {
@@ -89,49 +230,100 @@ export function RichField({
     pendingCaret.current = null;
   }, [value, urls, stills]);
 
+  /* ON N'ÉCRIT PAS CE QUI EST DÉJÀ ÉCRIT.
+
+     `emit` part à chaque `blur`, et perdre le focus n'est pas une
+     modification : ouvrir une visionneuse, cliquer ailleurs, changer
+     d'onglet enregistraient la fiche à l'identique — un objet neuf, un
+     `updatedAt` touché, un document mis en file pour la synchro, et un
+     rendu de toute la vue. Pour rien.
+
+     C'est aussi la seconde ligne de défense contre la boucle réglée dans
+     `useDialog` : là-bas on a retiré la cause, ici on retire de quoi la
+     nourrir — une écriture qui ne change rien ne peut plus déclencher le
+     rendu qui déclenchait l'écriture suivante. */
   const emit = () => {
     if (!ref.current) return;
     const text = htmlToText(ref.current);
     lastEmitted.current = text;
+    if (text === value) return;
     onChange(text);
   };
 
   return (
     <div>
       <Label>{label}</Label>
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={emit}
-        onBlur={emit}
-        data-placeholder={placeholder}
-        onClick={(e) => {
-          // clicking a thumbnail opens the still, without breaking the input
-          const n = (e.target as HTMLElement)?.dataset?.still;
-          if (n) {
+      <div style={{ position: "relative" }}>
+        <div
+          ref={markRef}
+          aria-hidden
+          style={{
+            position: "absolute",
+            display: "none",
+            width: 2,
+            background: C.burgundy,
+            boxShadow: `0 0 0 1px ${alpha(C.burgundy, 0.35)}`,
+            pointerEvents: "none",
+            zIndex: 1,
+          }}
+        />
+        <div
+          ref={ref}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={() => {
+            rememberCaret();
+            emit();
+          }}
+          onKeyUp={rememberCaret}
+          onMouseUp={rememberCaret}
+          onBlur={() => {
+            rememberCaret();
+            emit();
+          }}
+          /* ON MONTRE OÙ L'IMAGE VA TOMBER.
+
+           Déplacer une vignette DANS le texte est un geste du navigateur
+           — le champ est éditable, il sait le faire, et `onInput` remet
+           le texte à jour derrière. Ce qu'il ne fait pas lisiblement,
+           c'est DIRE où le lâcher va poser l'image : le curseur natif
+           est un trait d'un pixel qu'on ne voit pas au milieu d'une
+           phrase, et on lâche à l'aveugle.
+
+           On dessine donc le nôtre, et on le retire dès que le geste
+           finit. Il ne participe à rien : c'est un repère, et le dépôt
+           reste celui du navigateur. */
+          onDragOver={(e) => showMark(e.clientX, e.clientY)}
+          onDragLeave={hideMark}
+          onDrop={hideMark}
+          data-placeholder={placeholder}
+          onClick={(e) => {
+            // clicking a thumbnail opens the still, without breaking the input
+            const n = (e.target as HTMLElement)?.dataset?.still;
+            if (n) {
+              e.preventDefault();
+              onOpenStill(Number(n) - 1);
+            }
+          }}
+          onPaste={(e) => {
+            // pasting images is handled above; here we force plain text
+            const hasImage = [...(e.clipboardData?.items || [])].some(
+              (i) => i.kind === "file" && i.type.startsWith("image/")
+            );
+            if (hasImage) return;
             e.preventDefault();
-            onOpenStill(Number(n) - 1);
-          }
-        }}
-        onPaste={(e) => {
-          // pasting images is handled above; here we force plain text
-          const hasImage = [...(e.clipboardData?.items || [])].some(
-            (i) => i.kind === "file" && i.type.startsWith("image/")
-          );
-          if (hasImage) return;
-          e.preventDefault();
-          document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
-        }}
-        style={{
-          ...ruledTextarea,
-          minHeight,
-          whiteSpace: "pre-wrap",
-          overflowWrap: "anywhere",
-          cursor: "text",
-          display: "block",
-        }}
-      />
+            document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+          }}
+          style={{
+            ...ruledTextarea,
+            minHeight,
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
+            cursor: "text",
+            display: "block",
+          }}
+        />
+      </div>
     </div>
   );
 }

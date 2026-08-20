@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { store, flush, KEYS } from "./storage";
+import { store, flush, KEYS, watchQuota, forgetQuotaWarning } from "./storage";
 
 describe("the deferred write", () => {
   beforeEach(() => {
@@ -83,5 +83,62 @@ describe("reading", () => {
   it("returns the fallback rather than throwing on damaged JSON", () => {
     localStorage.setItem("cassée", "{ceci n'est pas du json");
     expect(store.get("cassée", [])).toEqual([]);
+  });
+});
+
+/* ============================================================
+   L'AVERTISSEMENT DE QUOTA
+
+   C'était un `alert()` bloquant dont la phrase était écrite en français
+   dans le code. Ce module ne peut pas traduire — il est chargé avant
+   l'écran — donc il SIGNALE, et l'écran parle. Ce qui se teste ici est
+   le contrat de ce signal, pas la phrase.
+   ============================================================ */
+describe("le signal de quota", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    forgetQuotaWarning();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    forgetQuotaWarning();
+  });
+
+  it("ne dit rien tant qu'on reste sous le seuil", () => {
+    const heard = vi.fn();
+    watchQuota(heard);
+    store.set("petit", "à peine trois mots");
+    expect(heard).not.toHaveBeenCalled();
+  });
+
+  it("prévient une fois passé le seuil, et une seule", () => {
+    const heard = vi.fn();
+    watchQuota(heard);
+    const big = "x".repeat(4_100_000);
+    /* On n'écrit pas vraiment quatre mégaoctets : la mesure se fait sur
+       la chaîne AVANT l'écriture, et c'est elle qu'on éprouve. Le
+       navigateur de test peut refuser derrière, sans changer le signal. */
+    store.set("gros", big);
+    store.set("gros", big);
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(heard.mock.calls[0]![0]).toBeGreaterThan(4_000_000);
+  });
+
+  /* LE PREMIER DÉPASSEMENT PEUT PRÉCÉDER L'ÉCRAN. Le classeur écrit
+     pendant son chargement ; un abonné arrivé après ne doit pas hériter
+     du silence. */
+  it("rejoue à qui s'abonne trop tard", () => {
+    store.set("gros", "x".repeat(4_100_000));
+    const heard = vi.fn();
+    watchQuota(heard);
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+
+  it("se tait auprès de qui s'est désabonné", () => {
+    const heard = vi.fn();
+    watchQuota(heard)();
+    store.set("gros", "x".repeat(4_100_000));
+    expect(heard).not.toHaveBeenCalled();
   });
 });

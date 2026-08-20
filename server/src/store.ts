@@ -13,8 +13,9 @@ import { one } from "./db.ts";
 import { planDraw } from "./draw.ts";
 import { CHALLENGE_HALF, DECLARED, DECLARED_CEILING, RATE, REVIEW_LENGTH } from "./points.ts";
 import type { Kind } from "./points.ts";
-import { draw, itemById } from "./shop.ts";
-import type { PowerKind, Rng } from "./shop.ts";
+import { draw, DRAWS, itemById, isUnique, packItem, WEARABLE } from "./shop.ts";
+import { ceilingsFor, QuotaReached } from "./limits.ts";
+import type { DecorDef, PackDef, PowerKind, Rng, ShopItem, Wearable } from "./shop.ts";
 import type { Difficulty, Stock } from "./draw.ts";
 
 export interface Person {
@@ -25,6 +26,8 @@ export interface Person {
   token?: string | null;
   /** Writes quizzes. Laid down from the environment, never from a route. */
   is_admin?: boolean;
+  /** Ce que le compte a le droit d'occuper : voir `limits.ts`. */
+  plan?: string;
   /** Le cachet porté au comptoir, s'il y en a un. */
   stamp?: string | null;
 }
@@ -44,7 +47,7 @@ export interface AccessKey {
 export async function findByPseudo(db: Db, pseudo: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, email, sharing, token, is_admin, stamp FROM person WHERE pseudo = $1",
+    "SELECT id, pseudo, email, sharing, token, is_admin, plan, stamp FROM person WHERE pseudo = $1",
     [pseudo]
   );
 }
@@ -52,7 +55,7 @@ export async function findByPseudo(db: Db, pseudo: string): Promise<Person | nul
 export async function findById(db: Db, id: string): Promise<Person | null> {
   return one<Person>(
     db,
-    "SELECT id, pseudo, email, sharing, token, is_admin FROM person WHERE id = $1",
+    "SELECT id, pseudo, email, sharing, token, is_admin, plan FROM person WHERE id = $1",
     [id]
   );
 }
@@ -75,7 +78,7 @@ export async function markAdmins(db: Db, pseudos: string[]): Promise<void> {
 export async function createPerson(db: Db, pseudo: string): Promise<Person> {
   const p = await one<Person>(
     db,
-    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email, is_admin",
+    "INSERT INTO person (id, pseudo) VALUES ($1, $2) RETURNING id, pseudo, email, is_admin, plan",
     [randomUUID(), pseudo]
   );
   if (!p) throw new Error("person not created");
@@ -259,7 +262,7 @@ export async function openSession(db: Db, personId: string): Promise<string> {
 export async function personOfSession(db: Db, secret: string): Promise<Person | null> {
   return one<Person>(
     db,
-    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token, p.is_admin
+    `SELECT p.id, p.pseudo, p.email, p.sharing, p.token, p.is_admin, p.plan
        FROM session s JOIN person p ON p.id = s.person_id
       WHERE s.digest = $1 AND s.expires_at > now()`,
     [fingerprintOf(secret)]
@@ -631,6 +634,16 @@ export async function unfollow(db: Db, follower: string, followed: string): Prom
 }
 
 /** Who I follow, with what their collection still shows. */
+/**
+ * Qui je suis.
+ *
+ * `NOT_BLOCKED` MANQUAIT ICI, là où tous ses frères l'appliquent.
+ * Suivre est antérieur au blocage : rien n'efface la ligne de `follow`
+ * quand quelqu'un vous bloque ensuite, donc cette liste pouvait NOMMER
+ * une personne qui vous a bloqué — et le pseudonyme est justement ce
+ * qu'un blocage retire de la vue. Le trou ne cassait rien, ce qui est
+ * pourquoi il a duré.
+ */
 export async function subscriptionsOf(db: Db, personId: string): Promise<Profile[]> {
   return db.query<Profile>(
     `SELECT p.pseudo, p.stamp,
@@ -639,6 +652,32 @@ export async function subscriptionsOf(db: Db, personId: string): Promise<Profile
             (p.sharing = 'publique') AS open
        FROM follow a JOIN person p ON p.id = a.followed_id
       WHERE a.follower_id = $1
+        AND ${NOT_BLOCKED("$1", "p.id")}
+      ORDER BY p.pseudo`,
+    [personId]
+  );
+}
+
+/**
+ * Qui me suit — le miroir exact de `subscriptionsOf`, à une colonne
+ * près.
+ *
+ * IL EXISTE POUR LE SÉLECTEUR DE PERSONNES, et c'est la moitié qui
+ * manquait : on invite surtout des gens qui vous suivent, et rien ne
+ * savait les nommer. `NOT_BLOCKED` y est du premier jour, dans le même
+ * commit que celui qui le pose sur son frère — les écrire séparément
+ * aurait laissé la question « lequel des deux le fait ? » à quelqu'un
+ * dans six mois.
+ */
+export async function followersOf(db: Db, personId: string): Promise<Profile[]> {
+  return db.query<Profile>(
+    `SELECT p.pseudo, p.stamp,
+            (SELECT count(*) FROM card f
+              WHERE f.person_id = p.id AND NOT f.hidden AND NOT f.deleted)::int AS films,
+            (p.sharing = 'publique') AS open
+       FROM follow a JOIN person p ON p.id = a.follower_id
+      WHERE a.followed_id = $1
+        AND ${NOT_BLOCKED("$1", "p.id")}
       ORDER BY p.pseudo`,
     [personId]
   );
@@ -835,6 +874,180 @@ export async function myBlocks(db: Db, personId: string): Promise<string[]> {
  * gesture is the same, and a moderation queue a human will have to read
  * must not swell with every repeated click.
  */
+/**
+ * Accorder ou retirer un palier.
+ *
+ * À LA MAIN TANT QU'IL N'Y A PAS DE FACTURATION, et c'est le seul
+ * endroit qui écrit cette colonne. Le jour où un prestataire de paiement
+ * arrive, c'est lui qui appellera ceci depuis son webhook — la surface à
+ * relire sera d'une fonction.
+ */
+export async function setPlan(db: Db, personId: string, plan: "free" | "plus"): Promise<boolean> {
+  const r = await db.query<{ id: string }>(
+    "UPDATE person SET plan = $2 WHERE id = $1 RETURNING id",
+    [personId, plan]
+  );
+  return r.length > 0;
+}
+
+/* ------------------------------------------------------------
+   LES IMPORTS — le geste le plus cher du produit
+   ------------------------------------------------------------
+
+   Six cents films importés, c'est six cents interrogations du relais
+   TMDB. On compte donc, sur une fenêtre GLISSANTE de trente jours : un
+   compteur remis à zéro le premier du mois donnerait deux imports à
+   cheval sur deux jours.
+
+   ON COMPTE À LA CONFIRMATION, pas au dépôt du fichier. Déposer un
+   bordereau pour voir ce qu'il contient ne coûte rien et ne doit rien
+   coûter ; ce qui compte est l'écriture dans la collection. */
+
+const IMPORT_WINDOW = "30 days";
+
+/** Combien d'imports sur les trente derniers jours. */
+export async function importsInWindow(db: Db, personId: string): Promise<number> {
+  const r = await one<{ n: string }>(
+    db,
+    `SELECT count(*)::text AS n FROM import_run
+      WHERE person_id = $1 AND ran_at > now() - interval '${IMPORT_WINDOW}'`,
+    [personId]
+  );
+  return Number(r?.n ?? 0);
+}
+
+/**
+ * Note un import, et dit si le palier le permettait.
+ *
+ * LE COMPTE ET L'ÉCRITURE SONT DANS LA MÊME REQUÊTE, pour la raison qui
+ * vaut partout ailleurs ici : entre lire un total et écrire une ligne,
+ * deux requêtes concurrentes passent toutes les deux. Deux imports
+ * lancés dans le même souffle depuis deux onglets en seraient un de
+ * trop.
+ */
+export async function noteImport(db: Db, personId: string): Promise<boolean> {
+  const bornes = ceilingsFor((await findById(db, personId)) ?? {});
+  /* Rien à compter pour un palier sans borne — et surtout rien à
+     écrire : une table qui grossit pour personne est une table qu'on
+     nettoiera un jour sans savoir pourquoi. */
+  if (bornes.imports === Infinity) return true;
+
+  const rows = await db.query<{ id: string }>(
+    `INSERT INTO import_run (id, person_id)
+     SELECT $1, $2
+      WHERE (SELECT count(*) FROM import_run
+              WHERE person_id = $2 AND ran_at > now() - interval '${IMPORT_WINDOW}') < $3
+     RETURNING id`,
+    [randomUUID(), personId, bornes.imports]
+  );
+  return rows.length > 0;
+}
+
+/* ============================================================
+   LE BUREAU DE MODÉRATION
+   ============================================================
+
+   La table `report` existait, la route pour SIGNALER aussi, et son
+   `handled_at` n'a jamais été écrit une seule fois : rien ne savait
+   lister ce qui attendait, donc rien ne pouvait le traiter. Sur une
+   adresse ouverte au public ce n'est pas un confort, c'est une
+   obligation — un signalement qu'on ne peut pas lire vaut un
+   signalement qu'on refuse.
+
+   CE QUE CES REQUÊTES NE FONT PAS, et c'est délibéré : fermer un compte.
+   `deletePerson` existe et efface tout par cascade, ce qui est
+   irréversible et sans recours. Une décision pareille ne se prend pas
+   d'un clic dans une file d'attente ; elle se prend en dehors de
+   l'outil, et l'outil ne doit pas la rendre facile.
+
+   Ce qu'on offre à la place est RÉVERSIBLE : retirer la fiche du
+   partage, ce que son auteur pouvait déjà faire lui-même — même colonne,
+   même effet, et rien de détruit.
+   ============================================================ */
+
+export interface Report {
+  id: string;
+  target_type: string;
+  target_id: string;
+  reason: string;
+  created_at: Date;
+  /** Le pseudonyme visé, `null` si son compte a disparu depuis. */
+  about: string | null;
+  /** Combien de personnes DIFFÉRENTES ont signalé la même chose. */
+  echoes: number;
+}
+
+/**
+ * La file d'attente : ce qui n'a pas encore été traité.
+ *
+ * ON REGROUPE PAR CIBLE, et c'est ce qui rend la file lisible. Dix
+ * personnes signalant la même fiche font dix lignes dans la table — c'est
+ * juste, chacune a fait son geste — mais une seule chose à regarder. Le
+ * nombre d'échos est d'ailleurs l'information la plus utile de la
+ * ligne : il dit par où commencer.
+ *
+ * `author_id` n'en sort PAS. Traiter un signalement ne demande pas de
+ * savoir qui l'a fait, et l'afficher inviterait à en tenir compte —
+ * c'est le contenu qu'on juge, pas le plaignant.
+ */
+export async function reportsToHandle(db: Db, limit = 100): Promise<Report[]> {
+  return db.query<Report>(
+    `SELECT min(r.id::text)::uuid AS id,
+            r.target_type, r.target_id,
+            min(r.reason) AS reason,
+            min(r.created_at) AS created_at,
+            max(p.pseudo) AS about,
+            count(*)::int AS echoes
+       FROM report r
+       LEFT JOIN person p ON p.id = r.about_id
+      WHERE r.handled_at IS NULL
+      GROUP BY r.target_type, r.target_id
+      ORDER BY count(*) DESC, min(r.created_at) ASC
+      LIMIT $1`,
+    [limit]
+  );
+}
+
+/**
+ * Ce signalement est traité — et tous ceux qui visent la même chose.
+ *
+ * TOUTE LA CIBLE D'UN COUP, puisque c'est par cible qu'on a regardé.
+ * Clore une ligne sur dix laisserait neuf fois la même chose revenir
+ * dans la file, et on la rouvrirait neuf fois pour rien.
+ */
+export async function handleReports(db: Db, targetType: string, targetId: string): Promise<number> {
+  const r = await db.query(
+    `UPDATE report SET handled_at = now()
+      WHERE target_type = $1 AND target_id = $2 AND handled_at IS NULL
+      RETURNING id`,
+    [targetType, targetId]
+  );
+  return r.length;
+}
+
+/**
+ * Retirer du partage la fiche visée, sans savoir à qui elle est.
+ *
+ * `hideCard` demande le propriétaire ; ici on ne l'a pas, et le chercher
+ * d'abord ferait deux requêtes dont la première peut mentir — la fiche a
+ * pu changer de main ou disparaître entre les deux. L'identifiant d'une
+ * fiche est unique par personne, pas globalement, d'où le passage par
+ * `about_id` du signalement : c'est LUI qui dit chez qui regarder, et il
+ * a été écrit au moment du signalement précisément pour ça.
+ */
+export async function hideReported(db: Db, targetId: string): Promise<boolean> {
+  const r = await db.query(
+    `UPDATE card SET hidden = true, seq = nextval('card_seq')
+      WHERE id = $1
+        AND person_id IN (SELECT about_id FROM report
+                           WHERE target_type = 'card' AND target_id = $1
+                             AND about_id IS NOT NULL)
+      RETURNING id`,
+    [targetId]
+  );
+  return r.length > 0;
+}
+
 export async function report(
   db: Db,
   authorId: string,
@@ -868,9 +1081,35 @@ export interface ListRow {
   owner: string;
   /** How many works. */
   works: number;
+  /* QUELQUES AFFICHES, POUR QUE LA CARTE EN SOIT UNE. Un mur de listes
+     qui n'annonce qu'un titre et un compte se lit comme un tableur —
+     c'est le défaut que ce champ retire. Quatre CHEMINS au plus, les
+     derniers rangés, pris dans la requête qui compte déjà : pas de
+     seconde question, et rien à demander liste par liste.
+
+     Une liste dont aucune œuvre ne porte d'affiche rend `[]`, ce qui est
+     une RÉPONSE et non un silence — la même discipline que `keywords`
+     et `frames`. */
+  posters: string[];
   /** Am I the owner, and may I write in it? */
   mienne?: boolean;
-  isMember?: boolean;
+  /**
+   * Suis-je membre de cette liste ?
+   *
+   * `is_member` ET NON `isMember`, et c'est la cinquieme fois que ce
+   * defaut se paie ici (`liste_id`, `per`, `ouverte`, `list_id`). Le SQL
+   * ecrit `AS is_member` quelques lignes plus bas ; le champ s'appelait
+   * `isMember` des deux cotes, donc il valait `undefined` a l'execution,
+   * TOUJOURS, et trois ecrans mentaient en silence : le remplissage TMDB
+   * ne paraissait jamais a un co-redacteur, les listes dont on est
+   * membre n'etaient pas offertes comme sujet d'un defi, et l'indicateur
+   * « partagee » se trompait sur ses propres listes.
+   *
+   * On epelle comme le SQL, pas l'inverse : `mienne` fait deja ainsi sur
+   * la ligne d'a cote, et un alias entre guillemets serait le premier du
+   * depot — dans les requetes qui n'ont meme pas droit a un accent.
+   */
+  is_member?: boolean;
 }
 
 export interface WorkRow {
@@ -878,6 +1117,10 @@ export interface WorkRow {
   title: string;
   year: string | null;
   by: string | null;
+  /* LE CHEMIN, ET JAMAIS L'URL — la taille se compose au rendu, comme
+     pour `Film.frames`. NULL veut dire « on n'en a pas », ce qui n'est
+     pas la même chose qu'une chaîne vide. */
+  poster_path: string | null;
 }
 
 /** What somebody is allowed to do with a list. */
@@ -921,16 +1164,115 @@ export async function rightsOnList(
   };
 }
 
+/**
+ * Somebody's rights over a CHALLENGE — la porte unique.
+ *
+ * SEPT ROUTES DEMANDAIENT `rightsOnList(challenge.list_id, …)`, ET
+ * C'ÉTAIT LE VRAI COÛT DES NATURES DE DÉFI. Tant qu'un défi est une
+ * liste plus une période, la confidentialité de la liste est la
+ * confidentialité du défi et il n'y a pas deux règles à tenir
+ * d'accord. Un défi par critère n'a PAS de liste : la source disparaît,
+ * et sept endroits auraient dû inventer chacun leur repli — c'est-à-dire
+ * que six l'auraient inventé pareil et le septième non.
+ *
+ * UNE SEULE FONCTION, DONC, ET TOUTES LES ROUTES PASSENT PAR ELLE. Le
+ * jour où la règle change, elle change ici.
+ *
+ * ET UN DÉFI PAR CRITÈRE N'EST JAMAIS DÉCOUVRABLE : on y est, ou on l'a
+ * créé. Il n'y a pas de liste publique derrière pour le montrer, et
+ * inventer une découverte lui aurait donné une portée que personne n'a
+ * demandée — voir `myChallenges`, qui ne le propose pas davantage.
+ */
+export async function rightsOnChallenge(
+  db: Db,
+  challengeId: string,
+  personId: string | null
+): Promise<Rights | null> {
+  const e = await one<{
+    id: string;
+    list_id: string | null;
+    created_by: string | null;
+    inside: boolean;
+    list_owner: string | null;
+    list_public: boolean | null;
+    list_member: boolean;
+  }>(
+    db,
+    `SELECT e.id, e.list_id, e.created_by,
+            EXISTS (SELECT 1 FROM challenge_participant x
+                     WHERE x.challenge_id = e.id AND x.person_id = $2) AS inside,
+            l.owner_id AS list_owner,
+            l.is_public AS list_public,
+            EXISTS (SELECT 1 FROM list_member m
+                     WHERE m.list_id = e.list_id AND m.person_id = $2) AS list_member
+       FROM challenge e
+       LEFT JOIN list l ON l.id = e.list_id
+      WHERE e.id = $1`,
+    [challengeId, personId]
+  );
+  if (!e) return null;
+
+  const isAuthor = personId !== null && e.created_by !== null && e.created_by === personId;
+  const isListOwner = personId !== null && e.list_owner !== null && e.list_owner === personId;
+
+  /* TANT QU'IL Y A UNE LISTE, LA RÉPONSE EST EXACTEMENT CELLE D'AVANT.
+     C'est ce qui fait de ce déplacement un refactor et non une décision :
+     la première version de cette fonction ajoutait l'auteur du défi à
+     `administer`, ce qui aurait ÉLARGI un droit sur tous les défis
+     existants — un membre d'une liste aurait pu effacer un défi que le
+     propriétaire de la liste avait monté. Élargir une permission est une
+     décision, et elle ne se prend pas en passant. */
+  if (e.list_id !== null) {
+    return {
+      list_id: e.list_id,
+      owner_id: e.list_owner ?? "",
+      read: e.list_public === true || isListOwner || e.list_member,
+      write: isListOwner || e.list_member,
+      administer: isListOwner,
+    };
+  }
+
+  /* SANS LISTE, ON Y EST OU ON L'A CRÉÉ — et rien d'autre. Il n'y a pas
+     de liste publique derrière pour le montrer, donc UN DÉFI PAR CRITÈRE
+     N'EST JAMAIS DÉCOUVRABLE. Inventer une découverte lui aurait donné
+     une portée que personne n'a demandée.
+
+     `created_by` est `SET NULL` à l'effacement du compte : un défi dont
+     l'auteur est parti n'a plus personne pour l'administrer, ce qui est
+     juste — ses participants continuent de le lire. */
+  return {
+    list_id: e.id,
+    owner_id: e.created_by ?? "",
+    read: isAuthor || e.inside,
+    write: isAuthor,
+    administer: isAuthor,
+  };
+}
+
 /** My lists, and those I have been allowed to write in. */
 export async function myLists(db: Db, personId: string): Promise<ListRow[]> {
   return db.query<ListRow>(
     `SELECT l.id, l.title, l.intent, l.is_public,
             p.pseudo AS owner,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            -- Les DERNIERES rangees et non les premieres : une liste
+            -- vivante montre ce qu'on vient d'y mettre. Un LEFT JOIN
+            -- LATERAL et non une sous-requete correlee dans le SELECT,
+            -- qui n'aurait pas su rendre un tableau limite.
+            -- (Pas d'accent ni de backtick ici : ce commentaire vit
+            --  DANS un gabarit JavaScript, ou une backtick ferme la
+            --  chaine et fait tomber tout le module.)
+            coalesce(f.posters, '{}') AS posters,
             (l.owner_id = $1) AS mienne,
             EXISTS (SELECT 1 FROM list_member m
                      WHERE m.list_id = l.id AND m.person_id = $1) AS is_member
        FROM list l JOIN person p ON p.id = l.owner_id
+       LEFT JOIN LATERAL (
+              SELECT array_agg(i.poster_path ORDER BY i.added_at DESC) AS posters
+                FROM (SELECT poster_path, added_at FROM list_item
+                       WHERE list_id = l.id AND poster_path IS NOT NULL
+                       ORDER BY added_at DESC LIMIT 3) i
+            ) f ON true
       WHERE l.owner_id = $1
          OR EXISTS (SELECT 1 FROM list_member m
                      WHERE m.list_id = l.id AND m.person_id = $1)
@@ -944,8 +1286,22 @@ export async function publicListsOf(db: Db, ownerId: string): Promise<ListRow[]>
   return db.query<ListRow>(
     `SELECT l.id, l.title, l.intent, l.is_public,
             p.pseudo AS owner,
-            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            -- Les DERNIERES rangees et non les premieres : une liste
+            -- vivante montre ce qu'on vient d'y mettre. Un LEFT JOIN
+            -- LATERAL et non une sous-requete correlee dans le SELECT,
+            -- qui n'aurait pas su rendre un tableau limite.
+            -- (Pas d'accent ni de backtick ici : ce commentaire vit
+            --  DANS un gabarit JavaScript, ou une backtick ferme la
+            --  chaine et fait tomber tout le module.)
+            coalesce(f.posters, '{}') AS posters
        FROM list l JOIN person p ON p.id = l.owner_id
+       LEFT JOIN LATERAL (
+              SELECT array_agg(i.poster_path ORDER BY i.added_at DESC) AS posters
+                FROM (SELECT poster_path, added_at FROM list_item
+                       WHERE list_id = l.id AND poster_path IS NOT NULL
+                       ORDER BY added_at DESC LIMIT 3) i
+            ) f ON true
       WHERE l.owner_id = $1 AND l.is_public
       ORDER BY l.updated_at DESC`,
     [ownerId]
@@ -987,7 +1343,7 @@ export async function deleteList(db: Db, listId: string): Promise<void> {
 
 export async function worksOf(db: Db, listId: string): Promise<WorkRow[]> {
   return db.query<WorkRow>(
-    `SELECT i.tmdb_id, i.title, i.year, p.pseudo AS by
+    `SELECT i.tmdb_id, i.title, i.year, i.poster_path, p.pseudo AS by
        FROM list_item i LEFT JOIN person p ON p.id = i.added_by
       WHERE i.list_id = $1
       ORDER BY i.added_at`,
@@ -1000,17 +1356,29 @@ export async function addToList(
   db: Db,
   listId: string,
   byWhom: string,
-  o: { tmdbId: string; title?: string; year?: string | null }
+  o: { tmdbId: string; title?: string; year?: string | null; posterPath?: string | null }
 ): Promise<boolean> {
-  const r = await db.query(
-    `INSERT INTO list_item (list_id, tmdb_id, title, year, added_by)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (list_id, tmdb_id) DO NOTHING
-     RETURNING tmdb_id`,
-    [listId, o.tmdbId, o.title ?? "", o.year ?? null, byWhom]
+  /* ON COMBLE LES TROUS, ON NE CORRIGE RIEN. Le conflit ne fait plus
+     « rien » tout à fait : si la ligne est là SANS affiche et qu'on en
+     apporte une, on l'écrit. C'est ce qui rattrape les listes remplies
+     avant que la colonne existe, sans tâche de fond ni requête TMDB en
+     masse — et le `coalesce` garantit qu'une affiche présente survit à
+     un ajout qui n'en porterait pas.
+
+     `fresh` reste FIDÈLE À SON NOM : le `RETURNING` d'un `DO UPDATE`
+     rendrait une ligne à chaque fois, et l'appelant croirait avoir
+     ajouté une œuvre qui était déjà là. D'où le `xmax = 0`, que
+     Postgres met à zéro sur une insertion et pas sur une mise à jour. */
+  const r = await db.query<{ fresh: boolean }>(
+    `INSERT INTO list_item (list_id, tmdb_id, title, year, poster_path, added_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (list_id, tmdb_id)
+       DO UPDATE SET poster_path = coalesce(list_item.poster_path, excluded.poster_path)
+     RETURNING (xmax = 0) AS fresh`,
+    [listId, o.tmdbId, o.title ?? "", o.year ?? null, o.posterPath ?? null, byWhom]
   );
   await db.query("UPDATE list SET updated_at = now() WHERE id = $1", [listId]);
-  return r.length > 0;
+  return r[0]?.fresh === true;
 }
 
 export async function removeFromList(db: Db, listId: string, tmdbId: string): Promise<void> {
@@ -1061,38 +1429,257 @@ export async function removeMemberFromList(
    `watchedAt` is the fallback for cards from before the log — they still
    exist, and ignoring them would say "not seen" to somebody who
    has. */
+/* ------------------------------------------------------------
+   CE QUI COMPTE POUR UN DÉFI
+   ------------------------------------------------------------
+   UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA PAIE. C'est la
+   seule chose que cette expression sait faire de plus qu'avant, et
+   c'est pourquoi `points.ts` n'a pas une ligne de plus.
+
+   ELLE A DEUX APPELANTS : `progressOf`, qui affiche, et
+   `settleChallenge`, qui PAIE. C'est ce qui rend l'édition risquée —
+   `merit_event` est unique, donc UN PAIEMENT FAUX NE PEUT PAS ÊTRE
+   REJOUÉ JUSTE — et c'est pourquoi le filet de `points.test.ts` a été
+   tissé AVANT d'y toucher, sur les trois âges de données de fiche.
+
+   « PENDANT LA PÉRIODE » NE PEUT PAS ÊTRE `updated_at` POUR UNE
+   CRITIQUE. Une critique ne porte aucune date, et `card.updated_at`
+   bouge à la moindre retouche : une fiche effleurée en mars aurait payé
+   une critique écrite deux ans plus tôt. On demande donc les deux
+   choses qui, elles, sont datables ou mesurables — UNE SÉANCE DANS LA
+   PÉRIODE, et une critique d'au moins `REVIEW_LENGTH` signes, la même
+   longueur qu'`awardFromCard` exige déjà pour la payer. */
+/* UNE SÉANCE DE CETTE FICHE DANS LA PÉRIODE.
+   C'est le seul morceau réellement partagé entre les deux façons de
+   compter, et il est extrait pour cette raison-là et pas pour la beauté
+   du geste : le comptage par LISTE part de `list_item` et demande à la
+   fiche de confirmer, celui par CRITÈRE part des fiches elles-mêmes. Les
+   deux tiennent les trois âges de données, et c'est exactement ce que le
+   filet de `points.test.ts` pinte — il a été tissé AVANT cette
+   extraction, sur les deux appelants.
+
+   `jsonb_typeof` d'abord : `watches` traverse des clients de toutes les
+   époques, et `jsonb_array_elements` sur autre chose qu'un tableau fait
+   tomber la requête ENTIÈRE. Une seule vieille fiche suffirait alors à
+   effacer la progression de tout le monde.
+
+   `watchedAt` est le repli des fiches d'avant le journal. Elles existent
+   toujours, et les ignorer dirait « pas vu » à quelqu'un qui a vu. */
+const WATCHED_DURING = (card: string) => `(
+       EXISTS (
+         SELECT 1 FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(${card}.data->'watches') = 'array'
+                     THEN ${card}.data->'watches' ELSE '[]'::jsonb END) w
+          WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                         AND to_char(e.ends_on, 'YYYY-MM-DD'))
+       OR left(${card}.data->>'watchedAt', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                                AND to_char(e.ends_on, 'YYYY-MM-DD')
+     )`;
+
+/* ------------------------------------------------------------
+   LA COURSE — UN FILM NE COMPTE QUE POUR LE PREMIER
+   ------------------------------------------------------------
+
+   `mode = 'course'`. UNE NATURE CHANGE CE QUI COMPTE, JAMAIS CE QUE ÇA
+   PAIE : même barème, même règlement, même `merit_event`, et pas une
+   ligne de plus dans `points.ts`. Ce qui change est ici, et seulement
+   ici — d'où l'ajout par un PRÉDICAT posé en plus, plutôt que par une
+   troisième façon de compter.
+
+   « LE PREMIER » EST UNE DATE, ET LA DATE EST CELLE DE LA SÉANCE — pas
+   celle où la fiche a été synchronisée. Deux personnes qui regardent le
+   même film le même mois doivent être départagées par le soir où elles
+   l'ont vu, et c'est la seule donnée qui le dise. `card.updated_at`
+   aurait fait gagner celle qui a retouché sa fiche en dernier.
+
+   ÉGALITÉ : LE MÊME JOUR ARRIVE, et souvent — une séance ne porte
+   qu'une date, sans heure. On tranche alors sur l'identifiant de
+   personne, qui est stable : un départage aléatoire ferait changer le
+   tableau entre deux rafraîchissements, et un défi qui se relit
+   autrement à chaque coup d'œil n'est plus un défi. Ce n'est pas juste,
+   c'est DÉTERMINISTE — et c'est ce qu'il faut, puisque cette expression
+   PAIE.
+
+   `min(...)` SUR LA CHAÎNE `AAAA-MM-JJ` : elle se compare comme une
+   date sans jamais repasser par un fuseau, ce que fait déjà tout le
+   reste du comptage. */
+const EARLIEST = (card: string) => `(
+       SELECT min(left(w->>'date', 10))
+         FROM jsonb_array_elements(
+                CASE WHEN jsonb_typeof(${card}.data->'watches') = 'array'
+                     THEN ${card}.data->'watches' ELSE '[]'::jsonb END) w
+        WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                                       AND to_char(e.ends_on, 'YYYY-MM-DD')
+     )`;
+
+/* CE QUI SE COMPARE : la première séance dans la période, avec le repli
+   `watchedAt` des fiches d'avant le journal — les ignorer ferait perdre
+   la course à quelqu'un qui a bel et bien vu le film en premier.
+   `coalesce` et non `least` : `watchedAt` n'est un candidat que lorsque
+   le journal ne dit rien, et il ne doit pas primer sur une séance
+   datée. */
+const CLAIM_AT = (card: string) => `coalesce(${EARLIEST(card)},
+       CASE WHEN left(${card}.data->>'watchedAt', 10)
+                 BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
+                     AND to_char(e.ends_on, 'YYYY-MM-DD')
+            THEN left(${card}.data->>'watchedAt', 10) END)`;
+
+/* VRAI QUAND PERSONNE N'A PRIS CE FILM AVANT. Hors course, toujours
+   vrai : le prédicat s'efface, et le comptage est celui d'avant au
+   caractère près. */
+const UNCLAIMED = (card: string, tmdb: string) => `(e.mode <> 'course' OR NOT EXISTS (
+       SELECT 1
+         FROM challenge_participant ep2
+         JOIN card f2 ON f2.person_id = ep2.person_id
+                     AND f2.tmdb_id = ${tmdb}
+                     AND NOT f2.deleted
+        WHERE ep2.challenge_id = e.id
+          AND ep2.person_id <> ep.person_id
+          AND (e.kind <> 'critique'
+               OR length(btrim(coalesce(f2.data->>'review', ''))) >= ${REVIEW_LENGTH})
+          AND ${WATCHED_DURING("f2")}
+          AND (${CLAIM_AT("f2")}, ep2.person_id::text)
+            < (${CLAIM_AT(card)}, ep.person_id::text)))`;
+
 const SEEN_DURING = `EXISTS (
   SELECT 1 FROM card f
    WHERE f.person_id = ep.person_id
      AND f.tmdb_id = li.tmdb_id
      AND NOT f.deleted
-     AND (
-       EXISTS (
-         SELECT 1 FROM jsonb_array_elements(
-                CASE WHEN jsonb_typeof(f.data->'watches') = 'array'
-                     THEN f.data->'watches' ELSE '[]'::jsonb END) w
-          WHERE left(w->>'date', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
-                                         AND to_char(e.ends_on, 'YYYY-MM-DD'))
-       OR left(f.data->>'watchedAt', 10) BETWEEN to_char(e.starts_on, 'YYYY-MM-DD')
-                                                AND to_char(e.ends_on, 'YYYY-MM-DD')
-     ))`;
+     AND (e.kind <> 'critique'
+          OR length(btrim(coalesce(f.data->>'review', ''))) >= ${REVIEW_LENGTH})
+     AND ${WATCHED_DURING("f")}
+     AND ${UNCLAIMED("f", "li.tmdb_id")})`;
+
+/* CE QUE LE CRITÈRE DÉSIGNE — trois formes, et pas une de plus.
+   Décennie, pays, cinéaste : ce sont les trois choses qu'une fiche porte
+   TOUJOURS quand elle a été complétée par TMDB, et dont on peut donc
+   faire une question à la collection. Un quatrième critère se répondrait
+   « ça dépend si la fiche est remplie », ce qui ferait un défi qu'on
+   perd pour n'avoir pas fait ses imports.
+
+   `->>` ET NON `?` : l'opérateur d'existence de jsonb se lit mal à
+   côté des paramètres numérotés, et « la clé est absente » et « la clé
+   vaut null » veulent dire la même chose ici — pas de critère de cette
+   forme.
+
+   LA DÉCENNIE PASSE PAR UNE GARDE D'EXPRESSION RÉGULIÈRE. `year` est
+   saisi à la main sur une fiche tapée à la main : « 196? », vide, ou un
+   titre entier s'y sont déjà trouvés, et un `::int` sur l'un d'eux fait
+   tomber la requête qui PAIE. On ne compte que ce qui est quatre
+   chiffres. */
+const MATCHES_SUBJECT = `(
+       (e.subject->>'decade' IS NOT NULL
+        AND (f.data->>'year') ~ '^[0-9]{4}$'
+        AND ((f.data->>'year')::int / 10) * 10 = (e.subject->>'decade')::int)
+    OR (e.subject->>'country' IS NOT NULL
+        AND jsonb_typeof(f.data->'countries') = 'array'
+        AND upper(e.subject->>'country') IN (
+              SELECT upper(c) FROM jsonb_array_elements_text(f.data->'countries') c))
+    OR (e.subject->>'director' IS NOT NULL
+        AND btrim(coalesce(f.data->>'director', '')) <> ''
+        AND lower(btrim(f.data->>'director')) = lower(btrim(e.subject->>'director')))
+     )`;
+
+/* COMBIEN CETTE PERSONNE EN A FAIT — et il y a DEUX façons de compter,
+   pas une avec une condition de plus.
+
+   Un défi par liste part de `list_item` : la liste est la question, et
+   chaque œuvre y répond ou non. Un défi par CRITÈRE n'a pas de liste du
+   tout — il part des fiches et leur demande si elles répondent au
+   critère. Les deux sous-requêtes n'ont donc ni la même table de départ
+   ni le même sens de lecture, et les fondre en une aurait donné une
+   jointure conditionnelle que personne ne relit.
+
+   Ce qu'elles partagent est `WATCHED_DURING`, et c'est tout. */
+const DONE = `CASE WHEN e.list_id IS NULL THEN (
+         SELECT count(*) FROM card f
+          WHERE f.person_id = ep.person_id
+            AND NOT f.deleted
+            AND ${WATCHED_DURING("f")}
+            AND ${MATCHES_SUBJECT}
+            AND ${UNCLAIMED("f", "f.tmdb_id")})
+       ELSE (
+         SELECT count(*) FROM list_item li
+          WHERE li.list_id = e.list_id AND ${SEEN_DURING})
+       END`;
+
+/* CE QU'ELLE A COCHÉ, ET NON SEULEMENT COMBIEN.
+
+   UN DÉFI ÉTAIT UNE BARRE, et c'est ce que ce tableau retire. On lisait
+   « 3 sur 8 » sans jamais savoir LESQUELS trois : le progrès n'était
+   jamais une image, alors que le domaine entier parle de films. La
+   grille tamponnée en a besoin, et de rien d'autre.
+
+   MÊME EXPRESSION, MÊME `CASE`, MÊME SENS DE LECTURE que `DONE` : ce
+   sont les identifiants de ce que `DONE` compte, et pas un ensemble
+   voisin. Les faire diverger ferait un tableau qui montre quatre
+   tampons sous une barre qui en annonce cinq — et c'est la barre qui
+   PAIE.
+
+   LE JOURNAL DE SÉANCES NE SORT TOUJOURS PAS. Ni date, ni note, ni
+   critique : seulement « ce film-là compte pour cette personne ». C'est
+   la même retenue que `DONE`, qui ne laissait sortir qu'un nombre. */
+const TICKED = `CASE WHEN e.list_id IS NULL THEN (
+         SELECT coalesce(array_agg(f.tmdb_id), '{}') FROM card f
+          WHERE f.person_id = ep.person_id
+            AND NOT f.deleted
+            AND f.tmdb_id IS NOT NULL
+            AND ${WATCHED_DURING("f")}
+            AND ${MATCHES_SUBJECT}
+            AND ${UNCLAIMED("f", "f.tmdb_id")})
+       ELSE (
+         SELECT coalesce(array_agg(li.tmdb_id), '{}') FROM list_item li
+          WHERE li.list_id = e.list_id AND ${SEEN_DURING})
+       END`;
 
 export interface Challenge {
   id: string;
   title: string;
-  list_id: string;
-  list: string;
+  /** NULL pour un défi par critère : il ne porte pas de liste. */
+  list_id: string | null;
+  /** Le titre de la liste, NULL pour un défi par critère. */
+  list: string | null;
   starts_on: string;
   ends_on: string;
   by: string | null;
+  /** Combien la liste tient. Le BUT est `target ?? works`. */
   works: number;
+  /** Combien il en faut. NULL : toute la liste. */
+  target: number | null;
+  /** Ce qui compte : 'liste', 'critique', 'critere'. En français. */
+  kind: string;
+  /** Ce sur quoi porte un défi par critère. NULL pour les deux autres. */
+  subject: { decade?: number; country?: string; director?: string } | null;
+  /**
+   * `'ensemble'` ou `'course'`. En course, un film ne compte QUE POUR
+   * LE PREMIER qui le valide — même barème, même règlement.
+   *
+   * Une COLONNE et non une quatrième valeur de `kind` : les deux se
+   * croisent, une course pouvant demander de voir ou de voir et écrire,
+   * sur une liste comme sur un critère.
+   */
+  mode: string;
   /** Am I taking part? */
   inside?: boolean;
+  /**
+   * Le défi est-il le mien ? Écrit par le serveur, qui seul le sait. Le
+   * client devinait — « pas d'auteur, ou j'y participe » — et offrait
+   * donc le retrait à des gens qui n'y avaient pas droit ; la requête
+   * partait et se faisait refuser.
+   */
+  mine?: boolean;
 }
 
 export interface Progress {
   pseudo: string;
   done: number;
+  /* LES IDENTIFIANTS DE CE QUE `done` COMPTE — jamais un ensemble
+     voisin. C'est ce qui fait du progrès une IMAGE : la grille tamponne
+     ce qui est là-dedans, et la barre annonce la même chose.
+
+     Rien du journal de séances : ni date, ni note, ni critique. */
+  ticked: string[];
 }
 
 /**
@@ -1110,10 +1697,23 @@ export async function myChallenges(db: Db, personId: string): Promise<Challenge[
             to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
             p.pseudo AS by,
             (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            e.target,
+            e.kind,
+            e.mode,
+            e.subject,
             EXISTS (SELECT 1 FROM challenge_participant x
-                     WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside
+                     WHERE x.challenge_id = e.id AND x.person_id = $1) AS inside,
+            (e.created_by = $1) AS mine
        FROM challenge e
-       JOIN list l ON l.id = e.list_id
+       /* LEFT : un defi par critere n'a pas de liste, et un JOIN sec le
+          ferait disparaitre de sa propre requete. Le nombre d'oeuvres
+          tombe alors a zero et le titre de liste a NULL, ce qui est la
+          verite — le denominateur d'un defi par critere est sa CIBLE,
+          que le schema rend obligatoire pour cette raison exacte.
+          (Pas un seul accent grave ici : ce commentaire vit DANS un
+          litteral gabarit, et le premier fermerait la chaine au milieu
+          de la requete. Troisieme fois de ce chantier.) */
+       LEFT JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by
       WHERE e.created_by = $1
          OR EXISTS (SELECT 1 FROM challenge_participant x
@@ -1133,9 +1733,21 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
             to_char(e.starts_on, 'YYYY-MM-DD') AS starts_on,
             to_char(e.ends_on, 'YYYY-MM-DD') AS ends_on,
             p.pseudo AS by,
-            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works
+            (SELECT count(*) FROM list_item i WHERE i.list_id = l.id)::int AS works,
+            e.target,
+            e.kind,
+            e.mode,
+            e.subject
        FROM challenge e
-       JOIN list l ON l.id = e.list_id
+       /* LEFT : un defi par critere n'a pas de liste, et un JOIN sec le
+          ferait disparaitre de sa propre requete. Le nombre d'oeuvres
+          tombe alors a zero et le titre de liste a NULL, ce qui est la
+          verite — le denominateur d'un defi par critere est sa CIBLE,
+          que le schema rend obligatoire pour cette raison exacte.
+          (Pas un seul accent grave ici : ce commentaire vit DANS un
+          litteral gabarit, et le premier fermerait la chaine au milieu
+          de la requete. Troisieme fois de ce chantier.) */
+       LEFT JOIN list l ON l.id = e.list_id
        LEFT JOIN person p ON p.id = e.created_by
       WHERE e.id = $1`,
     [id]
@@ -1145,12 +1757,38 @@ export async function challengeById(db: Db, id: string): Promise<Challenge | nul
 export async function createChallenge(
   db: Db,
   byWhom: string,
-  e: { listId: string; title: string; starts_on: string; ends_on: string }
+  e: {
+    /** NULL pour un défi par critère : il ne porte pas de liste. */
+    listId: string | null;
+    title: string;
+    starts_on: string;
+    ends_on: string;
+    /** Combien il en faut. NULL : toute la liste, et c'est le défaut. */
+    target?: number | null;
+    /** Ce qui compte. Absent : 'liste', et c'est le défaut du schéma. */
+    kind?: string | null;
+    /** Ce sur quoi porte un critère. Le schéma l'exige alors. */
+    subject?: Record<string, unknown> | null;
+    /** 'ensemble' ou 'course'. Absent : 'ensemble', le défaut du schéma. */
+    mode?: string | null;
+  }
 ): Promise<string> {
   const id = randomUUID();
   await db.query(
-    "INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, e.listId, byWhom, e.title, e.starts_on, e.ends_on]
+    `INSERT INTO challenge (id, list_id, created_by, title, starts_on, ends_on, target, kind, subject, mode)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, coalesce($8, 'liste'), $9, coalesce($10, 'ensemble'))`,
+    [
+      id,
+      e.listId,
+      byWhom,
+      e.title,
+      e.starts_on,
+      e.ends_on,
+      e.target ?? null,
+      e.kind ?? null,
+      e.subject == null ? null : JSON.stringify(e.subject),
+      e.mode ?? null,
+    ]
   );
   /* Whoever starts a challenge takes part in it: the opposite — an
      organiser watching the others run — is not what these people do. */
@@ -1180,8 +1818,8 @@ export async function leaveChallenge(db: Db, challengeId: string, personId: stri
 export async function progressOf(db: Db, challengeId: string): Promise<Progress[]> {
   return db.query<Progress>(
     `SELECT pe.pseudo,
-            (SELECT count(*) FROM list_item li
-              WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done
+            (${DONE})::int AS done,
+            (${TICKED}) AS ticked
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
        JOIN person pe ON pe.id = ep.person_id
@@ -1468,7 +2106,18 @@ export interface QuizRow {
   level: string;
   size: number;
   softened: boolean;
-  owner: string;
+  /** NULL : pas de chronomètre. Le cas de tout quizz tiré avant 003. */
+  seconds_per_question: number | null;
+  /** NULL pour le quizz de la semaine : il n'appartient a personne. */
+  owner: string | null;
+  /**
+   * Le lundi de la semaine que ce quizz occupe, ou NULL.
+   *
+   * C'est la seule chose qui distingue un rendez-vous hebdomadaire d'un
+   * quizz tire, et elle descend jusqu'au client parce que l'ecran doit
+   * savoir qu'il n'y a ni proprietaire a nommer ni invites a gerer.
+   */
+  week?: string | null;
   /** The baskets it was drawn from. */
   topics: string[];
   /** Mine to invite into. */
@@ -1495,6 +2144,16 @@ export interface QuizScore {
   score: number;
   answered: number;
   finished: boolean;
+  /**
+   * Combien de temps la partie a duré, en secondes — depuis `started_at`
+   * jusqu'à `finished_at`, ou jusqu'à maintenant pour qui joue encore.
+   *
+   * ELLE NE PAIE RIEN, et c'est délibéré : `awardQuiz` ne lit aucun
+   * horodatage, et un test l'éprouve. Le mérite se gagne sur ce qu'on
+   * répond, jamais sur la vitesse — sans quoi la première chose à faire
+   * pour monter au classement serait de cliquer au hasard très vite.
+   */
+  seconds: number;
 }
 
 /**
@@ -1565,8 +2224,33 @@ async function pick(
  */
 export async function drawQuiz(
   db: Db,
-  ownerId: string,
-  q: { title: string; categoryIds: string[]; level: string; size: number }
+  /**
+   * NULL POUR LE QUIZZ DE LA SEMAINE, ET SEULEMENT POUR LUI.
+   *
+   * Un quizz système n'appartient à personne. Lui désigner un admin
+   * pour propriétaire lui aurait accordé `write` — donc le droit de
+   * renommer et de SUPPRIMER le quizz de tout le monde — et le lui
+   * aurait affiché dans `myQuizzes` comme un quizz à lui.
+   */
+  ownerId: string | null,
+  q: {
+    title: string;
+    categoryIds: string[];
+    level: string;
+    size: number;
+    /** NULL : pas de chronomètre, et c'est le défaut. */
+    secondsPerQuestion?: number | null;
+    /**
+     * Le lundi de la semaine que ce tirage occupe, ou rien.
+     *
+     * POSÉ DANS L'INSERT ET JAMAIS APRÈS : c'est l'index unique partiel
+     * qui arbitre la course entre deux personnes qui ouvrent l'écran en
+     * même temps, et il ne peut arbitrer que ce qui lui est présenté au
+     * moment de l'écriture. Un `UPDATE … SET week` posé derrière aurait
+     * laissé les deux tirages exister le temps d'un aller-retour.
+     */
+    week?: string | null;
+  }
 ): Promise<{ id: string; softened: boolean; drawn: number }> {
   const stock = await stockOf(db, q.categoryIds);
   const plan = planDraw(stock as Stock[], q.level as Difficulty, q.size, shuffled);
@@ -1582,8 +2266,18 @@ export async function drawQuiz(
 
   const id = randomUUID();
   await db.query(
-    "INSERT INTO quiz (id, owner_id, title, level, size, softened) VALUES ($1, $2, $3, $4, $5, $6)",
-    [id, ownerId, q.title, q.level, q.size, plan.softened || order.length < q.size]
+    `INSERT INTO quiz (id, owner_id, title, level, size, softened, seconds_per_question, week)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      id,
+      ownerId,
+      q.title,
+      q.level,
+      q.size,
+      plan.softened || order.length < q.size,
+      q.secondsPerQuestion ?? null,
+      q.week ?? null,
+    ]
   );
   for (const categoryId of q.categoryIds) {
     await db.query(
@@ -1616,7 +2310,8 @@ export interface QuizRights {
   read: boolean;
   /** Invite, rename, erase. The dealer alone — nobody edits a deal. */
   write: boolean;
-  owner_id: string;
+  /** NULL pour le quizz de la semaine, qui n'appartient à personne. */
+  owner_id: string | null;
   quiz_id: string;
 }
 
@@ -1634,29 +2329,45 @@ export async function rightsOnQuiz(
   quizId: string,
   personId: string | null
 ): Promise<QuizRights | null> {
-  const q = await one<{ id: string; owner_id: string; invited: boolean; blocked: boolean }>(
+  const q = await one<{
+    id: string;
+    owner_id: string | null;
+    invited: boolean;
+    blocked: boolean;
+    weekly: boolean;
+  }>(
     db,
     `SELECT q.id, q.owner_id,
             EXISTS (SELECT 1 FROM quiz_player x
                      WHERE x.quiz_id = q.id AND x.person_id = $2) AS invited,
-            NOT ${NOT_BLOCKED("$2", "q.owner_id")} AS blocked
+            NOT ${NOT_BLOCKED("$2", "q.owner_id")} AS blocked,
+            (q.week IS NOT NULL) AS weekly
        FROM quiz q WHERE q.id = $1`,
     [quizId, personId]
   );
   if (!q) return null;
-  const isOwner = personId !== null && q.owner_id === personId;
+  const isOwner = personId !== null && q.owner_id !== null && q.owner_id === personId;
+  /* LE TROISIÈME CAS, ET IL N'OUVRE QUE LA LECTURE. Le quizz de la
+     semaine se joue par quiconque a un compte : c'est tout son propos,
+     et c'est pourquoi il n'a pas une seule ligne de `quiz_player`.
+     `write` lui reste inaccessible À TOUT LE MONDE — personne ne le
+     renomme, personne ne le supprime, et `Guests` ne se monte pas
+     puisque rien n'est « à moi ». Un admin n'y fait pas exception : le
+     rôle passe au-dessus des routes, pas au-dessus d'un objet qui
+     n'appartient à personne. */
+  const weekly = q.weekly && personId !== null;
   return {
     quiz_id: q.id,
     owner_id: q.owner_id,
     write: isOwner,
-    read: isOwner || (q.invited && !q.blocked),
+    read: isOwner || weekly || (q.invited && !q.blocked),
   };
 }
 
 /** The quizzes I dealt, and those I was invited to. */
 export async function myQuizzes(db: Db, personId: string): Promise<QuizRow[]> {
   return db.query<QuizRow>(
-    `SELECT q.id, q.title, q.level, q.size, q.softened,
+    `SELECT q.id, q.title, q.level, q.size, q.softened, q.seconds_per_question,
             o.pseudo AS owner,
             (q.owner_id = $1) AS mine,
             coalesce((SELECT array_agg(c.label ORDER BY c.label)
@@ -1680,11 +2391,18 @@ export async function myQuizzes(db: Db, personId: string): Promise<QuizRow[]> {
 export async function quizById(db: Db, id: string): Promise<QuizRow | null> {
   return one<QuizRow>(
     db,
-    `SELECT q.id, q.title, q.level, q.size, q.softened, o.pseudo AS owner,
+    /* LEFT JOIN, ET NON JOIN. Le quizz de la semaine n'a pas de
+       proprietaire : une jointure interne le faisait disparaitre de sa
+       PROPRE requete, donc l'ecran s'ouvrait sans titre, sans niveau et
+       sans sujets, sans qu'une seule erreur soit levee. C'est mot pour
+       mot le piege deja paye sur les defis par critere, et il s'est
+       referme au meme endroit — le JOIN qui allait de soi. */
+    `SELECT q.id, q.title, q.level, q.size, q.softened, q.seconds_per_question, q.week,
+            o.pseudo AS owner,
             coalesce((SELECT array_agg(c.label ORDER BY c.label)
                         FROM quiz_topic t JOIN quiz_category c ON c.id = t.category_id
                        WHERE t.quiz_id = q.id), '{}') AS topics
-       FROM quiz q JOIN person o ON o.id = q.owner_id
+       FROM quiz q LEFT JOIN person o ON o.id = q.owner_id
       WHERE q.id = $1`,
     [id]
   );
@@ -1692,6 +2410,100 @@ export async function quizById(db: Db, id: string): Promise<QuizRow | null> {
 
 export async function renameQuiz(db: Db, quizId: string, title: string): Promise<void> {
   await db.query("UPDATE quiz SET title = $2 WHERE id = $1", [quizId, title]);
+}
+
+/* ============================================================
+   LE QUIZZ DE LA SEMAINE
+   ============================================================
+
+   IL SE TIRE TOUT SEUL, PARCE QUE PERSONNE NE PEUT LE TIRER. Ce serveur
+   n'a aucune tache de fond — c'est deja pourquoi un defi se solde « au
+   premier qui regarde » plutot qu'avec un balayage nocturne — donc il
+   n'y a personne pour se lever le lundi. Le premier qui ouvre l'ecran
+   de la semaine le tire, et l'index unique partiel de 008 fait que deux
+   personnes qui ouvrent dans la meme seconde n'en obtiennent qu'un.
+
+   LA SEMAINE SE CALCULE EN SQL, JAMAIS EN JAVASCRIPT. L'horloge du
+   serveur est la seule que tout le monde partage : calculee chez le
+   client, deux fuseaux verraient deux semaines differentes, et celui
+   qui est en avance tirerait le quizz des autres. `date_trunc('week')`
+   rend le lundi, ce qui est la semaine ISO.
+   ============================================================ */
+
+/** Le lundi de la semaine en cours, tel que le serveur le voit. */
+const THIS_WEEK = "(date_trunc('week', now() at time zone 'utc'))::date";
+
+/**
+ * Combien de questions un quizz de la semaine demande, et de quel
+ * niveau.
+ *
+ * `normal` ET NON `easy` : c'est le meme quizz pour tout le monde, donc
+ * le seul niveau qui ne trie ni les debutants ni les autres. La taille
+ * est celle du milieu des trois que le compositeur propose (`SIZES`).
+ * Aucun chronometre : un rendez-vous hebdomadaire se joue quand on
+ * passe, pas en apnee.
+ */
+const WEEKLY = { level: "normal", size: 20, title: "Le quizz de la semaine" };
+
+/**
+ * Le quizz de la semaine en cours, tire s'il ne l'est pas encore.
+ *
+ * Rend `null` quand la banque n'a rien de jouable : la semaine reste
+ * alors OUVERTE, et le premier qui passera apres qu'un admin l'ait
+ * remplie la tirera. Ecrire un quizz vide aurait ferme la semaine pour
+ * de bon sur une banque qui n'etait pas prete.
+ */
+export async function weeklyQuiz(db: Db): Promise<{ id: string; week: string } | null> {
+  const week = await one<{ week: string }>(db, `SELECT ${THIS_WEEK} AS week`);
+  if (!week) return null;
+
+  const seen = async () =>
+    one<{ id: string; week: string }>(db, `SELECT id, week FROM quiz WHERE week = ${THIS_WEEK}`);
+
+  /* LE CAS NORMAL EST UNE LECTURE, et c'est la seule qui coute quelque
+     chose : le tirage n'arrive qu'une fois par semaine, sur tout le
+     monde. */
+  const already = await seen();
+  if (already) return already;
+
+  /* TOUTES LES CATEGORIES QUI ONT DU STOCK, et non un choix. Personne
+     ne compose ce quizz-la : le proposer sur trois categories
+     designees d'avance aurait demande a quelqu'un de les designer, et
+     ce quelqu'un n'existe pas. `planDraw` sait deja se debrouiller avec
+     ce qu'on lui donne, et `softened` dit le reste. */
+  const all = await db.query<{ id: string }>("SELECT id FROM quiz_category");
+  const categoryIds = all.map((c) => c.id);
+  if (categoryIds.length === 0) return null;
+
+  const drawn = await drawQuiz(db, null, {
+    title: WEEKLY.title,
+    categoryIds,
+    level: WEEKLY.level,
+    size: WEEKLY.size,
+    secondsPerQuestion: null,
+    week: week.week,
+  }).catch(async (e: unknown) => {
+    /* LA COURSE PERDUE N'EST PAS UNE ERREUR, c'est la reponse. Deux
+       personnes ont ouvert l'ecran en meme temps ; l'index a tranche,
+       et ce cote-ci lit simplement ce que l'autre vient d'ecrire. On
+       relit AVANT de relancer l'erreur : si la lecture rend quelque
+       chose, il n'y a rien a signaler a personne. */
+    if (await seen()) return null;
+    throw e;
+  });
+
+  if (!drawn) return seen();
+
+  /* RIEN N'A ETE TIRE : la banque existe mais aucune question n'est
+     jouable (retirees, ou sans bonne reponse unique). La ligne de quizz
+     a pourtant ete ecrite, avec sa semaine — donc elle OCCUPE la
+     semaine, et la laisser fermerait le rendez-vous sur un quizz vide
+     jusqu'a lundi prochain. On la reprend. */
+  if (drawn.drawn === 0) {
+    await deleteQuiz(db, drawn.id);
+    return null;
+  }
+  return { id: drawn.id, week: week.week };
 }
 
 export async function deleteQuiz(db: Db, quizId: string): Promise<void> {
@@ -1840,6 +2652,24 @@ export async function startAttempt(db: Db, quizId: string, personId: string): Pr
  * is no changing one's mind once the answer is in. And the proposition
  * must belong to a question THIS QUIZ WAS DEALT, which is the third
  * condition below and the one a route would have forgotten.
+ *
+ * LE RETARD EST ESTAMPILLÉ ICI, DANS LA MÊME REQUÊTE. Le calculer à la
+ * lecture aurait voulu dire deviner, à chaque affichage du tableau, un
+ * délai qui dépend de l'instant où la ligne a été écrite — et rendre un
+ * score qui change tout seul entre deux rafraîchissements. La règle vit
+ * là où la ligne s'écrit ; `scoresOf` et `awardQuiz` n'ont alors qu'un
+ * mot de plus chacun.
+ *
+ * LE DÉLAI COURT DEPUIS LA DERNIÈRE ACTION SUR CE QUIZZ — `max(
+ * answered_at)`, ou `started_at` pour la première réponse — et NON
+ * depuis « la question précédente par rang ». Cette fonction ne vérifie
+ * aucun ordre : c'est le client qui se trouve marcher dans l'ordre du
+ * tirage, et bâtir le chronomètre sur cette coïncidence l'aurait rendu
+ * faux le jour où quelqu'un répond ailleurs.
+ *
+ * ELLE EST ACCEPTÉE ET VAUT ZÉRO, jamais refusée : refuser perdrait la
+ * réponse et contredirait « on ne revient pas dessus », déjà à l'écran.
+ * D'où un `late` sur la ligne plutôt qu'une condition de plus.
  */
 export async function answer(
   db: Db,
@@ -1849,10 +2679,17 @@ export async function answer(
   choiceId: string
 ): Promise<boolean> {
   const r = await db.query(
-    `INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id)
-     SELECT $1, $2, $3, $4
-      WHERE EXISTS (SELECT 1 FROM quiz_attempt t
-                     WHERE t.quiz_id = $1 AND t.person_id = $2 AND t.finished_at IS NULL)
+    `INSERT INTO quiz_answer (quiz_id, person_id, question_id, choice_id, late)
+     SELECT $1, $2, $3, $4,
+            q.seconds_per_question IS NOT NULL
+              AND now() > coalesce((SELECT max(p.answered_at) FROM quiz_answer p
+                                     WHERE p.quiz_id = $1 AND p.person_id = $2),
+                                   t.started_at)
+                          + (q.seconds_per_question * interval '1 second')
+       FROM quiz q
+       JOIN quiz_attempt t ON t.quiz_id = q.id AND t.person_id = $2
+      WHERE q.id = $1
+        AND t.finished_at IS NULL
         AND EXISTS (SELECT 1 FROM quiz_choice c
                      JOIN quiz_draw d ON d.question_id = c.question_id
                     WHERE c.id = $4 AND d.question_id = $3 AND d.quiz_id = $1)
@@ -1886,9 +2723,23 @@ export async function finishAttempt(db: Db, quizId: string, personId: string): P
 export async function scoresOf(db: Db, quizId: string, personId: string): Promise<QuizScore[]> {
   return db.query<QuizScore>(
     `SELECT p.pseudo,
-            coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
+            /* JUSTE ET DANS LE DÉLAI. Le retard a été estampillé à
+               l'insert par store.answer, donc il ne se recalcule pas
+               ici — et le score ne peut pas changer entre deux
+               lectures. Un quizz sans chronometre n'a que des lignes a
+               late = false, donc ce mot ne change rien pour lui. */
+            coalesce(sum(quiz_points(q.difficulty))
+                       FILTER (WHERE c.is_right AND NOT a.late), 0)::int AS score,
             count(a.question_id)::int AS answered,
-            (t.finished_at IS NOT NULL) AS finished
+            (t.finished_at IS NOT NULL) AS finished,
+            /* GRATUIT : les deux bornes sont deja la. Pour qui joue
+               encore, on compte jusqu'a maintenant, donc le tableau
+               montre une duree qui COURT — ce qui est la verite.
+               (Aucun accent grave dans ce commentaire : il vit DANS un
+               litteral gabarit, et le premier le fermerait au milieu
+               d'une requete. Le piege s'est referme en ecrivant ces
+               lignes ; il est deja documente dans FONT_IMPORT.) */
+            extract(epoch from coalesce(t.finished_at, now()) - t.started_at)::int AS seconds
        FROM quiz_attempt t
        JOIN person p ON p.id = t.person_id
        LEFT JOIN quiz_answer a ON a.quiz_id = t.quiz_id AND a.person_id = t.person_id
@@ -1896,8 +2747,31 @@ export async function scoresOf(db: Db, quizId: string, personId: string): Promis
        LEFT JOIN quiz_question q ON q.id = a.question_id
       WHERE t.quiz_id = $1
         AND ${NOT_BLOCKED("$2", "t.person_id")}
-      GROUP BY p.pseudo, t.finished_at
-      ORDER BY 2 DESC, p.pseudo`,
+      GROUP BY p.pseudo, t.person_id, t.finished_at, t.started_at
+      /* LE DEPARTAGE NE SE FAIT PAS A LA VITESSE, ET C'EST DELIBERE.
+         La colonne seconds, juste au-dessus, porte deja son
+         interdiction : le merite se gagne sur ce qu'on repond, jamais
+         sur la rapidite, sans quoi la premiere chose a faire pour
+         monter serait de cliquer au hasard tres vite. Trier dessus
+         aurait recompense exactement le geste que le bareme refuse de
+         payer, et le quizz de la semaine rend ce tableau PUBLIC.
+
+         On departage donc sur QUI A FINI EN PREMIER — la notion que
+         quiz_first paie deja, et celle de la course aux defis — puis
+         sur l'identifiant. Ce dernier n'est pas juste, il est
+         DETERMINISTE, et il le faut : un tableau qui se regarde ne peut
+         pas changer entre deux rafraichissements. Le pseudonyme faisait
+         ce travail, mais il classait par ordre alphabetique, ce qui est
+         arbitraire sans etre neutre.
+
+         NULLS LAST : a score egal, qui n'a pas fini passe derriere qui
+         a fini. Une partie en cours ne devance pas une partie finie.
+
+         (Aucun accent grave dans ce commentaire : il vit DANS un
+         litteral gabarit, et le premier fermerait la chaine au milieu
+         de la requete. Le piege est deja signale vingt lignes plus
+         haut, et il s'est referme quand meme en ecrivant ceci.) */
+      ORDER BY 2 DESC, t.finished_at ASC NULLS LAST, t.person_id ASC`,
     [quizId, personId]
   );
 }
@@ -2086,10 +2960,31 @@ export async function createDecor(
     bytes?: number;
   }
 ): Promise<Decor> {
+  /* LES BORNES VIENNENT DU PALIER, ET L'ADMIN N'EN A PAS. On lit la
+     personne ici plutôt que de la faire descendre : une signature qui
+     réclamerait les bornes serait une signature qu'on peut appeler avec
+     les mauvaises. */
+  const bornes = ceilingsFor((await findById(db, d.ownerId)) ?? {});
+
+  /* LE PLAFOND EST DANS L'INSERT, ET NON AUTOUR — même raison que le
+     plafond quotidien de `award` juste plus bas : entre lire le total et
+     écrire la ligne, deux requêtes concurrentes passent toutes les deux.
+     La CTE ne rend une ligne que si le compte ET le poids restent sous
+     leurs bornes ; sans elle, l'INSERT ne trouve rien à insérer et rend
+     `null`, que l'appelant lit comme un refus. */
   const row = await one<Decor>(
     db,
-    `INSERT INTO decor (id, owner_id, label, wall, kind, tintable, bytes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `WITH tenu AS (
+       SELECT count(*)::int AS n, coalesce(sum(bytes), 0)::bigint AS poids
+         FROM decor WHERE owner_id = $2 AND NOT deleted
+     ),
+     permis AS (
+       SELECT 1 FROM tenu
+        WHERE ($8::bigint IS NULL OR n < $8::bigint)
+          AND ($9::bigint IS NULL OR poids + $7 <= $9::bigint)
+     )
+     INSERT INTO decor (id, owner_id, label, wall, kind, tintable, bytes)
+     SELECT $1, $2, $3, $4, $5, $6, $7 FROM permis
      RETURNING id, owner_id, label, wall, kind, tintable, bytes, is_public,
                created_at, updated_at`,
     [
@@ -2100,10 +2995,141 @@ export async function createDecor(
       d.kind ?? "raster",
       d.tintable ?? false,
       d.bytes ?? 0,
+      borne(bornes.decors),
+      borne(bornes.decorBytes),
     ]
   );
-  if (!row) throw new Error("decor not created");
+  if (!row) {
+    /* PAS DE LIGNE VEUT DIRE « PLAFOND ATTEINT » : la CTE `permis` n'a
+       rien rendu, donc l'INSERT n'avait rien à insérer. On distingue
+       lequel des deux plafonds a mordu — le nombre d'abord, parce que
+       c'est celui qui protège vraiment. */
+    const tenu = await one<{ n: string; poids: string }>(
+      db,
+      `SELECT count(*)::text AS n, coalesce(sum(bytes), 0)::text AS poids
+         FROM decor WHERE owner_id = $1 AND NOT deleted`,
+      [d.ownerId]
+    );
+    throw new QuotaReached(Number(tenu?.n ?? 0) >= bornes.decors ? "decors" : "decors-octets");
+  }
   return row;
+}
+
+/* ------------------------------------------------------------
+   LE REGISTRE DES MÉDIAS
+   ------------------------------------------------------------
+
+   Le serveur ne voit jamais les octets : il signe un ticket, le
+   navigateur dépose. Ce registre est donc la seule chose qui sache
+   combien de place un compte occupe, et la seule qui puisse la borner.
+
+   Voir `sql/001_baseline.sql` pour pourquoi la clé primaire fait le
+   plus gros du travail. */
+
+/**
+ * Note un chemin autorisé, et dit si le plafond le permettait.
+ *
+ * REDEMANDER UN TICKET POUR LE MÊME CHEMIN EST SANS EFFET et toujours
+ * accordé : le `ON CONFLICT` le dit, et c'est ce qui évite qu'une
+ * synchronisation répétée épuise un plafond. Le compte est donc celui
+ * des chemins distincts, pas celui des demandes.
+ */
+/**
+ * UN PLAFOND INFINI NE SE MET PAS DANS UNE REQUÊTE.
+ *
+ * `ceilingsFor` rend `Infinity` pour l'admin — « rien ne refuse » —, et
+ * c'est la bonne façon de l'écrire en TypeScript. Mais lié en paramètre,
+ * `Infinity` part sur le fil sous la forme du texte « Infinity », que
+ * Postgres refuse pour un entier : `22P02, invalid input syntax for type
+ * bigint`. La requête entière tombe, en 500, et l'admin — le seul compte
+ * qui ne devait JAMAIS être refusé — est le seul à ne plus pouvoir
+ * écrire un média ni déposer un décor.
+ *
+ * Le défaut avait déjà été rencontré une fois, et contourné sur place
+ * par un `if (bornes.imports === Infinity) return true` dans
+ * `noteImport`. Un contournement à un endroit sur trois est ce qui a
+ * laissé les deux autres. On convertit donc À LA SOURCE : `null`
+ * traverse la frontière sans mentir, et le SQL le lit comme « pas de
+ * plafond ».
+ */
+const borne = (n: number): number | null => (Number.isFinite(n) ? n : null);
+
+export async function noteMedia(
+  db: Db,
+  personId: string,
+  path: string,
+  bytes = 0
+): Promise<boolean> {
+  const bornes = ceilingsFor((await findById(db, personId)) ?? {});
+  const rows = await db.query<{ ok: number }>(
+    `WITH deja AS (
+       SELECT 1 FROM media WHERE person_id = $1 AND path = $2
+     ),
+     permis AS (
+       SELECT 1 WHERE EXISTS (SELECT 1 FROM deja)
+          OR $4::bigint IS NULL
+          OR (SELECT count(*) FROM media WHERE person_id = $1) < $4::bigint
+     ),
+     mis AS (
+       INSERT INTO media (person_id, path, bytes)
+       SELECT $1, $2, $3 FROM permis
+       ON CONFLICT (person_id, path) DO NOTHING
+       RETURNING 1
+     )
+     SELECT 1::int AS ok FROM permis`,
+    [personId, path, bytes, borne(bornes.media)]
+  );
+  return rows.length > 0;
+}
+
+/** Le média est parti du container : la ligne part avec. */
+export async function forgetMedia(db: Db, personId: string, path: string): Promise<void> {
+  await db.query("DELETE FROM media WHERE person_id = $1 AND path = $2", [personId, path]);
+}
+
+/** Ce qu'un compte occupe, et ce qu'il a le droit d'occuper. */
+export async function usageOf(
+  db: Db,
+  personId: string
+): Promise<{
+  media: number;
+  mediaCeiling: number;
+  decors: number;
+  decorCeiling: number;
+  decorBytes: number;
+  decorBytesCeiling: number;
+  imports: number;
+  importCeiling: number;
+  plan: string;
+}> {
+  /* LES BORNES SORTENT AVEC LES CHIFFRES, sans quoi l'écran devrait
+     connaître les paliers pour savoir quoi comparer — et il les
+     connaîtrait mal le jour où ils changent. */
+  const person = await findById(db, personId);
+  const bornes = ceilingsFor(person ?? {});
+
+  const m = await one<{ n: string }>(
+    db,
+    "SELECT count(*)::text AS n FROM media WHERE person_id = $1",
+    [personId]
+  );
+  const d = await one<{ n: string; poids: string }>(
+    db,
+    `SELECT count(*)::text AS n, coalesce(sum(bytes), 0)::text AS poids
+       FROM decor WHERE owner_id = $1 AND NOT deleted`,
+    [personId]
+  );
+  return {
+    media: Number(m?.n ?? 0),
+    mediaCeiling: bornes.media,
+    decors: Number(d?.n ?? 0),
+    decorCeiling: bornes.decors,
+    decorBytes: Number(d?.poids ?? 0),
+    decorBytesCeiling: bornes.decorBytes,
+    imports: await importsInWindow(db, personId),
+    importCeiling: bornes.imports,
+    plan: person?.plan === "plus" ? "plus" : "free",
+  };
 }
 
 /** Only its author edits it — the `owner_id` in the clause says so. */
@@ -2366,6 +3392,50 @@ export async function award(
   return rows[0]?.credited ?? 0;
 }
 
+/**
+ * Créditer des JETONS SEULS, sans toucher au mérite.
+ *
+ * C'est `award` avec une asymétrie de plus, et une seule chose la
+ * justifie : le mérite est le classement. Tout ce qu'on peut obtenir en
+ * DÉPENSANT des jetons doit donc s'arrêter à la bourse — sans quoi le
+ * palmarès mesure la capacité à réinvestir plutôt que ce qu'on a fait, et
+ * il cesse de mesurer quoi que ce soit.
+ *
+ * LE PLAFOND QUOTIDIEN NE S'APPLIQUE PAS ICI, et n'a pas à s'appliquer :
+ * il garde ce qu'on DÉCLARE soi-même, et rien de ce qui passe par cette
+ * fonction n'est déclaré — il faut avoir acheté un pouvoir avec des
+ * jetons déjà gagnés. L'idempotence, elle, reste celle du journal : la
+ * clé `(person, kind, ref)` est la même garantie qu'ailleurs, et c'est
+ * ce qui fait qu'une requête rejouée ne double rien deux fois.
+ */
+export async function awardTokens(
+  db: Db,
+  personId: string,
+  kind: Kind,
+  ref: string,
+  amount: number
+): Promise<number> {
+  if (amount <= 0) return 0;
+  const rows = await db.query<{ credited: number }>(
+    `WITH put AS (
+       INSERT INTO merit_event (id, person_id, kind, ref, merit, tokens)
+       VALUES ($1, $2, $3, $4, 0, $5)
+       ON CONFLICT (person_id, kind, ref) DO NOTHING
+       RETURNING tokens
+     ),
+     bag AS (
+       INSERT INTO purse (person_id, merit, tokens)
+       SELECT $2, 0, tokens FROM put
+       ON CONFLICT (person_id) DO UPDATE
+         SET tokens = purse.tokens + EXCLUDED.tokens, updated_at = now()
+       RETURNING 1
+     )
+     SELECT coalesce((SELECT tokens FROM put), 0)::int AS credited`,
+    [randomUUID(), personId, kind, ref, amount]
+  );
+  return rows[0]?.credited ?? 0;
+}
+
 export async function purseOf(db: Db, personId: string): Promise<Purse> {
   const row = await one<Purse>(db, "SELECT merit, tokens FROM purse WHERE person_id = $1", [
     personId,
@@ -2390,7 +3460,14 @@ export async function purseOf(db: Db, personId: string): Promise<Purse> {
 export async function awardQuiz(db: Db, quizId: string, personId: string): Promise<Gain[]> {
   const row = await one<{ score: number; weight: number; first: boolean; players: number }>(
     db,
-    `SELECT coalesce(sum(quiz_points(q.difficulty)) FILTER (WHERE c.is_right), 0)::int AS score,
+    `SELECT coalesce(sum(quiz_points(q.difficulty))
+                       FILTER (WHERE c.is_right AND NOT a.late), 0)::int AS score,
+            /* LE POIDS NE BOUGE PAS D'UN IOTA, et c'est pourquoi
+               quiz_flawless n'a pas une ligne a changer : il exige
+               score = weight, or un retard baisse le score sans
+               toucher au poids. Le sans-faute devient donc « juste
+               partout ET dans le delai », ce qui est exactement ce
+               qu'un sans-faute chronometre doit vouloir dire. */
             (SELECT coalesce(sum(quiz_points(qq.difficulty)), 0)::int
                FROM quiz_draw d JOIN quiz_question qq ON qq.id = d.question_id
               WHERE d.quiz_id = $1) AS weight,
@@ -2415,6 +3492,27 @@ export async function awardQuiz(db: Db, quizId: string, personId: string): Promi
   };
 
   await put("quiz", row.score);
+
+  /* LA DOUBLE MISE SE DÉPENSE ICI, ET SEULEMENT SI LA LIGNE A ÉTÉ ÉCRITE.
+     `gains` ne contient « quiz » que lorsque `award` a vraiment crédité —
+     une partie terminée deux fois n'écrit qu'une fois, par la clé du
+     journal. Regarder ce que `put` a poussé plutôt que le score évite de
+     brûler un pouvoir sur un double clic.
+
+     ELLE S'APPLIQUE À LA PROCHAINE PARTIE TERMINÉE, sans qu'on l'arme.
+     Le choix se fait donc à l'achat et non pendant la partie, ce qui est
+     la version la plus honnête de ce pouvoir : armer aurait voulu dire
+     voir son score avant de décider, et doubler à coup sûr n'est plus un
+     pari. */
+  const scored = gains.find((g) => g.kind === "quiz")?.amount ?? 0;
+  if (scored > 0 && (await spendPower(db, personId, "double"))) {
+    const extra = await awardTokens(db, personId, "quiz_doubled", quizId, scored);
+    /* Rendu si rien n'a été crédité — la même précaution que la
+       prolongation d'un défi : essayer ne doit pas coûter le pouvoir. */
+    if (extra > 0) gains.push({ kind: "quiz_doubled", amount: extra });
+    else await givePower(db, personId, "double");
+  }
+
   /* A flawless run on a quiz worth nothing is not flawless, it is empty. */
   if (row.weight > 0 && row.score === row.weight) await put("quiz_flawless", RATE.quiz_flawless);
   /* Being first only means something when somebody else was playing. */
@@ -2436,9 +3534,22 @@ export async function awardQuiz(db: Db, quizId: string, personId: string): Promi
 export async function settleChallenge(db: Db, challengeId: string): Promise<number> {
   const done = await db.query<{ person_id: string; done: number; works: number }>(
     `SELECT ep.person_id,
-            (SELECT count(*) FROM list_item li
-              WHERE li.list_id = e.list_id AND ${SEEN_DURING})::int AS done,
-            (SELECT count(*) FROM list_item li WHERE li.list_id = e.list_id)::int AS works
+            (${DONE})::int AS done,
+            /* LE BUT, ET NON LE NOMBRE DE FILMS DE LA LISTE. Une cible
+               NULL veut dire « toute la liste », ce qui est le cas de
+               tout defi ecrit avant 004 — rien a retro-remplir. Le
+               least refuse l'inatteignable : une cible plus grande que
+               la liste ne peut pas rendre un defi impossible a finir,
+               d'autant que la liste peut MAIGRIR apres coup.
+               (Aucun accent grave ici : ce commentaire vit DANS un
+               litteral gabarit, et le premier fermerait la chaine au
+               milieu de la requete. Le piege s'est referme en ecrivant
+               ces lignes, pour la deuxieme fois de ce chantier.) */
+            CASE WHEN e.list_id IS NULL THEN coalesce(e.target, 0)
+                 ELSE least(coalesce(e.target, 2147483647),
+                            (SELECT count(*) FROM list_item li
+                              WHERE li.list_id = e.list_id))
+            END::int AS works
        FROM challenge_participant ep
        JOIN challenge e ON e.id = ep.challenge_id
       WHERE ep.challenge_id = $1
@@ -2594,35 +3705,282 @@ export async function ladderOf(db: Db, personId: string): Promise<string> {
    THE SHOP
    ------------------------------------------------------------ */
 
+/* ------------------------------------------------------------
+   LES POCHETTES, ET LEURS VIGNETTES
+   ------------------------------------------------------------
+   La seule partie du catalogue qui vive en base. Le pourquoi est dans
+   `sql/002_collection.sql` ; ce qui suit n'est que la lecture et
+   l'écriture, et toute l'écriture est derrière `requireAdmin`.
+
+   ON RETIRE, ON NE SUPPRIME PAS, et c'est la seule chose à retenir
+   d'ici. Un identifiant de vignette est écrit dans l'album de tout le
+   monde et un identifiant de pochette dans `token_spend` : effacer une
+   définition ferait un trou dans une collection déjà remplie et une
+   ligne de dépense qui n'explique plus rien. `retired_at` sort du
+   tirage et de l'étal, et laisse le reste debout. */
+
+const packRow = (r: {
+  id: string;
+  price: number;
+  label_fr: string;
+  label_en: string;
+  cover_key: string | null;
+  retired_at: Date | null;
+}): PackDef => ({
+  id: r.id,
+  price: r.price,
+  label: { fr: r.label_fr, en: r.label_en },
+  cover: r.cover_key,
+  retired: r.retired_at !== null,
+});
+
+const decorRow = (r: {
+  id: string;
+  pack_id: string;
+  rarity: string;
+  media_key: string;
+  label_fr: string;
+  label_en: string;
+  wall: boolean;
+  tintable: boolean;
+  retired_at: Date | null;
+}): DecorDef => ({
+  id: r.id,
+  packId: r.pack_id,
+  rarity: r.rarity as DecorDef["rarity"],
+  media: r.media_key,
+  label: { fr: r.label_fr, en: r.label_en },
+  wall: r.wall,
+  tintable: r.tintable,
+  retired: r.retired_at !== null,
+});
+
+/** Les pochettes. `all` inclut les retirées — c'est la vue de l'admin. */
+export async function listPacks(db: Db, all = false): Promise<PackDef[]> {
+  const rows = await db.query<Parameters<typeof packRow>[0]>(
+    `SELECT id, price, label_fr, label_en, cover_key, retired_at
+       FROM pack_def ${all ? "" : "WHERE retired_at IS NULL"}
+      ORDER BY price, id`
+  );
+  return rows.map(packRow);
+}
+
+/** Les objets, tous ou ceux d'une pochette. */
+export async function listDecors(db: Db, packId?: string): Promise<DecorDef[]> {
+  const rows = await db.query<Parameters<typeof decorRow>[0]>(
+    `SELECT id, pack_id, rarity, media_key, label_fr, label_en, wall, tintable, retired_at
+       FROM decor_def ${packId ? "WHERE pack_id = $1" : ""}
+      ORDER BY pack_id, rarity, id`,
+    packId ? [packId] : []
+  );
+  return rows.map(decorRow);
+}
+
+export class CatalogueRefusal extends Error {}
+
+/* L'IDENTIFIANT EST SAISI PAR QUELQU'UN, DONC IL EST TAILLÉ ICI. Il
+   finit dans une clé de blob (`bank/decor/<clé>`) dont la forme est
+   vérifiée par `media.ts`, et dans une URL. Un identifiant refusé au
+   dépôt aurait donné une pochette qu'on ne peut pas illustrer, une
+   heure après l'avoir créée. */
+const SLUG = /^[a-z0-9][a-z0-9-]{1,60}$/;
+
+const slugOr = (id: string, quoi: string): string => {
+  if (!SLUG.test(id)) {
+    throw new CatalogueRefusal(`${quoi} : lettres minuscules, chiffres et tirets seulement.`);
+  }
+  return id;
+};
+
+export async function upsertPack(
+  db: Db,
+  p: {
+    id: string;
+    price: number;
+    labelFr: string;
+    labelEn: string;
+    cover?: string | null;
+  }
+): Promise<PackDef> {
+  slugOr(p.id, "l'identifiant de la pochette");
+  const row = await one<Parameters<typeof packRow>[0]>(
+    db,
+    `INSERT INTO pack_def (id, price, label_fr, label_en, cover_key)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE
+       SET price = EXCLUDED.price,
+           label_fr = EXCLUDED.label_fr, label_en = EXCLUDED.label_en,
+           cover_key = EXCLUDED.cover_key
+     RETURNING id, price, label_fr, label_en, cover_key, retired_at`,
+    [p.id, p.price, p.labelFr, p.labelEn, p.cover ?? null]
+  );
+  /* Aucune ligne veut dire que le CHECK a parlé — un prix nul. On le
+     redit en français plutôt qu'en violation de contrainte. */
+  if (!row) throw new CatalogueRefusal("Prix hors bornes.");
+  return packRow(row);
+}
+
+export async function upsertDecor(
+  db: Db,
+  s: {
+    id: string;
+    packId: string;
+    rarity: string;
+    media: string;
+    labelFr: string;
+    labelEn: string;
+    wall?: boolean;
+    tintable?: boolean;
+  }
+): Promise<DecorDef> {
+  slugOr(s.id, "l'identifiant de l'objet");
+  if (!["common", "rare", "gold"].includes(s.rarity)) {
+    throw new CatalogueRefusal("La rareté est « common », « rare » ou « gold ».");
+  }
+  /* La clé étrangère refuserait aussi, mais avec un message que
+     personne ne lit. */
+  const pack = await one(db, "SELECT 1 FROM pack_def WHERE id = $1", [s.packId]);
+  if (!pack) throw new CatalogueRefusal("Cette pochette n'existe pas.");
+
+  const row = await one<Parameters<typeof decorRow>[0]>(
+    db,
+    `INSERT INTO decor_def
+       (id, pack_id, rarity, media_key, label_fr, label_en, wall, tintable)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (id) DO UPDATE
+       SET pack_id = EXCLUDED.pack_id, rarity = EXCLUDED.rarity,
+           media_key = EXCLUDED.media_key,
+           label_fr = EXCLUDED.label_fr, label_en = EXCLUDED.label_en,
+           wall = EXCLUDED.wall, tintable = EXCLUDED.tintable
+     RETURNING id, pack_id, rarity, media_key, label_fr, label_en, wall, tintable, retired_at`,
+    [s.id, s.packId, s.rarity, s.media, s.labelFr, s.labelEn, s.wall ?? false, s.tintable ?? true]
+  );
+  if (!row) throw new CatalogueRefusal("Objet refusé.");
+  return decorRow(row);
+}
+
+/** Retirer, ou remettre. Jamais effacer : voir le commentaire du bloc. */
+export async function retirePack(db: Db, id: string, retired: boolean): Promise<boolean> {
+  const rows = await db.query("UPDATE pack_def SET retired_at = $2 WHERE id = $1 RETURNING id", [
+    id,
+    retired ? new Date() : null,
+  ]);
+  return rows.length > 0;
+}
+
+export async function retireDecor(db: Db, id: string, retired: boolean): Promise<boolean> {
+  const rows = await db.query("UPDATE decor_def SET retired_at = $2 WHERE id = $1 RETURNING id", [
+    id,
+    retired ? new Date() : null,
+  ]);
+  return rows.length > 0;
+}
+
+/* ------------------------------------------------------------
+   EFFACER POUR DE BON
+   ------------------------------------------------------------
+
+   CE BLOC CONTREDIT CELUI D'AU-DESSUS, ET C'EST VOULU. « On retire, on
+   n'efface jamais » protégeait les étagères ; le studio a maintenant les
+   deux gestes, et le second est demandé en connaissance de cause. Ce qui
+   suit dit ce qu'il coûte, pour que personne n'ait à le redécouvrir.
+
+   `decor_won` N'A PAS DE CLÉ ÉTRANGÈRE vers `decor_def` — un identifiant
+   survit à sa définition, exprès. Effacer la seule définition laisserait
+   donc des lignes de possession qui ne désignent plus rien : un carré
+   vide, sans nom, que personne ne peut retirer de sa collection. On
+   efface donc LES DEUX. L'objet quitte la collection de ceux qui
+   l'avaient, ce qui est brutal mais lisible ; le fantôme ne l'était pas.
+
+   CE QU'ON NE PEUT PAS ATTEINDRE D'ICI : une vignette déjà POSÉE sur une
+   étagère est écrite dans le document de la vue, chez la personne. Elle
+   y laissera une place vide jusqu'à ce qu'elle l'enlève. Le nombre rendu
+   ici est ce qu'il faut pour prévenir avant de le faire.
+   ------------------------------------------------------------ */
+
+/** Combien de personnes possèdent cette vignette. À dire AVANT d'effacer. */
+export async function ownersOfDecor(db: Db, id: string): Promise<number> {
+  const row = await one<{ n: string }>(
+    db,
+    "SELECT count(*)::text AS n FROM decor_won WHERE decor_id = $1",
+    [id]
+  );
+  return Number(row?.n ?? 0);
+}
+
+export async function deleteDecorDef(db: Db, id: string): Promise<boolean> {
+  await db.query("DELETE FROM decor_won WHERE decor_id = $1", [id]);
+  const rows = await db.query("DELETE FROM decor_def WHERE id = $1 RETURNING id", [id]);
+  return rows.length > 0;
+}
+
+/**
+ * La pochette, et tout ce qu'elle contenait.
+ *
+ * `decor_def.pack_id` cascade déjà ; les possessions, non — elles n'ont
+ * pas de clé étrangère. On les efface donc à la main, AVANT, tant que la
+ * liste des vignettes de la pochette existe encore.
+ */
+export async function deletePackDef(db: Db, id: string): Promise<boolean> {
+  await db.query(
+    "DELETE FROM decor_won WHERE decor_id IN (SELECT id FROM decor_def WHERE pack_id = $1)",
+    [id]
+  );
+  const rows = await db.query("DELETE FROM pack_def WHERE id = $1 RETURNING id", [id]);
+  return rows.length > 0;
+}
+
+/**
+ * L'article nommé, d'où qu'il vienne.
+ *
+ * LE CODE D'ABORD, LA BASE ENSUITE. `SHOP` est une constante lue sans
+ * aller-retour ; la base n'est interrogée que pour ce qui n'y est pas,
+ * c'est-à-dire les pochettes. L'ordre n'est pas qu'une optimisation : il
+ * garantit qu'une ligne de `pack_def` ne peut pas usurper l'identifiant
+ * d'une peau et en changer le prix.
+ */
+export async function resolveItem(db: Db, id: string): Promise<ShopItem | undefined> {
+  const fixed = itemById(id);
+  if (fixed) return fixed;
+  const row = await one<Parameters<typeof packRow>[0]>(
+    db,
+    `SELECT id, price, label_fr, label_en, cover_key, retired_at
+       FROM pack_def WHERE id = $1 AND retired_at IS NULL`,
+    [id]
+  );
+  return row ? packItem(packRow(row)) : undefined;
+}
+
 export interface Holdings {
   items: string[];
-  stickers: { sticker_id: string; copies: number }[];
+  /** Les objets tirés, et en combien d'exemplaires. */
+  decors: { decor_id: string; copies: number }[];
   powers: Record<string, number>;
-  worn: { stamp: string | null; skin: string | null };
+  worn: Record<Wearable, string | null>;
 }
 
 export async function holdingsOf(db: Db, personId: string): Promise<Holdings> {
-  const [items, stickers, powers, worn] = await Promise.all([
+  const [items, decors, powers, worn] = await Promise.all([
     db.query<{ item_id: string }>("SELECT item_id FROM owned WHERE person_id = $1", [personId]),
-    db.query<{ sticker_id: string; copies: number }>(
-      "SELECT sticker_id, copies FROM sticker WHERE person_id = $1 ORDER BY first_at",
+    db.query<{ decor_id: string; copies: number }>(
+      "SELECT decor_id, copies FROM decor_won WHERE person_id = $1 ORDER BY first_at",
       [personId]
     ),
     db.query<{ kind: string; left_over: number }>(
       "SELECT kind, left_over FROM power WHERE person_id = $1 AND left_over > 0",
       [personId]
     ),
-    one<{ stamp: string | null; skin: string | null }>(
+    one<Record<Wearable, string | null>>(
       db,
-      "SELECT stamp, skin FROM person WHERE id = $1",
+      "SELECT stamp, skin, paper, title FROM person WHERE id = $1",
       [personId]
     ),
   ]);
   return {
     items: items.map((i) => i.item_id),
-    stickers,
+    decors,
     powers: Object.fromEntries(powers.map((p) => [p.kind, p.left_over])),
-    worn: worn ?? { stamp: null, skin: null },
+    worn: worn ?? { stamp: null, skin: null, paper: null, title: null },
   };
 }
 
@@ -2689,6 +4047,7 @@ export async function wipeEverything(db: Db, personId: string): Promise<void> {
     "token_spend",
     "owned",
     "sticker",
+    "decor_won",
     "power",
     "purse",
     "reminder_sent",
@@ -2724,7 +4083,7 @@ export async function wipeEverything(db: Db, personId: string): Promise<void> {
  * entre le remboursement et la reprise de l'objet.
  */
 export async function sell(db: Db, personId: string, itemId: string): Promise<Purse | "not-owned"> {
-  const item = itemById(itemId);
+  const item = await resolveItem(db, itemId);
   if (!item) return "not-owned";
 
   const back = await one<Purse>(
@@ -2749,11 +4108,18 @@ export async function sell(db: Db, personId: string, itemId: string): Promise<Pu
      ),
      /* Ce qu'on ne possède plus, on ne le porte plus : un tampon resté
         au revers d'un article rendu s'afficherait à côté de votre nom
-        sans que rien ne l'explique. */
+        sans que rien ne l'explique.
+
+        Les quatre colonnes portables, et deux façons de comparer : une
+        peau range sa CLÉ (son "grants"), les trois autres rangent
+        l'identifiant de l'article. C'est la même asymétrie que dans
+        "wear", et elle vient de SkinPicker, qui compare des clés. */
      bared AS (
        UPDATE person
           SET stamp = CASE WHEN stamp = $2 THEN NULL ELSE stamp END,
-              skin = CASE WHEN skin = $4 THEN NULL ELSE skin END
+              skin = CASE WHEN skin = $4 THEN NULL ELSE skin END,
+              paper = CASE WHEN paper = $2 THEN NULL ELSE paper END,
+              title = CASE WHEN title = $2 THEN NULL ELSE title END
         WHERE id = $1 AND EXISTS (SELECT 1 FROM gone)
        RETURNING 1
      )
@@ -2774,13 +4140,18 @@ export async function buy(
   itemId: string,
   rng: Rng
 ): Promise<{ purse: Purse; drawn: string[] }> {
-  const item = itemById(itemId);
+  const item = await resolveItem(db, itemId);
   if (!item) throw new ShopRefusal("cet article n'existe pas");
 
-  /* Owning a stamp or a skin twice is refused BEFORE paying, and by a
+  /* Owning a unique thing twice is refused BEFORE paying, and by a
      read rather than by the key: `owned`'s primary key would have made
-     the insert do nothing while the tokens had already gone. */
-  if (item.kind === "stamp" || item.kind === "skin") {
+     the insert do nothing while the tokens had already gone.
+
+     LA LISTE DES FAMILLES CONCERNÉES A QUITTÉ CETTE LIGNE. Elle disait
+     « tampon ou peau », et deux familles portables plus tard elle aurait
+     débité deux fois pour un papier. `isUnique` la tient dans le
+     catalogue, là où la famille est déclarée. */
+  if (isUnique(item)) {
     const had = await one(db, "SELECT 1 FROM owned WHERE person_id = $1 AND item_id = $2", [
       personId,
       itemId,
@@ -2811,10 +4182,15 @@ export async function buy(
 
   const drawn: string[] = [];
   if (item.kind === "pack") {
-    for (const s of draw(rng, item.draws ?? 1)) {
+    /* LE BASSIN EST LU APRÈS LE DÉBIT, dans la même transaction. Le lire
+       avant aurait voulu dire tirer dans un stock d'il y a un instant —
+       et surtout, une pochette vidée entre-temps aurait rendu des
+       objets qui n'existent plus. */
+    const stock = await listDecors(db, item.id);
+    for (const s of draw(rng, DRAWS, stock)) {
       await db.query(
-        `INSERT INTO sticker (person_id, sticker_id) VALUES ($1, $2)
-         ON CONFLICT (person_id, sticker_id) DO UPDATE SET copies = sticker.copies + 1`,
+        `INSERT INTO decor_won (person_id, decor_id) VALUES ($1, $2)
+         ON CONFLICT (person_id, decor_id) DO UPDATE SET copies = decor_won.copies + 1`,
         [personId, s]
       );
       drawn.push(s);
@@ -2845,16 +4221,39 @@ export async function buy(
 export async function wear(
   db: Db,
   personId: string,
-  what: "stamp" | "skin",
+  what: Wearable,
   itemId: string | null
 ): Promise<boolean> {
+  /* LE NOM DE COLONNE EST INTERPOLÉ, donc il ne vient pas du dehors.
+     `Wearable` le dit au compilateur ; cette ligne le dit à
+     l'exécution, parce qu'un `as` quelque part dans une route suffirait
+     à faire mentir le type. C'est la seule interpolation de tout ce
+     fichier, et c'est pour cela qu'elle est gardée deux fois. */
+  if (!(WEARABLE as readonly string[]).includes(what)) return false;
+
+  /* ON REÇOIT L'IDENTIFIANT DE L'ARTICLE, ON RANGE PARFOIS AUTRE CHOSE.
+     Une peau range sa CLÉ et non son article — `SkinPicker` compare des
+     clés, et c'est lui qui a raison, puisqu'il s'ouvre sans réseau.
+
+     C'EST AUSSI LA CORRECTION D'UN VRAI DÉFAUT. Le présentoir envoyait
+     déjà la clé (`item.grants ?? item.id`), et cette requête cherchait
+     cette clé dans `owned`, qui ne contient que des identifiants
+     d'articles : porter une peau achetée était refusé en 403, toujours.
+     Aucun test ne couvrait le cas — ils n'essayaient que des tampons,
+     pour qui les deux se confondent. La possession se vérifie donc
+     maintenant sur l'ARTICLE, et le rangement se fait sur ce que la
+     famille range. */
+  const item = itemId ? itemById(itemId) : null;
+  if (itemId && !item) return false;
+  const stored = item?.grants ?? itemId;
+
   const rows = await db.query(
-    `UPDATE person SET ${what} = $2
+    `UPDATE person SET ${what} = $3
       WHERE id = $1
         AND ($2::text IS NULL
              OR EXISTS (SELECT 1 FROM owned WHERE person_id = $1 AND item_id = $2))
      RETURNING id`,
-    [personId, itemId]
+    [personId, itemId, stored]
   );
   return rows.length > 0;
 }
@@ -3021,6 +4420,48 @@ export async function extendChallenge(
         AND NOT EXISTS (SELECT 1 FROM merit_event
                          WHERE kind IN ('challenge', 'challenge_half') AND ref = $1::text)
      RETURNING to_char(ends_on, 'YYYY-MM-DD') AS ends_on, extensions`,
+    [challengeId, personId]
+  );
+}
+
+/**
+ * Le second souffle : rouvrir un défi qu'on a laissé filer.
+ *
+ * TROIS DIFFÉRENCES AVEC LA PROLONGATION, et chacune est ce qu'on achète
+ * pour quarante-cinq jetons plutôt que trente :
+ *
+ * Elle est ouverte à QUI PARTICIPE et pas seulement à qui a créé — un
+ * défi raté l'est par le participant, et c'était à l'auteur seul de le
+ * rattraper.
+ *
+ * Elle marche APRÈS la date de fin, dans un mois de battement, là où la
+ * prolongation s'arrête à une semaine. C'est tout l'objet : on s'aperçoit
+ * qu'on a échoué APRÈS.
+ *
+ * Elle ne consomme PAS l'un des deux reports de l'auteur. Le pouvoir est
+ * son propre plafond, et il se paie.
+ *
+ * CE QUI NE CHANGE PAS EST LA SEULE GARANTIE QUI COMPTE : un défi déjà
+ * soldé ne se rouvre pas. La clé du journal empêcherait de payer deux
+ * fois, mais elle empêcherait AUSSI de payer le rattrapage — et
+ * quelqu'un aurait dépensé son pouvoir pour rien.
+ */
+export async function secondWind(
+  db: Db,
+  challengeId: string,
+  personId: string
+): Promise<{ ends_on: string } | null> {
+  return one<{ ends_on: string }>(
+    db,
+    `UPDATE challenge
+        SET ends_on = greatest(ends_on, current_date) + 7
+      WHERE id = $1
+        AND EXISTS (SELECT 1 FROM challenge_participant
+                     WHERE challenge_id = $1 AND person_id = $2)
+        AND ends_on >= current_date - 30
+        AND NOT EXISTS (SELECT 1 FROM merit_event
+                         WHERE kind IN ('challenge', 'challenge_half') AND ref = $1::text)
+     RETURNING to_char(ends_on, 'YYYY-MM-DD') AS ends_on`,
     [challengeId, personId]
   );
 }

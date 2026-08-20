@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  countPlacedMotifs,
   SHELF_KINDS,
   CAT_KEYS,
   belongs,
@@ -15,6 +16,10 @@ import {
   reconcileView,
   moveItem,
   sortIntoRows,
+  keepByHand,
+  heldByHand,
+  restoreByHand,
+  forgetByHand,
   buildViewsFromLegacy,
   duplicateView,
   filmIdsOf,
@@ -753,6 +758,80 @@ describe("sortIntoRows", () => {
   });
 });
 
+/* ============================================================
+   LE RANGEMENT À LA MAIN, GARDÉ AVANT D'ÊTRE ÉCRASÉ
+
+   Le défaut : « RANGER » réécrivait une étagère rangée à la main sur
+   des semaines, et l'enregistrait aussitôt. Rien à récupérer.
+
+   Ce qui est éprouvé ici est le CYCLE DE VIE de la copie, parce que
+   c'est tout ce qui peut se tromper : la prendre au bon moment, ne pas
+   la reprendre au mauvais, et savoir quand elle ne vaut plus rien.
+   ============================================================ */
+describe("keeping the hand arrangement", () => {
+  const shelfOf = (view) => rowsOf(view, "main").map((r) => idsIn(r));
+
+  const arranged = () => {
+    const view = makeView();
+    view.shelves.main.rows = [
+      makeRow({ id: "r1", items: [filmItem("z"), filmItem("a")] }),
+      makeRow({ id: "r2", items: [filmItem("m")] }),
+    ];
+    return view;
+  };
+
+  it("photographs the arrangement, then leaves it alone", () => {
+    const kept = keepByHand(arranged());
+    expect(heldByHand(kept)).not.toBeNull();
+    /* La copie ne touche pas au présent : c'est le tri qui suit qui le
+       réécrit. */
+    expect(shelfOf(kept)).toEqual([["z", "a"], ["m"]]);
+  });
+
+  it("does NOT photograph the second time, which would keep a sort", () => {
+    /* Trier par année puis par note est ordinaire. Si le second tri
+       reprenait une copie, elle photographierait le PREMIER TRI — qui
+       n'est le rangement de personne — et le rangement à la main serait
+       perdu aussi sûrement qu'avant. */
+    const first = keepByHand(arranged());
+    const sorted = sortIntoRows(first, "main", (x, y) => x.id.localeCompare(y.id));
+    const second = keepByHand(sorted);
+    expect(heldByHand(second)).toEqual(heldByHand(first));
+    expect(second.byHand.at).toBe(first.byHand.at);
+  });
+
+  it("gives the arrangement back, and stops offering it", () => {
+    const kept = keepByHand(arranged());
+    const sorted = sortIntoRows(kept, "main", (x, y) => x.id.localeCompare(y.id));
+    expect(shelfOf(sorted)).toEqual([["a", "m"], ["z"]]);
+
+    const back = restoreByHand(sorted);
+    expect(shelfOf(back)).toEqual([["z", "a"], ["m"]]);
+    /* Rendue, la copie n'a plus de raison d'être : elle EST le présent,
+       et un bouton qui reproposerait la même chose ne dirait rien. */
+    expect(heldByHand(back)).toBeNull();
+    expect("byHand" in back).toBe(false);
+  });
+
+  it("forgets it as soon as one places a card by hand again", () => {
+    /* C'est la règle qui rend le bouton honnête. Sans elle, « revenir au
+       rangement à la main » rendrait une version PLUS ANCIENNE que le
+       geste qu'on vient de faire, et l'écraserait. */
+    const kept = keepByHand(arranged());
+    expect(heldByHand(forgetByHand(kept))).toBeNull();
+    /* Et sur une vue qui n'en tient pas, c'est sans effet — pas une
+       copie de plus, pas un rendu de plus. */
+    const plain = arranged();
+    expect(forgetByHand(plain)).toBe(plain);
+  });
+
+  it("says nothing rather than guessing, when there is nothing kept", () => {
+    const plain = arranged();
+    expect(heldByHand(plain)).toBeNull();
+    expect(restoreByHand(plain)).toBe(plain);
+  });
+});
+
 describe("buildViewsFromLegacy", () => {
   const films = [
     film("f1", { order: 10, addedAt: 1 }),
@@ -940,5 +1019,63 @@ describe("the view's decor", () => {
     ]) {
       expect(wallDecorOf(pass(v))).toEqual({ paint: "terracotta", texture: "crepi" });
     }
+  });
+});
+
+/* ============================================================
+   LE PLAFOND DE POSE
+
+   On pose autant d'exemplaires qu'on en possède. Le compte se fait sur
+   TOUTES les vues à la fois — une vue est une disposition de la même
+   collection, pas une étagère de plus — et il traverse les boîtes, qui
+   étaient la façon la plus simple de le contourner.
+   ============================================================ */
+describe("countPlacedMotifs", () => {
+  const viewWith = (id, items, wall = []) => {
+    const v = makeView({ id, wall: "watched", name: id, now: 1 });
+    v.shelves.main.rows[0].items.push(...items);
+    v.shelves.main.wall = wall;
+    return v;
+  };
+
+  it("ne compte rien sur un classeur vide", () => {
+    expect(countPlacedMotifs({})).toEqual({});
+    expect(countPlacedMotifs(undefined)).toEqual({});
+  });
+
+  it("compte les objets posés, par motif", () => {
+    const v = viewWith("v1", [
+      makeDecor({ id: "d1", motif: "won:lampe" }),
+      makeDecor({ id: "d2", motif: "won:lampe" }),
+      makeDecor({ id: "d3", motif: "plante" }),
+    ]);
+    expect(countPlacedMotifs({ v1: v })).toEqual({ "won:lampe": 2, plante: 1 });
+  });
+
+  /* LE POINT DU BLOC : deux vues sont deux dispositions, pas deux
+     étagères. Compter par vue aurait donné un exemplaire gratuit par
+     vue créée. */
+  it("additionne à travers les vues", () => {
+    const a = viewWith("v1", [makeDecor({ id: "d1", motif: "won:lampe" })]);
+    const b = viewWith("v2", [makeDecor({ id: "d2", motif: "won:lampe" })]);
+    expect(countPlacedMotifs({ v1: a, v2: b })["won:lampe"]).toBe(2);
+  });
+
+  it("compte aussi ce qui est accroché au fond", () => {
+    const v = viewWith("v1", [], [makeWallDecor({ id: "w1", motif: "won:cadran" })]);
+    expect(countPlacedMotifs({ v1: v })["won:cadran"]).toBe(1);
+  });
+
+  /* RANGER DANS UNE BOÎTE NE FAIT PAS DISPARAÎTRE : sans cette ligne, le
+     plafond se contourne en glissant l'objet dans une catégorie. */
+  it("voit ce qui est rangé dans une boîte", () => {
+    const box = makeCat({ id: "c1", items: [makeDecor({ id: "d1", motif: "won:lampe" })] });
+    const v = viewWith("v1", [box]);
+    expect(countPlacedMotifs({ v1: v })["won:lampe"]).toBe(1);
+  });
+
+  it("ne compte pas les films", () => {
+    const v = viewWith("v1", [filmItem("f1"), makeDecor({ id: "d1", motif: "won:lampe" })]);
+    expect(countPlacedMotifs({ v1: v })).toEqual({ "won:lampe": 1 });
   });
 });

@@ -19,10 +19,11 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.ts";
-import { openPostgres, applySchema } from "./db.ts";
+import { openPostgres, applyAllSchemas } from "./db.ts";
 import { configurePush } from "./push.ts";
 import { configureMedia, mediaAvailable, readConnectionString } from "./media.ts";
 import * as store from "./store.ts";
+import { resolveDemoPosters } from "./demo.ts";
 
 /** The current name, or the one it used to have. */
 const env = (current: string, legacy: string): string | undefined =>
@@ -82,11 +83,9 @@ const db = await openPostgres(dbUrl);
 /* The baseline schema is laid down at start-up rather than by a separate
    command: it is conditional from end to end, so replayable, and a server
    that starts on an empty database is a server that starts. */
-const schema = await readFile(
-  fileURLToPath(new URL("../sql/001_baseline.sql", import.meta.url)),
-  "utf8"
+await applyAllSchemas(db, (file) =>
+  readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), "utf8")
 );
-await applySchema(db, schema);
 
 /* THE ONE ROLE, AND THE ONLY DOOR TO IT.
 
@@ -107,6 +106,14 @@ const admins = (process.env.ADMINS || "")
   .filter(Boolean);
 await store.markAdmins(db, admins);
 
+/* LES AFFICHES DE LA VITRINE, une fois pour toutes.
+
+   Sans `await` : le serveur doit répondre pendant que douze recherches
+   TMDB se font, et la vitrine se garnit au démarrage suivant si le
+   réseau traîne. Sans clé, la fonction ne fait rien et le classeur
+   dessine ses initiales comme il l'a toujours fait. */
+void resolveDemoPosters(db, process.env.TMDB_KEY, (m) => console.warn(m)).catch(console.error);
+
 const devDoor = env("DEV_DOOR", "PORTE_DEV") === "1";
 
 const app = await buildApp({
@@ -121,6 +128,11 @@ const app = await buildApp({
      six hundred a minute, enough to fill a whole collection without
      chopping it up. */
   tmdbCeiling: Number(env("TMDB_PER_MINUTE", "TMDB_PAR_MINUTE")) || undefined,
+  /* Wikidata bills nothing, so nobody would ever complain: what a
+     runaway client spends here is the good standing of THIS server's
+     address at a shared public endpoint. Empty, we take `relay.ts`'s
+     sixty a minute. */
+  hintsCeiling: Number(env("WIKIDATA_PER_MINUTE", "WIKIDATA_PAR_MINUTE")) || undefined,
   /* TWO LOCKS, AND THE FIRST ONE DOES NOT OPEN FROM OUTSIDE. The service
      door only exists outside production AND on explicit request: setting
      `DEV_DOOR=1` on a production server is not enough. */

@@ -3,6 +3,7 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { policy } from "./csp.mjs";
 
 /* GitHub Pages serves the site under /CineHub/ (a project site). Locally
    we stay at the root, or the dev server would answer on a pointless
@@ -11,6 +12,35 @@ const base = process.env.GITHUB_ACTIONS ? "/CineHub/" : "/";
 
 export default defineConfig({
   base,
+
+  /* ============================================================
+     LA CSP SE RÉPÈTE ICI, ET NULLE PART AILLEURS EN LOCAL
+     ============================================================
+
+     En production elle vit dans le `Caddyfile`. Écrite là seulement,
+     elle n'existerait pas chez soi : une liste blanche à laquelle il
+     manque une origine ne casse rien tant que l'en-tête n'est pas posé,
+     et casse en production, en silence, avec un message dans la console.
+
+     `preview` sert le VRAI paquet construit, donc c'est là que la
+     répétition a un sens. Le serveur de DÉVELOPPEMENT, lui, n'en reçoit
+     pas : il sert des modules non compilés, ouvre une websocket pour le
+     rechargement à chaud et évalue du code à la volée — une politique de
+     production y interdirait tout cela, pour ne rien protéger sur une
+     machine.
+
+     Les adresses viennent des mêmes variables que le paquet, si bien que
+     la répétition se fait avec ce que le déploiement utilisera. */
+  preview: {
+    headers: {
+      "Content-Security-Policy": policy({
+        serveur: process.env.VITE_SERVEUR || "http://localhost:8787",
+        mesure: process.env.VITE_UMAMI || "",
+        medias: process.env.CSP_MEDIAS || "",
+      }),
+    },
+  },
+
   plugins: [
     react(),
     /* ============================================================
@@ -22,10 +52,16 @@ export default defineConfig({
        finger, full screen, with no address bar — and above all WITH NO
        NETWORK.
 
-       Offline is not an extra here, it is the truth of the application:
-       the films live in `localStorage` and IndexedDB, and nothing one
-       looks at needs a server. A collection one cannot open on the
-       underground would be absurd.
+       CE COMMENTAIRE A DIT LE CONTRAIRE, ET IL AVAIT RAISON EN SON
+       TEMPS : « le hors-ligne n'est pas un supplément ici, c'est la
+       vérité de l'application ». Le classeur ne s'ouvre plus sans
+       session — voir `CLAUDE.md`.
+
+       L'installation garde tout son sens pour autant : une vidéothèque
+       qu'il faut aller chercher dans un onglet n'est pas un classeur,
+       c'est un signet. Et le cache du service worker sert toujours à ce
+       pour quoi il a été réglé — que l'application s'ouvre vite, et que
+       quatre cents affiches ne se retéléchargent pas.
 
        `prompt` and not `autoUpdate`: an application that replaces itself
        while somebody is writing a note loses what they were writing. We

@@ -230,6 +230,78 @@ ALTER TABLE IF EXISTS person
   ADD COLUMN IF NOT EXISTS is_admin boolean NOT NULL DEFAULT false;
 
 -- ------------------------------------------------------------
+-- LE PALIER
+-- ------------------------------------------------------------
+-- Ce qu'un compte a le droit d'occuper chez nous. Il ne décide de rien
+-- d'autre : les fonctionnalités sont les mêmes des deux côtés, ce sont
+-- les BORNES qui changent — voir `src/limits.ts`, qui les tient toutes.
+--
+-- DANS LE SCHÉMA ET NON DANS UNE ROUTE, comme le reste de ce qui protège
+-- ou autorise quelqu'un. Une route qui accorderait un palier serait une
+-- route à protéger, et il n'y en a pas : la colonne s'écrit à la main
+-- tant que la facturation n'existe pas, et c'est elle que la facturation
+-- écrira le jour venu.
+--
+-- LE DÉFAUT EST `free`, ce qui veut dire que le palier généreux se donne
+-- explicitement. Un défaut à `plus` aurait ouvert les vannes à tout
+-- compte créé pendant que le paiement est en panne.
+ALTER TABLE IF EXISTS person
+  ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'free';
+
+ALTER TABLE IF EXISTS person DROP CONSTRAINT IF EXISTS person_plan_check;
+ALTER TABLE IF EXISTS person
+  ADD CONSTRAINT person_plan_check CHECK (plan IN ('free', 'plus'));
+
+-- ------------------------------------------------------------
+-- LES IMPORTS, ET COMBIEN ON EN A FAIT
+-- ------------------------------------------------------------
+-- Un import Letterboxd de six cents films, c'est six cents interrogations
+-- du relais TMDB : c'est le geste le plus cher du produit, et le seul
+-- qu'on puisse répéter en boucle sans y penser.
+--
+-- ON COMPTE À LA CONFIRMATION, PAS AU DÉPÔT DU FICHIER. Déposer un
+-- bordereau pour voir ce qu'il contient ne coûte rien et ne doit rien
+-- coûter ; ce qui compte est l'écriture dans la collection. Quelqu'un qui
+-- dépose trois fichiers avant de se décider n'a pas fait trois imports.
+--
+-- UNE LIGNE PAR IMPORT, et pas un compteur qu'on incrémente : on veut la
+-- fenêtre glissante de trente jours, donc les DATES. Un compteur remis à
+-- zéro le premier du mois donnerait deux imports à cheval sur deux jours.
+CREATE TABLE IF NOT EXISTS import_run (
+  id            uuid PRIMARY KEY,
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  ran_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS import_run_window ON import_run(person_id, ran_at DESC);
+
+-- ------------------------------------------------------------
+-- LES AFFICHES DE LA DÉMONSTRATION
+-- ------------------------------------------------------------
+-- Les douze fiches d'exemple sont la seule chose qu'on montre à qui n'a
+-- pas de compte. Elles se dessinaient jusqu'ici avec leurs initiales sur
+-- une émulsion teintée, faute de pouvoir joindre TMDB hors ligne — ce
+-- qui n'a plus lieu d'être maintenant que la porte est une session.
+--
+-- ON RETIENT L'ADRESSE, PAS L'IMAGE. Recopier douze affiches dans le
+-- container aurait lié la vitrine au stockage blob, qui est facultatif ;
+-- l'adresse du CDN de TMDB tient dans une ligne et se sert toute seule.
+--
+-- UNE TABLE ET NON UNE CONSTANTE, parce que la résolution passe par une
+-- RECHERCHE par titre et par année : elle peut se tromper, et il faut
+-- pouvoir corriger la ligne à la main sans redéployer. Elle ne se refait
+-- pas à chaque démarrage — ce qui est déjà résolu est laissé tranquille.
+CREATE TABLE IF NOT EXISTS demo_poster (
+  -- L'identifiant côté classeur : `demo-chihiro` et les onze autres.
+  demo_id       text PRIMARY KEY,
+  -- Le chemin TMDB, `/xxxx.jpg`. Vide quand la recherche n'a rien rendu :
+  -- on garde la ligne pour ne pas rechercher en boucle à chaque
+  -- démarrage un film que TMDB ne connaît pas sous ce titre.
+  path          text NOT NULL DEFAULT '',
+  resolved_at   timestamptz NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------------------------------
 -- THE PASSKEY
 -- ------------------------------------------------------------
 -- What the browser keeps is a pair of keys; what the server keeps is the
@@ -873,6 +945,42 @@ CREATE TABLE IF NOT EXISTS decor_copy (
 );
 
 CREATE INDEX IF NOT EXISTS decor_copy_decor ON decor_copy(decor_id);
+
+-- ------------------------------------------------------------
+-- LE REGISTRE DES MÉDIAS — ce qu'on ne pouvait pas compter
+-- ------------------------------------------------------------
+-- LE SERVEUR NE VOIT JAMAIS LES OCTETS. Il délivre un ticket signé et le
+-- navigateur dépose directement dans le container : c'est ce qui permet
+-- de ne jamais faire transiter une affiche par nous, et c'est aussi ce
+-- qui rendait le dépôt privé RIGOUREUSEMENT SANS BORNE. Sur une adresse
+-- ouverte, une place illimitée qu'on héberge est une facture illimitée.
+--
+-- Cette table est donc le registre de ce qui a été autorisé. Elle ne
+-- garde pas le blob, seulement son chemin et ce que le client déclare
+-- peser.
+--
+-- LA CLÉ PRIMAIRE FAIT TOUT LE TRAVAIL, et c'est le même raisonnement
+-- que l'unicité de `merit_event` : redemander un ticket pour le MÊME
+-- chemin ne crée pas une seconde ligne. Un compteur incrémenté à chaque
+-- ticket aurait compté six fois une affiche qu'on redépose six fois, et
+-- le plafond serait devenu une punition pour qui synchronise souvent.
+--
+-- LE COMPTE EST DONC CELUI DES CHEMINS AUTORISÉS, et non celui des blobs
+-- réellement présents : un ticket qu'on ne se sert pas laisse une ligne.
+-- L'écart est borné et il penche du bon côté — on refuse un peu tôt
+-- plutôt qu'un peu tard —, et `DELETE /media` retire la ligne avec le
+-- blob, donc il se referme dès qu'on range.
+CREATE TABLE IF NOT EXISTS media (
+  person_id     uuid NOT NULL REFERENCES person(id) ON DELETE CASCADE,
+  -- Le chemin complet, préfixe compris : c'est lui la preuve côté
+  -- privé, et le garder entier évite d'avoir à le reconstruire.
+  path          text NOT NULL,
+  -- Déclaré par le client, donc indicatif — le plafond qui protège
+  -- vraiment est celui du NOMBRE, qu'on sait compter exactement.
+  bytes         integer NOT NULL DEFAULT 0 CHECK (bytes >= 0),
+  noted_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (person_id, path)
+);
 
 -- ------------------------------------------------------------
 -- THE USAGE MEASUREMENT

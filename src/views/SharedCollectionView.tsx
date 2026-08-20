@@ -151,7 +151,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
         >
           CINÉ HUB — une vidéothèque qui vit chez soi.{" "}
           <a href={location.pathname} style={{ color: C.burgundy }}>
-            OUVRIR LA MIENNE
+            {t("shared.openMine")}
           </a>
         </div>
       </div>
@@ -160,6 +160,7 @@ export function SharedCollectionView({ address }: { address: Address }) {
 }
 
 function Poster({ film }: { film: SharedFilm }) {
+  const { t } = useTranslation();
   const noted = Number(film.rating) || 0;
   return (
     <figure style={{ margin: 0, transform: `rotate(${tiltOf(String(film.id))}deg)` }}>
@@ -183,7 +184,10 @@ function Poster({ film }: { film: SharedFilm }) {
             {[film.year, film.director].filter(Boolean).join(" · ")}
           </div>
           {noted > 0 && (
-            <div style={{ display: "flex", gap: 1, marginTop: 4 }} aria-label={`${noted} sur 5`}>
+            <div
+              style={{ display: "flex", gap: 1, marginTop: 4 }}
+              aria-label={t("common.ratingOutOf", { rating: noted })}
+            >
               {[1, 2, 3, 4, 5].map((n) => (
                 <Star
                   key={n}

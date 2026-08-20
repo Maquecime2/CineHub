@@ -57,7 +57,7 @@ export function Elsewhere({ film, signedIn }: { film: Film; signedIn: boolean })
 
   return (
     <div data-tour="detail-ailleurs" style={{ marginTop: 22 }}>
-      <Label>Elsewhere</Label>
+      <Label>{t("elsewhere.label")}</Label>
       <div
         style={{
           display: "flex",
@@ -137,7 +137,10 @@ function OneOpinion({
           <Stamp text={t(stampLabel(opinion.stamp))} ink={STAMP_INK[opinion.stamp] ?? C.burgundy} />
         )}
         {opinion.rating !== null && (
-          <span style={{ display: "flex", gap: 1 }} aria-label={`${opinion.rating} sur 5`}>
+          <span
+            style={{ display: "flex", gap: 1 }}
+            aria-label={t("common.ratingOutOf", { rating: opinion.rating })}
+          >
             {[1, 2, 3, 4, 5].map((n) => (
               <Star
                 key={n}
@@ -154,7 +157,7 @@ function OneOpinion({
           <span style={{ fontFamily: F.mono, fontSize: 9, color: C.inkFaded }}>{said}</span>
         ) : (
           <>
-            <button onClick={say} title="Signaler" style={small}>
+            <button onClick={say} title={t("elsewhere.report")} style={small}>
               <Flag size={11} />
             </button>
             <button

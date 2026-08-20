@@ -7,6 +7,7 @@ import { Star, KeyRound } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
 import { openTmdbSettings } from "../../services/tmdbKey";
+import i18n from "../../i18n";
 
 /** The rating, in ink stars. Clicking an already full star halves it. */
 export function InkStars({
@@ -123,7 +124,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
       }}
     >
       <KeyRound size={13} color={C.inkFaded} style={{ transform: "translateY(2px)" }} />
-      <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
+      <span style={{ fontFamily: F.hand, fontSize: 17, color: alpha(C.ink, 0.78) }}>
         Il manque une key TMDB pour {what}.
       </span>
       {/* TWO REMEDIES, AND THE SECOND ASKS FOR NONE. Since the server
@@ -142,7 +143,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
           textDecoration: "underline",
         }}
       >
-        La régler ici
+        {i18n.t("tmdbKey.setItHere")}
       </button>
       <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
         — ou ouvrez un compte, qui vous en dispense.
@@ -198,14 +199,71 @@ export function SectionTitle({
 export function Guideline({ children, tight }: { children: ReactNode; tight?: boolean }) {
   return (
     <div
+      /* PLUS GRANDE ET MOINS PÂLE QU'ELLE NE L'ÉTAIT. Une cursive de
+         dix-sept pixels en encre passée est jolie et se lit mal ; c'est
+         la ligne que chaque section pose sous son titre, donc celle
+         qu'on relit le plus. La graisse, elle, vient d'une seule règle
+         posée dans `FONT_IMPORT` — voir `[style*="--f-hand"]`. */
       style={{
         fontFamily: F.hand,
-        fontSize: 17,
-        color: C.inkFaded,
+        fontSize: 19,
+        lineHeight: 1.35,
+        color: alpha(C.ink, 0.78),
         margin: tight ? "8px 0 0" : "0 0 12px",
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/* ============================================================
+   « PAS ENCORE » N'EST PAS « AUCUN »
+   ============================================================
+
+   Les vues du hall partaient d'un tableau vide et affichaient donc leur
+   phrase de vide — « vous n'avez aucune liste », « aucun défi en cours »
+   — PENDANT que la requête était en vol. Sur une connexion lente c'est
+   une affirmation fausse, et le contenu qui la remplace ensuite fait
+   sauter la mise en page par-dessus le marché.
+
+   Ce n'est pas un tourniquet : `App` a déjà tranché la question pour le
+   chargement d'une vue, et l'argument tient ici — un rond qui tourne
+   serait la seule pièce venue d'ailleurs dans une application qui est un
+   carnet. Ce sont donc des LIGNES RÉGLÉES, comme celles qu'on attend de
+   voir se remplir.
+
+   L'ANIMATION EST UNE OPACITÉ ET RIEN D'AUTRE. La direction artistique
+   réserve les effets chers aux moments, pas aux listes ; et sa durée
+   passe par `--motion-slow`, que le bloc `prefers-reduced-motion` met à
+   zéro tout seul.
+   ============================================================ */
+export function Waiting({ lines = 3, label }: { lines?: number; label?: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={label}
+      style={{ margin: "10px 0 12px", display: "flex", flexDirection: "column", gap: 9 }}
+    >
+      {Array.from({ length: lines }, (_, i) => (
+        <div
+          key={i}
+          aria-hidden
+          style={{
+            height: 1,
+            borderBottom: `1px solid ${C.line}`,
+            /* Des longueurs INÉGALES et TENUES : une ligne réglée qui
+               s'arrête au même endroit que sa voisine ne ressemble à
+               rien d'écrit. Elles sont dérivées de l'indice, jamais
+               tirées au sort — un cadre qui gigote n'est pas un cadre. */
+            width: `${[92, 74, 84, 63, 88][i % 5]}%`,
+            opacity: 0.75,
+            animation: "waitingFade var(--motion-slow) var(--motion-ease) infinite alternate",
+            animationDelay: `${i * 120}ms`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -358,7 +416,80 @@ export function Label({ children }: { children: ReactNode }) {
 }
 /** What is written when a section has nothing to show. */
 export function Nothing({ what }: { what: string }) {
-  return <div style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>{what}</div>;
+  return (
+    <div style={{ fontFamily: F.hand, fontSize: 18, lineHeight: 1.35, color: alpha(C.ink, 0.75) }}>
+      {what}
+    </div>
+  );
+}
+
+/* ============================================================
+   CE QUI A RATÉ — une seule forme, pour tout le classeur
+   ============================================================
+
+   IL Y EN AVAIT CINQ. `trouble` au comptoir, `souci` dans le fil, `msg`
+   au générique, `error` au bureau des découvertes, `keyState` dans le
+   cartouche — cinq noms, cinq styles écrits à la main, et cinq façons de
+   dire la même chose selon le fichier qu'on lisait.
+
+   ET AUCUNE N'ÉTAIT ANNONCÉE. Pas un `role="alert"` sur un seul message
+   d'erreur du produit : quelqu'un qui navigue à la voix cliquait, rien
+   ne se passait, et rien ne le lui disait non plus. C'est la raison
+   principale de ce composant — l'uniformité n'est que le bénéfice.
+
+   LE VERDICT SE DIT PAR UN MOT ET PAS PAR UNE COULEUR. Le bordeaux
+   disparaît sous cinq des dix-sept peaux ; c'est le trait vertical à
+   gauche, épais, qui reste lisible partout, et le texte qui porte le
+   sens. La couleur n'est qu'un accent de plus.
+   ============================================================ */
+export function Trouble({
+  children,
+  onRetry,
+  retryLabel,
+}: {
+  children: ReactNode;
+  /** Un rattrapage, quand il y en a un. Sans lui, on ne dessine rien. */
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
+  if (!children) return null;
+  return (
+    <div
+      role="alert"
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 10,
+        margin: "8px 0",
+        padding: "6px 10px 7px",
+        borderLeft: `3px solid ${C.burgundy}`,
+        background: alpha(C.burgundy, 0.07),
+        fontFamily: F.hand,
+        fontSize: 18,
+        lineHeight: 1.35,
+        color: C.ink,
+      }}
+    >
+      <span style={{ flex: 1 }}>{children}</span>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            fontFamily: F.mono,
+            fontSize: 9.5,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: C.burgundy,
+            borderBottom: `1px dotted ${alpha(C.burgundy, 0.6)}`,
+          }}
+        >
+          {retryLabel ?? i18n.t("common.retry")}
+        </button>
+      )}
+    </div>
+  );
 }
 
 /* A small horizontal rule: the share of each entry of a ranking.

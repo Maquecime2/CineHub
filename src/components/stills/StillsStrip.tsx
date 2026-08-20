@@ -20,6 +20,18 @@ interface StillsStripProps {
   onAddFiles: (files: FileList | null) => void;
   /** Number of stills still being added; 0 when there is nothing to wait for. */
   busy?: number;
+  /* LA PELLICULE EN COLONNE, À CÔTÉ DU TEXTE QU'ELLE ILLUSTRE.
+
+     Elle était sous les champs, en planche contact. Insérer une capture
+     voulait dire poser le curseur, descendre chercher la vignette,
+     cliquer, remonter — quatre gestes pour une image, et on les fait
+     dix fois. À droite de la critique, la vignette est à portée de
+     main : on la prend et on la pose dans la phrase.
+
+     Les vignettes rétrécissent, forcément — c'est le prix d'une colonne
+     — mais elles gardent leur numéro et leur légende, et un clic ouvre
+     toujours la capture en grand. */
+  narrow?: boolean;
 }
 
 /* The film strip: all the film's stills, in a band. Each thumbnail
@@ -32,6 +44,7 @@ export function StillsStrip({
   highlight,
   onAddFiles,
   busy,
+  narrow,
 }: StillsStripProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState<string | null>(null);
@@ -98,7 +111,7 @@ export function StillsStrip({
           </>
         }
       >
-        La pellicule
+        {t("stills.theFilmStrip")}
       </SectionTitle>
       <Guideline>
         {stills.length === 0
@@ -120,22 +133,52 @@ export function StillsStrip({
              `wrap` and nothing else. The thumbnails keep their size —
              shrinking them to fit everything on one line would make
              them unreadable, and a contact sheet owns its rows. */
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 16,
-            paddingBottom: 12,
-            alignItems: "flex-start",
-          }}
+          style={
+            narrow
+              ? {
+                  /* UNE GRILLE, ET NON UNE FILE.
+
+                     En colonne, les vignettes étaient à cent pour cent
+                     de large : une seule de front, quelle que soit la
+                     place. `auto-fill` en pose autant que la largeur
+                     l'accepte et les répartit — deux sur une colonne
+                     étroite, quatre sur un grand écran — sans qu'aucun
+                     nombre ne soit écrit nulle part.
+
+                     150 px est le plancher : en dessous, on ne
+                     reconnaît plus ce qu'on a photographié, et une
+                     planche contact illisible ne sert à rien. */
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                  gap: 10,
+                  paddingBottom: 12,
+                  alignItems: "flex-start",
+                }
+              : {
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 16,
+                  paddingBottom: 12,
+                  alignItems: "flex-start",
+                }
+          }
         >
           {stills.map((s, i) => {
             const lit = highlight === i;
             return (
               <div
                 key={s.id}
+                /* ON NE GLISSE PLUS DEPUIS LA PELLICULE.
+
+                   Elle l'a permis un moment, et c'était un geste de
+                   trop : deux façons de poser la même image, dont une
+                   qui demande de viser un point dans un texte qu'on ne
+                   voit pas encore. « Insérer » pose au curseur, et c'est
+                   DANS le texte qu'on déplace ensuite la vignette — là
+                   où l'on voit ce qu'on fait. */
                 style={{
                   flexShrink: 0,
-                  width: 190,
+                  width: narrow ? "100%" : 190,
                   background: C.card,
                   padding: "9px 9px 10px",
                   boxShadow: lit
@@ -152,7 +195,7 @@ export function StillsStrip({
                     style={{
                       display: "block",
                       width: "100%",
-                      height: 108,
+                      height: narrow ? 84 : 108,
                       objectFit: "contain",
                       background: "#1c1712",
                     }}
@@ -233,10 +276,25 @@ export function StillsStrip({
                   }}
                 >
                   <button
+                    /* LE CHAMP NE DOIT PAS PERDRE SA SÉLECTION.
+
+                       C'est ce qui faisait atterrir la vignette n'importe
+                       où : presser un bouton déplace le focus, donc la
+                       sélection, et le champ ne savait plus où l'on
+                       écrivait. Retenir la position après coup ne
+                       suffisait pas — selon le navigateur, la sélection
+                       est déjà partie quand on la relit.
+
+                       `preventDefault` sur `mousedown` empêche le bouton
+                       de prendre le focus. Le curseur reste dans la
+                       phrase, visible, et l'insertion tombe exactement
+                       là. C'est la façon dont se fait toute barre
+                       d'outils d'éditeur, et la seule qui tienne. */
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => onInsert(i + 1)}
                     style={{ all: "unset", cursor: "pointer", color: C.pine }}
                   >
-                    insérer
+                    {t("stills.insert")}
                   </button>
                   <button
                     onClick={() => remove(i)}

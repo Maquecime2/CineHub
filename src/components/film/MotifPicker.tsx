@@ -15,7 +15,7 @@
    ============================================================ */
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, Plus, Spool, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Plus, Star, Trash2, X } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { underlineInput, tap } from "../../theme/styles";
 import {
@@ -28,6 +28,9 @@ import {
   byFamily,
 } from "../../domain/motifs";
 import type { Motif, MotifFamily } from "../../domain/motifs";
+import { countOfMotif, effectiveThreads } from "../../domain/threads";
+import type { Thread } from "../../domain/threads";
+import type { Film } from "../../types";
 
 const section = {
   fontFamily: F.mono,
@@ -58,17 +61,39 @@ const chipStyle = (ink: string, active: boolean) => ({
   background: active ? ink : "transparent",
 });
 
-/** A motif laid on the card, scratched out if it tells the ending. */
+/* ============================================================
+   A MOTIF LAID ON THE CARD
+
+   It carries THREE things beyond its name, and they replace the button
+   that used to sit under the row: how many cards carry it, whether it is
+   a star of the map, and — one click on the count — WHICH cards.
+
+   "MAKE A THREAD OF IT" IS GONE, and the reason is the whole change.
+   The same button showed whether or not the gathering already existed;
+   from a second card carrying the motif it went silently to the map and
+   made nothing, so one believed one had. A count and a star say the
+   state instead of hiding it, and the star is the only gesture left. */
 function MotifChip({
   motif,
   revealed,
   onReveal,
   onRemove,
+  count,
+  starred,
+  onStar,
+  onPreview,
+  previewing,
 }: {
   motif: Motif;
   revealed: boolean;
   onReveal: () => void;
   onRemove: () => void;
+  /** How many cards carry it. `undefined`: the card does not know the collection. */
+  count?: number;
+  starred?: boolean;
+  onStar?: () => void;
+  onPreview?: () => void;
+  previewing?: boolean;
 }) {
   const { t } = useTranslation();
   const isHiddenHere = !!motif.spoiler && !revealed;
@@ -91,6 +116,43 @@ function MotifChip({
       ) : (
         name
       )}
+
+      {!isHiddenHere && count !== undefined && count > 1 && onPreview && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview();
+          }}
+          aria-expanded={!!previewing}
+          aria-label={t("motifs.showTheOthers", { count })}
+          style={{
+            all: "unset",
+            cursor: "pointer",
+            fontFamily: F.mono,
+            fontSize: 9,
+            opacity: 0.75,
+          }}
+        >
+          {count}
+        </button>
+      )}
+
+      {!isHiddenHere && onStar && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onStar();
+          }}
+          aria-pressed={!!starred}
+          aria-label={t(starred ? "motifs.unstar" : "motifs.star", { name })}
+          title={t(starred ? "motifs.unstar" : "motifs.star", { name })}
+          data-tour="motif-star"
+          style={{ all: "unset", cursor: "pointer", display: "flex" }}
+        >
+          <Star size={10} fill={starred ? "currentColor" : "none"} />
+        </button>
+      )}
+
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -109,7 +171,11 @@ export function MotifPicker({
   motifs = [],
   onChange,
   suggestions = [],
-  onMakeThread,
+  films = [],
+  fils = [],
+  onStar,
+  onOpenInSky,
+  onOpenFilm,
   onCreate,
   onSupprimer,
   onHide,
@@ -119,8 +185,18 @@ export function MotifPicker({
   onChange: (next: string[]) => void;
   /** What TMDB offers. Nothing enters without a click. */
   suggestions?: Motif[];
-  /** Turn this motif into a question asked of the whole collection. */
-  onMakeThread?: (motifId: string) => void;
+  /**
+   * The whole collection — how a chip knows it says something about more
+   * than this one card. Absent: no counts, no stars, no preview.
+   */
+  films?: Film[];
+  /** What was changed about the gatherings; the stars come from `films`. */
+  fils?: Thread[];
+  /** Light this motif's star, or put it out. */
+  onStar?: (motifId: string, on: boolean) => void;
+  /** Open the map on this gathering. */
+  onOpenInSky?: (motifId: string) => void;
+  onOpenFilm?: (filmId: string) => void;
   /** Add a motif to the vocabulary. Absent: the list stays read-only. */
   onCreate?: (label: string, family: MotifFamily, spoiler: boolean) => void;
   /** Remove one of your own — the confirmation and the tidying are the caller's. */
@@ -137,10 +213,27 @@ export function MotifPicker({
   const [neuf, setNeuf] = useState("");
   const [family, setFamille] = useState<MotifFamily>("narrative");
   const [spoiler, setSpoiler] = useState(false);
+  /** The motif whose other cards are unfolded, right here. */
+  const [preview, setPreview] = useState<string | null>(null);
 
   /* `motifsOf` and not a filter on the catalogue: a motif of yours is not
      in `MOTIFS`, and the card would have lost it on display. */
   const placed = useMemo(() => motifsOf({ motifs }), [motifs]);
+
+  /* The stars of the map, read off the collection and not off a list:
+     laying the same motif on a second card lights one, and nothing is
+     stored for it. */
+  const stars = useMemo(
+    () => new Set(effectiveThreads(films, fils).map((th) => th.motif)),
+    [films, fils]
+  );
+  const previewed = useMemo(() => {
+    if (!preview) return null;
+    return {
+      motifId: preview,
+      titles: films.filter((f) => (f.motifs || []).includes(preview)),
+    };
+  }, [preview, films]);
   const families = useMemo(() => byFamily(), [open, motifs]);
   const foundIds = useMemo(() => (q.trim() ? searchMotifs(q, t) : []), [q, t]);
   const toOffer = suggestions.filter((m) => !motifs.includes(m.id));
@@ -160,12 +253,74 @@ export function MotifPicker({
             revealed={revealedIds.includes(m.id)}
             onReveal={() => setRevealedIds((c) => [...c, m.id])}
             onRemove={() => strike(m.id)}
+            count={films.length ? countOfMotif(m.id, films) : undefined}
+            starred={stars.has(m.id)}
+            onStar={onStar ? () => onStar(m.id, !stars.has(m.id)) : undefined}
+            previewing={preview === m.id}
+            onPreview={() => setPreview((cur) => (cur === m.id ? null : m.id))}
           />
         ))}
         {placed.length === 0 && (
-          <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>aucun motif</span>
+          <span style={{ fontFamily: F.hand, fontSize: 16, color: C.inkFaded }}>
+            {t("motifs.noneLaid")}
+          </span>
         )}
       </div>
+
+      {/* WHAT THE MOTIF SAYS BEYOND THIS CARD, WITHOUT LEAVING IT.
+
+          The old button's whole trouble was that it navigated: one landed
+          in the tangle of the map with no idea what had just happened.
+          The titles are right here, and going to the map stays a
+          deliberate second click. */}
+      {previewed && (
+        <div
+          style={{
+            border: `1px dashed ${C.line}`,
+            padding: "8px 10px",
+            marginBottom: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+          }}
+        >
+          <div style={section}>{t("motifs.alsoCarriedBy", { count: previewed.titles.length })}</div>
+          {previewed.titles.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => onOpenFilm?.(f.id)}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: onOpenFilm ? "pointer" : "default",
+                fontFamily: F.body,
+                fontSize: 13,
+                color: C.ink,
+              }}
+            >
+              {f.title}
+            </button>
+          ))}
+          {onOpenInSky && (
+            <button
+              onClick={() => onOpenInSky(previewed.motifId)}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: "pointer",
+                marginTop: 4,
+                fontFamily: F.mono,
+                fontSize: 9.5,
+                color: C.burgundy,
+                borderBottom: `1px solid ${C.burgundy}`,
+                alignSelf: "flex-start",
+              }}
+            >
+              {t("motifs.seeInTheSky")}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* What TMDB offers, dotted and never laid automatically: its
           keywords range from the very apt to the frankly wrong, and they
@@ -183,22 +338,6 @@ export function MotifPicker({
             >
               <Plus size={10} />
               {m.spoiler ? t("motifs.endingMotif") : motifLabel(m, t)}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {placed.length > 0 && onMakeThread && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-          {placed.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => onMakeThread(m.id)}
-              title={t("motifs.gatherAll", { name: motifLabel(m, t) })}
-              style={{ ...chipStyle(C.slate, false), fontSize: 9.5 }}
-            >
-              <Spool size={10} />
-              {t("motifs.makeThread")}
             </button>
           ))}
         </div>

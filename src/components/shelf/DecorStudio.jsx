@@ -123,7 +123,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
               color: C.inkFaded,
             }}
           >
-            ATELIER DÉCO
+            {t("decorStudio.stamp")}
           </div>
           <div style={{ flex: 1 }} />
           {view?.decor && (
@@ -141,7 +141,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
                 color: C.burgundy,
               }}
             >
-              <RotateCcw size={11} /> AU THÈME
+              <RotateCcw size={11} /> {t("decorStudio.backToTheme")}
             </button>
           )}
           <button onClick={onClose} style={{ all: "unset", cursor: "pointer", color: C.inkFaded }}>
@@ -184,7 +184,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
             marginTop: 10,
           }}
         >
-          le décor appartient à cette vue — une autre garde le sien
+          {t("decorStudio.belongsToThisView")}
         </div>
       </div>
     </Layer>

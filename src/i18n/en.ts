@@ -12,7 +12,27 @@
    ============================================================ */
 
 const en = {
+  /* The people picker, shared by the lists, the quizzes and the
+     challenges: it has its own sentences because it has three callers,
+     and borrowing a view's would have tied it to that view. */
+  peoplePicker: {
+    films_one: "{{count}} film",
+    films_other: "{{count}} films",
+  },
+  /* The sieve: a filter with several boxes, folded most of the time.
+     Its sentences are its own because it has several callers. */
+  sieve: {
+    any: "all",
+    several: "{{count}} chosen",
+    clear: "SHOW ALL",
+  },
   common: {
+    back: "Go back",
+    ratingOutOf: "{{rating}} out of 5",
+    seenTimes_one: "seen once",
+    seenTimes_other: "seen {{count}} times",
+    unnamed: "unnamed",
+    retry: "try again",
     close: "Close",
     cancel: "Cancel",
     save: "Save",
@@ -24,6 +44,7 @@ const en = {
   },
 
   account: {
+    handlePlaceholder: "agnes-varda",
     wipePartly: "Part of it could not be erased. Close the binder's other tabs and try again.",
     wipeMine: "Start from nothing",
     wipeTitle: "Erase everything, and keep the account?",
@@ -105,6 +126,11 @@ const en = {
       "The container refused the upload ({{detail}}). A 403 most often comes from a clock that has drifted: the signature is dated. Your images stay whole on this device.",
     mediaPullRefused:
       "The posters and screenshots made on your other devices could not be fetched back ({{detail}}). A 429 means the server refused the traffic, not that the images are lost: they are whole on the container, and the next opening will try again.",
+    usage: "Space on our side",
+    usageMedia: "posters and stills mirrored",
+    usageDecors: "decoration objects filed",
+    usageNote:
+      "These ceilings bound the room you take up on our side, and nothing else: cards themselves are not counted. A subscription loosens them without opening anything more.",
     devices: "My devices",
     devicesNote:
       "A passkey does not travel: this computer's stays in it. Add your telephone's here — then on another computer choose “another device” when signing in, and scan the code it shows.",
@@ -132,6 +158,7 @@ const en = {
   },
 
   tmdbKey: {
+    setItHere: "Set it here",
     title: "TMDB key",
     kicker: "TMDB KEY",
     note: "it opens the Discoveries, the posters, the crew cards and the wake — it stays on your machine, it goes nowhere",
@@ -223,6 +250,18 @@ const en = {
   },
 
   import: {
+    whatTheFileHolds: "WHAT THE FILE HOLDS",
+    chooseAFile: "CHOOSE A FILE",
+    thisLogIsAuthoritative: "This log is authoritative on the screenings",
+    noLongerInWatchlist: "NO LONGER IN YOUR LETTERBOXD WATCHLIST",
+    directorGenresPosters: "DIRECTOR, GENRES AND POSTERS",
+    existingCardsTouched: "existing cards touched up (your reviews and free notes are kept)",
+    letterboxdPath: "letterboxd.com → Settings → Import & Export → Export your data",
+    stamp: "ARCHIVES",
+    relayAddress: "Relay address",
+    theseFilmsAre: "These films are",
+    whatWillBeWritten: "What is about to be written",
+    heading: "Import docket",
     oneFileAtATime: "one file at a time, in the order given below",
     whichFiles: "WHICH FILES TO DROP",
     zipNote: "Letterboxd delivers a zip: unzip it, then drop these files one by one.",
@@ -265,6 +304,13 @@ const en = {
     directorsFound: "directors found",
     filmsNotIdentified: "films not identified",
     finished: "IMPORT FINISHED",
+    left_one: "You have {{count}} import left this month.",
+    left_other: "You have {{count}} imports left this month.",
+    none: "You have used all your imports for the month. The counter slides over thirty days: the next one frees itself as time passes.",
+    refused: "This import could not be counted. Try again in a moment.",
+    seeThem: "GO AND SEE THEM",
+    asWatched: "films watched",
+    queried: "{{done}} / {{total}} queried…",
     created: "cards created",
     updated: "cards updated",
     unchanged: "already up to date, unchanged",
@@ -282,7 +328,52 @@ const en = {
       "The watchlist answered {{status}}. Is the handle the right one, and the profile public?",
   },
 
+  /* THE VIGIL: the binder reads the account by itself and PROPOSES.
+     See `hooks/useLetterboxd`. */
+  letterboxdWatch: {
+    pill: "Letterboxd — {{count}} to look at",
+    pillTrouble: "Letterboxd — we could not read it",
+    lastRead: "last successful read: {{when}}",
+    neverRead: "never read yet",
+    title: "WHAT LETTERBOXD HAS THAT YOU DO NOT",
+    count: "{{count}} film(s)",
+    reading: "reading your account…",
+    trouble: "We could not read your Letterboxd account.",
+    retry: "READ AGAIN NOW",
+    nothing: "Nothing new since last time.",
+    explain:
+      "What you tick joins the binder. What you untick is set aside for good, here and on your other devices: it will not be offered again.",
+    watched: "Watched on Letterboxd",
+    wishes: "Added to your watchlist",
+    completes: "completes a card you hold",
+    keep: "ADD — {{count}}",
+    filling: "completing… {{done}}/{{total}}",
+    setting: "Read this account automatically",
+  },
+
+  /* Duplicates: the same work twice, for want of ever having been
+     matched against TMDB. See `domain/duplicates`. */
+  dupes: {
+    title: "THE SAME FILMS, TWICE",
+    stray: "cards with no TMDB identity",
+    intro:
+      "A card never matched against TMDB has only its title to be recognised by — and a title is not an identity. That is what makes the same films come back at every import, next to the ones you already hold. We ask TMDB who is who, and show you the pairs.",
+    look: "LOOK FOR DUPLICATES",
+    looking: "asking… {{done}}/{{total}}",
+    needsKey: "A TMDB key is needed: it is what says which work is which.",
+    none: "No duplicates. Each of your cards with no identity stands for a work you hold only once.",
+    mergeN_one: "MELT {{count}} DUPLICATE",
+    mergeN_other: "MELT {{count}} DUPLICATES",
+    confirmTitle_one: "Melt {{count}} duplicate?",
+    confirmTitle_other: "Melt {{count}} duplicates?",
+    confirmBody:
+      "The struck-through card goes, and everything you had written on it moves to the one above: the rating, the review, the free notes, the screenings and the captures. If both carry a review, both are kept, one under the other. The binder remembers the vanished title along the way, so that the next import does not recreate it.",
+    confirmAction: "Melt",
+    done_one: "{{count}} duplicate melted in.",
+    done_other: "{{count}} duplicates melted in.",
+  },
   complete: {
+    cardsInCollection: "cards in the collection",
     title: "COMPLETE THE CARDS FROM TMDB",
     toComplete: "cards to complete",
     alreadyUpToDate: "cards already up to date",
@@ -304,6 +395,7 @@ const en = {
   },
 
   repair: {
+    seenWithoutTrace: "cards marked “seen” with no trace of a viewing",
     title: "FIND CARDS MOVED BY MISTAKE",
     ticked: "ticked",
     intro:
@@ -320,7 +412,16 @@ const en = {
   },
 
   backup: {
+    exportMine: "EXPORT MY COLLECTION",
+    restoreOne: "RESTORE A BACKUP",
+    spaceAvailable: "space available",
     title: "POSTER VAULT AND BACKUP",
+    confirmTitle: "Replace the whole binder?",
+    confirmBody_one:
+      "This backup holds {{count}} card. It will replace your cards, your notebook, your threads, your motifs and your shelves. Anything here and not in the backup will be lost.",
+    confirmBody_other:
+      "This backup holds {{count}} cards. They will replace your cards, your notebook, your threads, your motifs and your shelves. Anything here and not in the backup will be lost.",
+    confirmAction: "REPLACE",
     postersStored: "posters filed in the store",
     spaceUsed: "space taken",
     mediaWaiting: "media waiting to be sent",
@@ -328,9 +429,26 @@ const en = {
     preparing: "preparing…",
     downloaded_one: "backup of {{count}} card downloaded.",
     downloaded_other: "backup of {{count}} cards downloaded.",
+    vaultLabel: "the browser's word",
+    vaultKept: "keeps the binder",
+    vaultFragile: "may erase the binder",
+    vaultNote:
+      "By default a browser reserves the right to reclaim this space — after a few weeks without a visit, or when the disk fills up. Asking costs one click and settles it.",
+    vaultAsk: "ASK IT TO KEEP THE BINDER",
   },
 
   film: {
+    newCard: "New card",
+    statusWatched: "Watched",
+    statusWatchlist: "To watch",
+    titleField: "Title",
+    titlePlaceholder: "The film’s title",
+    nameField: "Name",
+    genresField: "Genres (commas)",
+    genresPlaceholder: "Drama, Science fiction",
+    thisCard: "This card",
+    yourRating: "Your rating",
+    feelingPlaceholder: "What this film made you feel…",
     year: "Year",
     director: "Director",
     themes: "Themes (commas)",
@@ -344,6 +462,9 @@ const en = {
     refresh: "refresh",
     refreshHint: "ask TMDB for this card again",
     unknownTitle: "TMDB does not know this title.",
+    reharvest: "ask again",
+    reharvestHint:
+      "replace this whole record with what TMDB says of this identifier today — for when you have corrected the identifier of an already filled card. Your notes, reviews, screenings and captures do not move.",
     filledIn_one: "{{count}} field filled in.",
     filledIn_other: "{{count}} fields filled in.",
     nothingMore: "TMDB gives nothing more than what is already here.",
@@ -356,7 +477,52 @@ const en = {
     tmdbId: "TMDB ID",
   },
 
+  /* THE QUICK VIEW — everything the binder holds of a film, over the top
+     of wherever one is. Three screens offer films one has not seen; all
+     three used to show a poster, a title and a year. */
+  quick: {
+    heading: "{{title}}, in full",
+    close: "Close",
+    openCard: "Open the whole card",
+    asking: "asking TMDB for what is missing…",
+    failed: "TMDB did not answer: {{why}}",
+    synopsis: "WHAT IT IS ABOUT",
+    noSynopsis: "TMDB gives no summary for this one.",
+    noSynopsisOffline: "No summary: this card is tied to no TMDB entry.",
+    people: "WHO MADE IT",
+    words: "THE WORDS ON IT",
+    motifs: "MOTIFS",
+    themes: "THEMES",
+    yourPart: "WHAT YOU MADE OF IT",
+    status: "STATUS",
+    seen: "seen",
+    toSee: "to watch",
+    bedside: "bedside",
+    archived: "set aside",
+    screenings: "SCREENINGS",
+    screeningCount_one: "one screening",
+    screeningCount_other: "{{count}} screenings",
+    review: "YOUR WORDS",
+    notes: "YOUR NOTES",
+    yours: "yours {{rating}} / 5",
+  },
+  /* LES PHOTOGRAMMES — quelques plans du film, tels que TMDB les tient.
+     À ne pas confondre avec `stills`, qui sont VOS captures. */
+  frames: {
+    more_one: "see the last frame",
+    more_other: "see the {{count}} other frames",
+    title: "A FEW FRAMES",
+    enlarge: "Enlarge frame {{place}} of {{total}} from “{{title}}”",
+    plate: "Frames from “{{title}}”",
+    count: "{{place}} of {{total}}",
+    previous: "Previous frame",
+    next: "Next frame",
+    close: "Close the plate",
+  },
   link: {
+    seeOnTmdb: "see on TMDB",
+    itsTmdbCard: "Its TMDB card",
+    searchThisTitle: "search this title on TMDB",
     noFilmByThatTitle: "TMDB knows no film by that title.",
     fetching: "fetching the card…",
     linkedTo: "linked to “{{title}}”{{year}}.",
@@ -367,21 +533,34 @@ const en = {
   },
 
   identity: {
+    findOnTmdb: "find again on TMDB",
     found: "found: {{title}}{{year}}",
   },
 
   poster: {
+    tmdbPosters: "TMDB posters",
+    inLanguage: "language: {{lang}}",
+    orAnImageUrl: "Or an image address",
     noneFound: "No poster found for this film.",
     couldNotSave: "This image could not be saved.",
     pasteHint: "right-click a poster → “copy image address”, then Enter",
   },
 
   watchlog: {
+    iSawItAgain: "I SAW IT AGAIN",
+    noRating: "no rating",
+    viewingsLabel: "viewings",
+    sinceLastTime: "since the time before",
     removeOne: "Remove this viewing",
     removeOneOn: "Remove the viewing of {{date}}",
   },
 
   lists: {
+    toWatchStamp: "TO WATCH",
+    tagChosen_one: "Tag {{count}} card",
+    tagChosen_other: "Tag {{count}} cards",
+    tagTitle_one: "A word for {{count}} card",
+    tagTitle_other: "A word for {{count}} cards",
     deleteChosen_one: "Erase {{count}} card",
     deleteChosen_other: "Erase {{count}} cards",
     deleteTitle_one: "Erase {{count}} card?",
@@ -427,6 +606,8 @@ const en = {
   },
 
   elsewhere: {
+    label: "Elsewhere",
+    report: "Report",
     at: "at {{pseudo}}’s",
     muteSomebody: "See nothing more from {{pseudo}}",
     filedBy_one: "{{count}} library files it",
@@ -436,6 +617,7 @@ const en = {
   },
 
   sharing: {
+    whatOthersSee: "What other people see of it",
     hide: "TAKE OUT OF THE SHARING",
     hidden: "TAKEN OUT OF THE SHARING",
     shownNote:
@@ -447,6 +629,16 @@ const en = {
     intro:
       "The names your collection already carries — those who directed, acted, lit, scored, wrote. {{count}} in all.",
     gone: "This person appears on no card any more.",
+    sortBy: "sort",
+    sort: {
+      films: "film count",
+      rating: "my rating",
+      seen: "seen lately",
+      name: "alphabetical",
+    },
+    showing: "{{shown}} of {{total}}",
+    more_one: "show {{count}} more",
+    more_other: "show {{count}} more",
     namePlaceholder: "a name…",
     regularsOnly: "regulars only",
     passingThrough: "+ {{count}} passing through",
@@ -456,6 +648,11 @@ const en = {
     nobodyAmongRegulars:
       "Nobody in that capacity among the regulars — open “passing through” to see the rest.",
     nobodyInThatRole: "Nobody in that capacity.",
+    jumpPlaceholder: "jump to somebody…",
+    howItFills:
+      "This directory fills up from the cards. A card imported from elsewhere often carries only its director: the cast, the photography and the music arrive when you complete it from TMDB, on the import docket.",
+    showHidden_one: "show the name set aside",
+    showHidden_other: "show the {{count}} names set aside",
     backToCredits: "the credits",
     filmCount_one: "{{count}} film",
     filmCount_other: "{{count}} films",
@@ -495,6 +692,7 @@ const en = {
     nothingMissing: "Nothing is missing: you hold everything TMDB knows of them.",
     yearUnknown: "year unknown",
     inWatchlist: "in To watch",
+    seeMore: "See it whole",
     addToWatchlist: "+ to watch",
   },
 
@@ -525,6 +723,13 @@ const en = {
   },
 
   library: {
+    tonight: "Tonight",
+    whichTonightStamp: "WHICH ONE TONIGHT?",
+    changeArrangement: "Change arrangement",
+    rename: "Rename",
+    duplicateArrangement: "Duplicate this arrangement",
+    deleteThisView: "Delete this view",
+    findWhatToWatch: "Find something to watch tonight",
     search: "Search",
     searchPlaceholder: "a title, a filmmaker…",
     genre: "Genre",
@@ -532,6 +737,11 @@ const en = {
     sort: "Sort",
     arrange: "File",
     clickToReverse: "click to reverse",
+    confirmArrangeTitle: "Tidy the whole shelf?",
+    confirmArrangeBody:
+      "The films will redistribute themselves into the slots they occupy — your rows, your boxes and the objects laid there do not move. The arrangement you made by hand will be rewritten, but kept: a “back to the hand arrangement” button stays under the verbs until you place a card yourself again.",
+    confirmArrangeAction: "Tidy",
+    backToHand: "← BACK TO THE HAND ARRANGEMENT",
     rewritesArrangement: "Rewrites this view's arrangement",
     presentation: "Presentation",
     wall: "WALL",
@@ -550,9 +760,34 @@ const en = {
     setAside_other: "{{count}} films set aside — see the shelf",
     nothingToShow: "Nothing to show",
     tryAnotherSearch: "Try another search.",
+    emptyImport: "IMPORT FROM LETTERBOXD",
+    emptyAdd: "PIN A FILM",
   },
 
   almanac: {
+    theCount: "The count",
+    filmsTally: "FILMS",
+    rewatchesTally: "REWATCHES",
+    theRhythm: "The rhythm",
+    longestDrought: "Longest drought",
+    densestMonth: "Densest month",
+    averageScreening: "Average screening",
+    theLongest: "The longest",
+    theRatings: "The ratings",
+    theAge: "The age of what you watch",
+    onAverage: "ON AVERAGE",
+    overTwenty: "OVER 20 YEARS OLD",
+    theOldest: "The oldest",
+    theGenres: "The genres",
+    theSubjects: "The subjects",
+    motifsFollowed: "The motifs you follow",
+    stamp: "ALMANAC",
+    heading: "The almanac",
+    followed: "FOLLOWED",
+    languages: "LANGUAGES",
+    nobodyReturns: "nobody comes back {{count}} times or more",
+    nothingRecurring: "nothing coming back three times, and no new name",
+    always: "always",
     emptyTitle: "No dated viewing yet.",
     emptyBody:
       "The almanac fills itself as soon as a card carries a date — by noting a viewing on a card, or by reading your log from the import tab.",
@@ -646,7 +881,33 @@ const en = {
     couldNotDraw: "the image could not be produced",
   },
 
+  confirm: {
+    cancel: "CANCEL",
+  },
+
   reco: {
+    mainstream: "mainstream",
+    offTheBeatenTrack: "off the beaten track",
+    from: "From",
+    nicheObscurity: "little seen",
+    nicheForeign: "non-English",
+    nicheAge: "old",
+    voteFloorNote: "the vote floor keeps “confidential” apart from “forgotten for good reasons”",
+    search: "SEARCH",
+    consulting: "CONSULTING… {{done}}/{{total}}",
+    noShorts: "feature films only",
+    noShortsHint: "sets aside anything under {{count}} minutes",
+    whatMakesTheNiche: "WHAT MAKES THE NICHE",
+    missingTmdbKey: "TMDB KEY MISSING",
+    searchOutside: "search outside",
+    tooThinForAProfile: "collection too thin for a profile — only the filters will play",
+    atYourPlace: "At your place",
+    stamp: "ORDER FORM",
+    originalLanguage: "Original language",
+    votesAtLeast: "Votes ≥",
+    ignoreWatchlist: "ignore my watchlist too",
+    heading: "The discoveries desk",
+    subheading: "films to see, chosen from what your collection says",
     allLanguages: "all",
     obscurity: "Degree of obscurity",
     gem: "gem",
@@ -665,6 +926,7 @@ const en = {
   },
 
   shared: {
+    openMine: "OPEN MINE",
     heading: "{{pseudo}}'s video library",
     opening: "Opening…",
     count_one: "{{count}} film — watched, rated, filed by somebody else.",
@@ -718,6 +980,32 @@ const en = {
     title: "A new version is ready",
     body: "It will lay itself down on the next reload. Nothing you have filed moves.",
     action: "RELOAD",
+  },
+
+  /* The key lives inside the machine and does not leave it. Said without
+     drama and without jargon: neither "passkey" nor "WebAuthn", which
+     name nothing to somebody who has just made an account with a
+     fingertip. */
+  /* Two pieces of news, two sentences. "It is filling up" leaves time to
+     act; "the write failed" means what is on screen is not on the disk,
+     which is not the same conversation. */
+  quota: {
+    title: "The storage space is filling up",
+    body: "About {{megabytes}} MB used of the 5 the browser grants.",
+    fullTitle: "The storage space is full",
+    fullBody:
+      "Your last change could NOT be written: it is on screen, not on the disk. Take a backup away before closing this tab.",
+    advice:
+      "Posters brought in from your own disk are the heaviest: prefer an image address, or TMDB enrichment, which only file a link.",
+    action: "EXPORT A BACKUP",
+    dismiss: "Dismiss this warning",
+  },
+
+  loneDevice: {
+    title: "Your account only lives on this device",
+    body: "The key that opens it is locked inside this machine: it cannot be copied, and it cannot be recovered. Add a second one, on a phone, while this one still works.",
+    action: "ADD A DEVICE",
+    dismiss: "Dismiss this warning",
   },
 
   demoBinder: {
@@ -826,8 +1114,101 @@ const en = {
 
   demo: {
     title: "These twelve films are not yours",
-    body: "An example, laid down so the tour has something to show. Keep it for the time it takes to go round, or take it away right now.",
-    remove: "TAKE THEM AWAY",
+    body: "An example, laid down so you have something to handle. Keep it while you look around, bring your own films in over it, or start from an empty binder.",
+    import: "IMPORT MY FILMS",
+    remove: "START FROM AN EMPTY BINDER",
+  },
+
+  /* The texts a public address has to carry. The order of the privacy
+     section states the doctrine: what does NOT leave first, because that
+     is the product's promise and the first thing people come to check. */
+  legal: {
+    title: "Legal and terms",
+    since: "in force since {{date}}",
+    toFill: "to be filled in",
+    incomplete:
+      "These notices are incomplete: the publisher has not named itself yet. They must be completed before opening to the public.",
+    publisher: "The publisher",
+    hostedBy: "Hosting: {{host}}",
+
+    privacy: "What we know about you",
+    privacyLocal:
+      "Your collection lives on our servers. Cards, notes, reviews, screenings, the arrangement of your walls and your posters are kept there so they can be handed back to you on every one of your devices. Your browser keeps a working copy, which makes the application instant — but ours is the one that counts, and that is why a valid session is needed to open the binder.",
+    privacyServer:
+      "With an account, we keep a handle you choose, the access keys of your devices, the copy of your collection and documents, and whatever you publish willingly in the hall. No email address is asked for, and no password exists.",
+    privacyMeasure:
+      "We measure site traffic with an Umami instance we host ourselves: no cookie, no profile, and never a card identifier — a film's address is trimmed before being counted, so the measurement cannot learn what you own.",
+    privacyRights:
+      "At any time you can take away everything we hold — one single file, cards and images included —, erase your account's data while keeping the account, or delete the account entirely. All three are in this drawer. Take a backup away now and then: it is the only copy that depends neither on us nor on the network.",
+
+    terms: "The terms",
+    termsFree:
+      "With no account you get the guided tour and twelve example cards: enough to judge for yourself, without giving anything. Opening an account is free and opens the whole product — filing, rating, searching, importing, exporting, screenings, reviews and the hall.",
+    termsPaid:
+      "The subscription opens NO extra feature: it loosens the bounds on what we host for you — how many posters and stills are mirrored, how many decoration objects, how many imports. We do not charge for a function, we charge for room. Skins are bought with tokens earned by playing, and are not sold for money.",
+    termsStop:
+      "If you stop paying, NOTHING IS ERASED. You keep everything you had filed, even beyond the free tier's bounds; what you can no longer do is add more while you are above them. A skin once bought is yours for good.",
+    termsConduct:
+      "In the hall, nothing illegal and nothing aimed at a person. An account used to harm may be closed, and you can block or report from the pages concerned.",
+  },
+
+  /* Undoing the last gesture. The title says WHAT WAS DONE, not "are you
+     sure": the question no longer arises, the deed is done, and we only
+     offer to come back on it. */
+  undo: {
+    film: "Card deleted",
+    films_one: "{{count}} card deleted",
+    films_other: "{{count}} cards deleted",
+    demo: "The example has been taken away",
+    body: "You can go back on this for a few seconds.",
+    action: "UNDO",
+    merged_one: "{{count}} duplicate melted in",
+    merged_other: "{{count}} duplicates melted in",
+    dismiss: "Keep the deletion",
+  },
+
+  /* The hall's shop window. It shows the OFFER and never other people's
+     content: everything is closed by default in this product, and
+     building a window out of what nobody agreed to publish would
+     contradict that. */
+  hallWindow: {
+    title: "The hall",
+    body: "Four counters that only exist with other people, and they come with the account — no supplement, no subscription.",
+    thread: "Follow whom you like, and see what they have watched.",
+    lists: "Lists made together, and challenges with a deadline.",
+    quiz: "Question evenings, drawn from a common basket.",
+    counter: "What you have earned, and what it opens.",
+    price:
+      "None of this is bought: tokens are earned by playing, and a skin taken at the counter is yours for good.",
+    action: "OPEN AN ACCOUNT",
+  },
+
+  /* The moderation desk. It never speaks of the person who reported: a
+     content is judged, not a complainant. */
+  moderation: {
+    title: "WHAT HAS BEEN REPORTED",
+    empty: "Nothing is waiting.",
+    gone: "account gone",
+    echoes_one: "{{count}} report",
+    echoes_other: "{{count}} reports",
+    hide: "TAKE OUT OF SHARING",
+    settle: "FILE IT",
+  },
+
+  /* The doorstep. Two screens that never blur together: a refusal means
+     "you have no account", a silence means "we cannot reach it", and
+     they do not call for the same gesture. */
+  doorstep: {
+    title: "Your film library, as a notebook",
+    body: "File your films, log your screenings, write down what you made of them. Here are twelve cards to see what it looks like — open an account to start your own.",
+    open: "OPEN AN ACCOUNT",
+    tour: "TAKE THE TOUR",
+    shelf: "Twelve example cards",
+    offlineTitle: "We cannot reach the server",
+    offlineBody:
+      "Your binder is safe — it is the road to it that is missing. Check your connection, then try again.",
+    retry: "TRY AGAIN",
+    retrying: "TRYING…",
   },
 
   language: {
@@ -871,6 +1252,7 @@ const en = {
     credits: "Credits",
     reco: "Discoveries",
     constellation: "Constellation",
+    program: "Programming",
     almanac: "Almanac",
     import: "Letterboxd import",
     thread: "The feed",
@@ -883,8 +1265,8 @@ const en = {
   /* The rail's three families. A group is named after what it HOLDS,
      never after the verb one does in it. */
   groups: {
+    news: "something new",
     binder: "The binder",
-    explore: "Explore",
     hall: "The hall",
   },
 
@@ -893,6 +1275,9 @@ const en = {
     stamp: "NOTEBOOK",
     subtitle: "free thoughts, belonging to no film in particular",
     add: "ADD THE PAGE",
+    confirmTitle: "Delete this page?",
+    confirmNamed: "“{{title}}” and what it holds go for good. The notebook has no wastebasket.",
+    confirmBlank: "This page and what it holds go for good. The notebook has no wastebasket.",
     titlePlaceholder: "Title of the note",
     bodyPlaceholder: "Write freely…",
     untitled: "Untitled",
@@ -921,32 +1306,152 @@ const en = {
       sellNote:
         "Reserved to the role: gives the item back and refunds you, to run through the shop again.",
       title: "The display case",
+      window: "Within reach, today",
+      /* The rows have their own namespace: one family is called
+         “title”, and `counter.shop.title` is already the case's own
+         name. See the French file for the whole reasoning. */
+      rows: {
+        stamp: "Stamps",
+        title: "Titles",
+        paper: "Papers",
+        pack: "Packets",
+        skin: "Skins",
+        power: "Powers",
+      },
       stamp: "Stamps",
       pack: "Packets",
       skin: "Skins",
       power: "Powers",
       buy: "{{price}} tokens",
+      buying: "…",
+      paid: "Paid",
+      nowWorn: "Worn.",
+      nowBare: "Taken off.",
       owned: "Owned",
       wear: "wear",
       takeOff: "take off",
       short_one: "you are {{count}} token short",
       short_other: "you are {{count}} tokens short",
+      sift: {
+        all: "everything",
+        afford: "within reach",
+        mine: "mine",
+      },
+      sort: {
+        cheap: "cheapest first",
+        dear: "dearest first",
+      },
+      nothing: {
+        all: "The stall is empty. That should not happen — do say so.",
+        afford: "Nothing within reach yet. One quiz, and we shall see.",
+        mine: "You have not taken anything here yet.",
+      },
+      earn: {
+        quiz_flawless: "a flawless quiz gives {{worth}}",
+        challenge: "a challenge seen through gives {{worth}}",
+      },
+    },
+    cheer: {
+      open: "End-of-game pictures",
+      title: "End-of-game pictures",
+      close: "close",
+      blurb:
+        "Four pictures, one per tier, shown when a quiz ends. None of them is required: without them the ending keeps its stamp, its score and its confetti. Uploading again replaces. GIF, WebP or PNG, two megabytes at most — it loads at every game's end, for every player.",
+      pick: "UPLOAD",
+      sending: "sending…",
+      done: "uploaded",
+      badKind: "It has to be a GIF, a WebP or a PNG.",
+      tooBig: "Two megabytes at most.",
+      noTicket: "The server did not sign the upload.",
+    },
+    studio: {
+      edit: "touch up",
+      save: "SAVE",
+      cancel: "cancel",
+      publish: "PUBLISH",
+      deleteOne: "Erase “{{name}}” for good",
+      deletePackOne: "Erase the pack “{{name}}” for good",
+      deleteForGood: "erase for good",
+      deleteTitle: "Erase “{{name}}”?",
+      deleteBody:
+        "This is not a withdrawal: the piece also leaves the collection of everyone who drew it, and leaves an empty place on the shelves where it was set. There is no going back on this.",
+      deletePackTitle: "Erase the pack “{{name}}”?",
+      deletePackBody:
+        "It goes with every piece in it, and with what people had drawn from it. There is no going back on this.",
+      open: "THE OBJECT STUDIO",
+      title: "The object studio",
+      close: "close",
+      blurb:
+        "Shelf objects and their packets live in the database: one adds them without redeploying. The pictures go to the common stock, which everybody may read. Nobody uploads their own any more: this is the one door an object comes through.",
+      none: "No packets yet.",
+      emptyPack: "This packet is empty: it will give nothing.",
+      nameFr: "Name (fr)",
+      nameEn: "Name (en)",
+      price: "Price",
+      create: "CREATE",
+      taken: "That identifier is taken already.",
+      summary: "{{price}} tokens · {{count}} objects",
+      retire: "retire",
+      putBack: "put back",
+      retired: "retired",
+      wall: "hangs",
+      tintable: "takes colour",
+      choose: "CHOOSE A PICTURE",
+      sending: "SENDING…",
+      dropHint: "Or drop a PNG, a WebP or an SVG here. 512 kB at most.",
+      badKind: "PNG, WebP or SVG only.",
+      tooBig: "That picture is too heavy: 512 kB at most.",
+      noTicket: "Media storage is not configured on this server.",
+      rarity: {
+        common: "common",
+        rare: "rare",
+        gold: "gold",
+      },
     },
     items: {
       "stamp-habitue": "The regular",
       "stamp-noctambule": "The night owl",
       "stamp-premiere-seance": "First screening",
       "stamp-projectionniste": "The projectionist",
-      "pack-trois": "A packet of three",
+      "pack-trois": "Surprise packet",
       "power-halve": "Set two answers aside",
       "power-redo": "Take a question back",
       "power-extend": "Push a challenge back",
+      "power-double": "Double stake",
+      "power-second-wind": "Second wind",
+      "paper-quadrille": "Squared paper",
+      "paper-millimetre": "Graph paper",
+      "paper-verge": "Laid paper",
+      "paper-calque": "Tracing paper",
+      "paper-ondule": "Corrugated card",
+      "paper-kraft-sombre": "Dark kraft",
+      "title-cinephile": "Cinephile",
+      "title-archiviste": "Archivist",
+      "title-projectionniste": "Projectionist",
+      "title-programmateur": "Programmer",
+      "title-conservateur": "Curator",
+      "title-doyen": "Doyen",
     },
     album: {
-      title: "The sheet",
+      title: "Your collection",
       opened: "The packet opens",
+      emptyPack: "It was empty. That is mended in the studio.",
+      whereToPlace:
+        "What you draw goes on a shelf: open the cabinet, from the binder, and your objects are waiting there beside the house drawings.",
       close: "Put away",
     },
+  },
+
+  /* What went wrong, in one place. See the French file. */
+  saving: {
+    saving: "…",
+    saved: "saved",
+  },
+
+  trouble: {
+    viewFell: "That page would not open.",
+    retry: "try again",
+    offline: "We cannot reach the server.",
   },
 
   stamps: {
@@ -975,6 +1480,7 @@ const en = {
     challenge_half: "challenge half way",
     challenge_joined: "somebody joined you",
     quiz: "quiz",
+    quiz_doubled: "doubled stake",
     quiz_flawless: "flawless",
     quiz_first: "first to finish",
     watch: "a screening",
@@ -995,6 +1501,8 @@ const en = {
   },
 
   surfaces: {
+    wallpaper: "WALLPAPER",
+    patternInk: "PATTERN INK",
     paints: {
       platre: "Plaster",
       lin: "Linen",
@@ -1063,6 +1571,37 @@ const en = {
   },
 
   shelf: {
+    anonymous: "anonymous",
+    noDate: "n.d.",
+    dropFilmsHere: "drop films here",
+    bedsideStamp: "BEDSIDE FILM",
+    manage: "MANAGE",
+    myObjects: "MY OBJECTS",
+    setAsideStamp: "SET ASIDE",
+    setAsideTitle: "Set aside",
+    rowNameLabel: "ROW NAME",
+    openTheFolder: "OPEN THE FOLDER",
+    noNoteYet: "No note yet. The case is waiting for its slip.",
+    atRandom: "at random",
+    keptNotThrown: "kept, not thrown away",
+    emptyRowHint: "empty row — drop a case here",
+    colourSizeIndent: "Colour, size, indent",
+    objectStamp: "OBJECT",
+    casesPerRow: "CASES PER WOODEN ROW",
+    unnamed: "unnamed",
+    rowAbove: "+ a row above",
+    rowBelow: "+ a row below",
+    emptyRow: "empty the row",
+    deleteRow: "delete the row",
+    atOthers: "AT OTHER PEOPLE’S",
+    mine: "MINE",
+    ofTheHouse: "OF THE HOUSE",
+    backToCabinet: "Back to the cabinet",
+    manageYourObjects: "Import or delete your own objects",
+    orientation: "Orientation",
+    turnTheObject: "Turn the object",
+    setItStraight: "Set it straight",
+    dividerName: "Divider name",
     woods: {
       kraft: "Kraft",
       noyer: "Walnut",
@@ -1090,6 +1629,12 @@ const en = {
     },
     unfiledFilms: "The films not filed yet",
     rowSettings: "Settings for this row",
+    itemSettings: "Settings for “{{name}}”",
+    fixCount: "Set a number",
+    fillWidth: "Let it fill the width",
+    deleteNamed: "Delete “{{name}}”",
+    hideNamed: "Hide “{{name}}”",
+    showNamed: "Put “{{name}}” back",
     addCategoryHere: "+ a category here",
     addRow: "Add a row at the end of the shelf",
     closeDrawer: "Close the drawer",
@@ -1098,11 +1643,16 @@ const en = {
     setAside: "SET ASIDE",
     toStand: "to stand",
     toHang: "to hang",
+    leftToPlace_one: "{{count}} left to place",
+    leftToPlace_other: "{{count}} left to place",
+    leftToPlace_zero: "all placed",
     toStandTitle: "TO STAND",
     toHangTitle: "TO HANG",
     categoryColour: "Colour of the category",
     noColour: "no colour",
     hidden: "hidden",
+    wonAtCounter:
+      "New objects are won at the counter, by opening a packet. The ones you uploaded before stay here.",
     nothingImported: "nothing imported yet",
     decorFrom: "from {{pseudo}}",
     decorShown: "shown to my friends",
@@ -1116,6 +1666,9 @@ const en = {
     category: "CATEGORY",
     undoCategory: "undo the category",
     nameThisDivider: "Click to name this divider",
+    quickFile: "file it fast",
+    quickFileHint: "drop the card into a box, without crossing the page",
+    dropDecides: "the object lands where you drop it — any shelf, or the back.",
     shelfAimed: "shelf aimed at: {{shelf}}",
     kinds: {
       bedside: {
@@ -1133,6 +1686,10 @@ const en = {
     },
   },
   wallStudio: {
+    studioStamp: "WALL STUDIO",
+    stamp: "HANGING",
+    backToOriginal: "Back to the original wall",
+    closeStudio: "Close the studio",
     wallTab: "WALL",
     cardsTab: "CARDS",
     cardSize: "CARD SIZE",
@@ -1151,14 +1708,25 @@ const en = {
   },
 
   decorStudio: {
+    stamp: "DECOR STUDIO",
+    backToTheme: "BACK TO THEME",
+    belongsToThisView: "the decor belongs to this view — another one keeps its own",
     material: "MATERIAL",
     fromTheme: "from the theme",
     reset: "Clear the decor and go back to the theme's wood",
   },
 
   stills: {
+    leftOnOtherDevice: "left on the other device",
+    escToClose: "ESC TO CLOSE",
+    theFilmStrip: "The film strip",
+    shotNumber: "capture {{n}}",
+    insert: "insert",
+    next: "next (→)",
+    dragHint: "once placed, move it around inside the text",
     notSynced: "This image stayed on the device that imported it: stills do not synchronise yet.",
-    pasteHint: "Ctrl+V to paste · “insert” places the thumbnail where the cursor is",
+    pasteHint:
+      "Ctrl+V to paste · “insert” drops at the cursor, then move the thumbnail inside the text",
     caption: "caption…",
     close: "close (Escape)",
     previous: "previous (←)",
@@ -1178,8 +1746,14 @@ const en = {
     endingMotif: "ending motif",
     spoilerHint: "This motif gives the ending away — click to read it",
     suggestedByTmdb: "SUGGESTED BY TMDB —",
-    makeThread: "DRAW A THREAD",
-    gatherAll: "Gather every film carrying “{{name}}”",
+    noneLaid: "no motif",
+    star: "Make “{{name}}” a star of the map",
+    unstar: "Put out “{{name}}”’s star",
+    showTheOthers: "See the {{count}} cards carrying it",
+    alsoCarriedBy_one: "CARRIED BY {{count}} CARD",
+    alsoCarriedBy_other: "CARRIED BY {{count}} CARDS",
+    seeInTheSky: "SEE IT ON THE MAP",
+    deleteThisOne: "DELETE THIS MOTIF",
     removeOne: "Remove “{{name}}”",
     deleteOne: "Delete the motif {{name}}",
     hideOne: "Set the motif {{name}} aside",
@@ -1291,6 +1865,205 @@ const en = {
     strength3: "the same film, twice",
   },
 
+  /* The counterpart to `relations`, for people rather than works. A
+     directed bond has two wordings — the one you type, and the one the
+     other end reads; a symmetric one has only the first. */
+  bonds: {
+    master: "taught {{name}}",
+    masterInverse: "studied under {{name}}",
+    influence: "left a mark on {{name}}",
+    influenceInverse: "inherits from {{name}}",
+    affinity: "has something in common with {{name}}",
+    counterpoint: "stands against {{name}}",
+    free: "what draws them together",
+  },
+
+  /* LINEAGE. A run of films in the order you mean to watch them, and the
+     map of film-makers that says WHY that order. */
+  program: {
+    heading: "Programming",
+    subheading: "the order you mean to watch in, where you stand in it, and what justifies it",
+    empty: "No run yet. Search for a film below: the first one you lay down will open one.",
+    emptyCourse: "This run is still empty.",
+    emptyMap: "Tie two film-makers together, and the map will draw itself.",
+    courses: "Your runs",
+    courseName: "Name of the run",
+    newCourse: "A new run",
+    untitled: "Untitled run",
+    thesis: "What this run means to show",
+    thesisPlaceholder: "back up from Ozu to Hou, then down again through Kore-eda…",
+    addFirst: "Lay down a first film",
+    addToRun: "Add a film at the end",
+    pickPlaceholder: "a title, a director…",
+    pickNothing: "Nothing by that name in the binder.",
+    notSeenYet: "NOT SEEN YET",
+    alreadyInRun: "IN THE RUN",
+    why: "why this one, here?",
+    whyLabel: "Why this one, here",
+    whyPlaceholder: "watch after the one before, or the quotation goes unseen…",
+    moveEarlier: "Move one place earlier",
+    moveLater: "Move one place later",
+    moved: "{{title}} is now {{place}} of {{total}}",
+    movedMany_one: "One step moved, now at {{place}}",
+    movedMany_other: "{{count}} steps moved, now from {{place}} on",
+    openStep: "Open “{{title}}”",
+    select: "Take “{{title}}” into the selection",
+    selected_one: "One step taken",
+    selected_other: "{{count}} steps taken",
+    selectedHow: "drag any of them and the whole lot follows",
+    selectNone: "let them go",
+    selectBand: "Take every {{name}} step in this block",
+    sortAsc: "Oldest first",
+    sortDesc: "Newest first",
+    sorted_one: "One step reordered by year",
+    sorted_other: "{{count}} steps reordered by year",
+    removeMany: "Take them out of the run",
+    confirmRemoveSteps_one: "Take one step out?",
+    confirmRemoveSteps_other: "Take {{count}} steps out?",
+    confirmRemoveStepsBody:
+      "Their place in the order and what you wrote in their margins are lost. The cards stay in the binder, and the bonds between film-makers stay on the map.",
+    howToMove: "DRAG TO REORDER — OR ALT + ARROWS",
+    howToMoveRow: "DRAG A POSTER TO REORDER — OR ALT + ARROWS. SHIFT OR CTRL + CLICK TAKES SEVERAL",
+    howToLook: "DRAG TO MOVE ABOUT — CTRL + WHEEL, OR + AND −, TO LOOK CLOSER",
+    remove: "Take out of the run",
+    openFilm: "Open the card",
+    runSettings: "Set this run up",
+    openMap_one: "The map of film-makers — one bond",
+    openMap_other: "The map of film-makers — {{count}} bonds",
+    mapTitle: "The map of film-makers",
+    bondCount_one: "one bond laid",
+    bondCount_other: "{{count}} bonds laid",
+    seeSteps: "Show the steps that call upon it",
+    seeOnMap: "See this bond on the map",
+    emptyRun: "This run has no film yet. Lay one down below and it will lead the way.",
+    quickLook: "See what it is about",
+    quickOf: "See what “{{title}}” is about",
+    order: "The running order",
+    map: "The map of film-makers",
+    mapList: "The film-makers and their bonds, as a list",
+    node: "{{name}}, {{films}} in the run, {{bonds}} bonds",
+    zoomIn: "Look closer",
+    zoomOut: "Draw back",
+    zoomReset: "The whole map again",
+    mapShow: "Show the map",
+    mapHide: "Fold the map away",
+    addBond: "Tie two film-makers together",
+    linkThisDirector: "tie this film-maker",
+    tieTo: "tie {{name}} to…",
+    tieBoth: "Tie {{from}} to {{to}}",
+    bondFrom: "Who",
+    bondTo: "To whom",
+    bondKind: "Which bond",
+    bondNote: "What draws them together, if you care to say",
+    bondSave: "Lay the bond down",
+    contradiction: "You have already laid the opposite: {{existing}}. Take that one out first.",
+    selfBond: "Two different people are needed.",
+    alreadyBond: "That bond is already laid.",
+    confirmRemoveBond: "Take this bond out?",
+    confirmRemoveBondBody:
+      "The bond leaves the map, and the steps calling upon it lose their justification. The films stay in the run.",
+    removeBond: "Take the bond out",
+    deleteCourse: "Delete this run",
+    confirmDeleteCourse: "Delete “{{name}}”?",
+    confirmDeleteCourseBody:
+      "The order and the notes of this run are lost. The cards stay in the binder, and the bonds between film-makers stay on the map.",
+    confirmDelete: "Delete",
+    because: "This one follows from",
+    becauseNone: "no bond called upon yet",
+    inBinder: "IN THE BINDER",
+    onTmdb: "ON TMDB",
+    searchDirector: "Their films on TMDB",
+    filmsOf: "FILMS BY {{name}}",
+    noSuchDirector: "TMDB knows no film-maker called “{{name}}”.",
+    alreadyHeld_one: "One is already in the binder, and left out.",
+    alreadyHeld_other: "{{count}} are already in the binder, and left out.",
+    haveThemAll: "You already hold everything TMDB credits them with.",
+    searchTmdb: "Look on TMDB",
+    searchingTmdb: "asking TMDB…",
+    tmdbWhat: "searching films you have not filed yet",
+    tmdbNothing: "TMDB knows nothing by that name that you do not already hold.",
+    tmdbFailed: "TMDB did not answer: {{why}}",
+    adopting: "FILING…",
+    notInQueue_one: "{{count}} film in the binder, none in the run.",
+    notInQueue_other: "{{count}} films in the binder, none in the run.",
+    addTheirFilms: "Add them all at the end",
+    orphan: "No card in the binder carries this name any more. The bond stays.",
+    bondDetail: "The chosen bond",
+    bondFromHint: "Suggested from Wikidata ({{prop}}).",
+    bondFromCredits_one: "From your own cards: {{role}} on one of their films.",
+    bondFromCredits_other: "From your own cards: {{role}} on {{count}} of their films.",
+    forgetHinted_one: "Take back the suggested bond",
+    forgetHinted_other: "Take back the {{count}} suggested bonds",
+    confirmForgetHinted_one: "Take back one suggested bond?",
+    confirmForgetHinted_other: "Take back {{count}} suggested bonds?",
+    confirmForgetHintedBody:
+      "The bonds that came from Wikidata leave the map. What you wrote yourself does not move, and the steps that invoked those bonds stay where they are — they will read as justified again if you lay the same ones down.",
+    openPerson: "Open their page in the Credits",
+    /* ------------------------------------------------------------
+       THE FILIATION HINTS
+       ------------------------------------------------------------ */
+    hints: "What is known elsewhere",
+    hintsWaiting: "Asking…",
+    hintsNone: "Nothing known about this film-maker over there.",
+    hintsTrouble: "We could not go and ask.",
+    hintsAgain: "Ask again",
+    hintFromWikidata: "· from Wikidata",
+    hintFromCredits_one: "· {{role}}, on one of their films",
+    hintFromCredits_other: "· {{role}}, on {{count}} of their films",
+    harvest: "Look for filiations",
+    harvestBlurb_one:
+      "We ask Wikidata what is known of your binder's film-maker's masters and influences. Nothing is written without you.",
+    harvestBlurb_other:
+      "We ask Wikidata what is known of your {{count}} film-makers' masters and influences. Nothing is written without you.",
+    harvestRun: "Start looking",
+    harvestWho: "Which film-maker",
+    harvestOne: "Look for them",
+    harvestAll_one: "Sweep the binder (1 film-maker)",
+    harvestAll_other: "Sweep the whole binder ({{count}} film-makers)",
+    harvestProgress: "{{done}} of {{total}}…",
+    harvestNone: "Nothing new to offer: what we find is already on the map.",
+    harvestNoKey: "look for filiations",
+    harvestFound_one: "One filiation found",
+    harvestFound_other: "{{count}} filiations found",
+    harvestLay_one: "Lay this bond down",
+    harvestLay_other: "Lay these {{count}} bonds down",
+    harvestLaid_one: "One bond laid down.",
+    harvestLaid_other: "{{count}} bonds laid down.",
+    harvestLaidSome_one: "One bond laid down, {{refused}} the map turned away.",
+    harvestLaidSome_other: "{{count}} bonds laid down, {{refused}} the map turned away.",
+    close: "Close",
+    whereAmI: "Where you stand",
+    progressCount: "{{done}} of {{total}} watched",
+    upNext: "Up next",
+    runWalked: "You have walked this run all the way through.",
+    stampDone: "watched",
+    openStepDone: "{{title}} — watched, open this step",
+    doneOn: "settled by the screening of {{date}}",
+    hideDone_one: "hide the one that is done",
+    hideDone_other: "hide the {{count}} that are done",
+    showDone_one: "show the one that is done",
+    showDone_other: "show the {{count}} that are done",
+    allDone: "Everything in this run is watched.",
+    threadLabel: "The red thread",
+    thread_free: "Something of your own",
+    thread_filiation: "A filiation",
+    thread_motif: "A motif",
+    thread_decade: "A decade",
+    thread_genre: "A genre",
+    threadValue: "What the thread is",
+    threadNothingHeld: "Nothing in the binder carries one yet.",
+    threadEvidence: "What the thread holds",
+    threadHolds_one: "{{thread}} — one card you hold is not in the run",
+    threadHolds_other: "{{thread}} — {{count}} cards you hold are not in the run",
+    threadAllIn: "Everything you hold on it is already in the run.",
+    threadCount: "{{held}} of the {{total}} you hold are in this run",
+    pin: "Pin this run",
+    unpin: "Unpin this run",
+    inRun: "Step {{place}} of {{name}}",
+    nextInRun: "Next in {{name}}",
+    openRun: "Open the run",
+  },
+
   threads: {
     linkedCard: "linked card",
     workKind: "Kind of work",
@@ -1299,9 +2072,40 @@ const en = {
     cancelHint: "Give up (Escape)",
     cardDeleted: "card deleted",
     rewriteNote: "Rewrite the note — the title belongs to the linked card",
+    rewriteThis: "Rework this thread",
+    rewriteNamed: "Rework “{{title}}”",
+    detachNamed: "Detach “{{title}}”",
   },
 
   detail: {
+    nothingPinnedYet: "nothing pinned yet…",
+    iSawIt: "I SAW IT",
+    theRedThread: "The red thread",
+    redThreadHint: "the works that answer this film — books, paintings, other films",
+    setAside: "set aside",
+    notOnTheWall: "not on the wall — it will be linked as a plain mention",
+    putBackOnShelf: "put back on the shelf",
+    backToWatchlist: "back to “to watch”",
+    deleteForGood: "delete for good",
+    authorShort: "Author",
+    tabFilm: "THE FILM",
+    tabWords: "MY WORDS",
+    tabLinks: "THE LINKS",
+    folderParts: "The parts of the folder",
+    stamp: "FOLDER",
+    catalogueCard: "Catalogue card",
+    personalReview: "Personal review",
+    freeNotes: "Free notes",
+    motifs: "Motifs",
+    whatWeDoWithIt: "What we do with it",
+    linkKind: "Kind",
+    author: "Author / artist",
+    nameField: "Name",
+    linkNature: "Nature of the link",
+    linkStrength: "Strength of the link",
+    whyThisLink: "Why this link?",
+    backToWall: "BACK TO THE WALL",
+    untitled: "Untitled",
     reviewPlaceholder: "Write here, freehand…",
     notesPlaceholder: "Scenes, quotations, fragments…",
     keywords: "Keywords",
@@ -1310,6 +2114,10 @@ const en = {
     setAsideBody:
       "It leaves the wall and the constellation, without being destroyed — it goes back on the shelf whenever you like.",
     setAsideAction: "set aside",
+    shareImage: "SHARE AS IMAGE",
+    sharing: "drawing…",
+    shareSignature: "filed in Ciné Hub",
+    share: { shared: "shared", saved: "image saved" },
     deleteBody:
       "The card, its notes, its stills and its threads go with it. Nothing can be caught back — “set aside” files without destroying.",
     searchCollection: "Search the collection",
@@ -1322,6 +2130,11 @@ const en = {
   },
 
   wakePanel: {
+    atYourPlace: "AT YOUR PLACE",
+    noSummary: "TMDB gives no summary for it.",
+    searchOutside: "search outside for what holds with this film",
+    lookingAtTheCrew: "looking at the crew…",
+    label: "In the wake",
     setAside: "set aside",
     setAsideDone: "set aside",
     votes: "votes",
@@ -1329,6 +2142,14 @@ const en = {
   },
 
   tonightDrawer: {
+    anotherOne: "another one",
+    sayYourTime: "Say how much time you have, and what state you are in.",
+    meanwhileMotifs: "in the meantime, the mood is read off your own motifs.",
+    readingTmdb: "reading what TMDB says of these films…",
+    doesntMatter: "doesn’t matter",
+    itsCard: "its card",
+    whichTonight: "Which one tonight?",
+    imInTheMood: "I’m in the mood for",
     guessMood: "guess the mood of a film you have not written about yet",
     nothingAnswers: "Nothing in “to watch” answers — or the list is empty.",
     allReviewed: "You have been through them all.",
@@ -1337,6 +2158,9 @@ const en = {
   threadView: {
     heading: "The feed",
     subheading: "what the people you follow are watching",
+    noServer:
+      "No server is set: the binder lives entirely on your machine, and there is nobody to follow.",
+    noSuchPerson: "Nobody is showing a collection under “{{name}}”.",
     find: "Find somebody",
     pseudoPlaceholder: "their pseudonym",
     look: "LOOK",
@@ -1356,8 +2180,46 @@ const en = {
   },
 
   listsView: {
+    newListLabel: "The name of the list",
+    intentLabel: "What it is for",
+    intentPlaceholder: "What one means to file in it, and why…",
+    race: "As a race: the first to watch a film claims it.",
+    raceNote:
+      "A film somebody else has already watched no longer counts for you. First means watched earliest — the date of the screening, not of the filing.",
+    racing: "RACE",
+    ticked: "DONE",
+    alsoSeenBy: "also seen by {{who}}",
+    nothingToTick: "Nothing to tick yet — the list is empty, or nobody has watched anything.",
+    whereEverybodyStands: "Where everybody stands",
+    openChallenge: "Open the scoreboard of “{{title}}”",
+    you: "you",
+    challengeGone: "Challenge deleted.",
+    verdict: {
+      held: "HELD",
+      half: "HALFWAY",
+      missed: "LET SLIP",
+    },
+    newChallenge: "Start a challenge",
+    stepWhat: "On what?",
+    stepHowMuch: "How many, and by when?",
+    noWritableList: "No list you may write in. Open one, or challenge yourself on a criterion.",
+    challengeTitleLabel: "The name of the challenge",
+    alsoReview: "A review will have to be written too.",
+    criterionTargetNote: "A challenge with no list needs a target: without one it has no end.",
+    warmup: {
+      fiveThisMonth: "5 FILMS, THIS MONTH",
+      threeInTwoWeeks: "3 FILMS, IN A FORTNIGHT",
+      wholeListThisYear: "THE WHOLE LIST, BEFORE THE YEAR IS OUT",
+    },
+    worksCount_one: "{{count}} film",
+    worksCount_other: "{{count}} films",
+    removeWorkOf: "Remove “{{title}}” from the list",
+    keeping: "KEEPING THIS LIST",
+    startsOn: "From",
+    endsOn: "To",
     lastDays: "last days",
     settled: "Settled",
+    secondWind: "SECOND WIND — seven more days, for you",
     extend: "PUSH BACK A WEEK",
     worth_one: "{{points}} points earned — {{count}} day left",
     worth_other: "{{points}} points earned — {{count}} days left",
@@ -1369,6 +2231,7 @@ const en = {
       "Films are filed into it from their card, from a poster's badge, or by searching TMDB inside the open list.",
     yours: "Your lists",
     none: "No list yet.",
+    loading: "asking the server…",
     noChallenges:
       "No challenge. A challenge is a list and a period: open a list above to start one.",
     empty: "Empty.",
@@ -1380,6 +2243,8 @@ const en = {
     noAccount:
       "It takes an account — the button at the foot of the rail. Your video library does not need one.",
     nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
+    challengeSomebody: "a pseudonym, to challenge them",
+    summon: "Challenge them",
     challenges: "The challenges",
     inviteSomebody: "invite somebody to write",
     startChallenge: "Start a challenge on this list",
@@ -1392,11 +2257,50 @@ const en = {
     invite: "INVITE",
     removeMember: "Remove {{pseudo}}",
     publicNote: "visible to the people who follow you",
+    confirmListTitle: "Delete this list?",
+    confirmListBody:
+      "“{{title}}” will go for the people you invited too. Nothing brings it back afterwards.",
+    confirmChallengeTitle: "Delete this challenge?",
+    confirmChallengeBody:
+      "“{{title}}” will go, along with what the participants did in it. Nothing brings it back afterwards.",
     deleteList: "Erase this list",
     challengePlaceholder: "March with Varda",
+    kind: {
+      liste: "WATCH",
+      critique: "WATCH AND WRITE",
+    },
+    kindNote:
+      "A review challenge asks for both: a screening in the period, and a review of at least a hundred and forty characters. A review carries no date — the screening is what places it.",
+    criterionNew: "A challenge with no list",
+    criterionNote:
+      "A decade, a country or a director, and how many films to watch. It counts across your whole binder, not inside a list — and it is seen only by you and by those you invite to it.",
+    criterion: {
+      decade: "DECADE",
+      country: "COUNTRY",
+      director: "DIRECTOR",
+    },
+    criterionHint: {
+      decade: "1960",
+      country: "FR",
+      director: "Agnès Varda",
+    },
+    criterionSays: {
+      decade: "the {{n}}s",
+      country: "country {{code}}",
+      director: "{{name}}",
+      unknown: "a criterion",
+    },
+    criterionTargetPlaceholder: "how many",
+    criterionTarget_one: "{{count}} film to watch",
+    criterionTarget_other: "{{count}} films to watch",
+    fromCriterion: "on {{what}}",
+    targetPlaceholder: "all",
+    targetLabel: "How many films it takes — empty: the whole list",
+    outOfList: "{{target}} of the list's {{works}}",
     launch: "START",
     join: "JOIN",
     leave: "LEAVE",
+    enrolFailed: "We could not change whether you take part.",
     noParticipants: "Nobody has joined yet.",
     works_one: "{{count}} film",
     works_other: "{{count}} films",
@@ -1445,13 +2349,43 @@ const en = {
     worth: "{{n}} pt",
     points_one: "{{count}} point",
     points_other: "{{count}} points",
-    progress: "{{done}} of {{total}}",
     noTakingBack:
       "An answer once laid down is not taken back — unless a power is spent on it, once.",
     allAnswered: "Every question is answered.",
     finish: "FINISH",
     finishNote: "Finishing uncovers the corrections, and closes the quiz for good.",
-    overForYou: "That is done. It is not played again.",
+    weekly: {
+      stub: "questions",
+      blurb: "The same one for everybody, until Monday. The board is public.",
+      play: "PLAY",
+      resume: "RESUME",
+      seeAgain: "LOOK AGAIN",
+      board: "This week's board",
+      nobody: "Nobody has answered it yet. The honour is yours.",
+    },
+    bravo: "Well done — the game is over.",
+    tier: {
+      perfect: "FLAWLESS",
+      held: "WELL PLAYED",
+      half: "ROOM TO GROW",
+      missed: "ANOTHER TIME",
+    },
+    leaveGame: "Leave the game",
+    laid: "LAID",
+    laidSaid: "Answer laid down.",
+    abandonTitle: "Leave this game?",
+    abandonBody:
+      "The answers already laid down stay laid down — there is no going back on them, and the server has them. What is unanswered stays unanswered: the game remains open and you will pick it up right here, at the question you had reached.",
+    abandonAction: "Leave",
+    abandonTimedBody:
+      "This evening is timed, and the delay runs from your last answer: if you leave now, the next question will be late and worth zero, right or not. The answers already laid down stay yours.",
+    paceLabel: "Timer",
+    paceNone: "NONE",
+    paceSeconds: "{{n}}s",
+    paceWarning:
+      "A timed quiz is played in one sitting: the delay runs from the last answer laid down, so closing the tab costs the question in hand. Buying a power eats into it, and so does a slow connection.",
+    paceHere:
+      "Timed: {{n}} seconds from your last answer. Past the delay an answer is accepted and worth zero — it is not refused.",
     yourScore: "{{score}} out of {{weight}}",
     gotIt: "right · {{points}}",
     missedIt: "missed · it was “{{answer}}”",
@@ -1463,8 +2397,15 @@ const en = {
     invite: "INVITE",
     invitePlaceholder: "a pseudonym",
     removePlayer: "Remove this person",
+    confirmRemoveTitle: "Remove {{pseudo}} from this quiz?",
+    confirmRemoveBody:
+      "They will no longer see the evening, nor be able to answer it. Their score stays on the board: a game played is not rewritten because an invitation was withdrawn.",
+    confirmRemoveAction: "Remove",
     nobodyToInvite: "Nobody to invite under “{{pseudo}}”.",
     deleteQuiz: "Erase this quiz",
+    confirmDeleteTitle: "Erase “{{title}}”?",
+    confirmDeleteBody:
+      "The deal, the answers and the scores of this evening go, for you and for the people you invited, with nothing to undo. The questions stay in the bank: this quiz had borrowed them, it never owned them.",
     tendBank: "TEND THE BANK",
     bankNote:
       "The categories and their questions. This is the stock everybody draws from — you do not compose quizzes here, you make them possible.",
@@ -1474,6 +2415,10 @@ const en = {
     noCategories: "No category. That is where it starts.",
     deleteCategory: "Erase this category",
     noQuestions: "No question in this category.",
+    questionsFailed: "We could not ask for this category's questions.",
+    askAgain: "Ask again",
+    tableFailed: "We could not open this game.",
+    saveFailed: "We could not save this question.",
     addQuestion: "Add a question",
     editQuestion: "Edit this question",
     removeQuestion: "Withdraw this question",
@@ -1503,6 +2448,16 @@ const en = {
   },
 
   constellation: {
+    keywords: "KEYWORDS",
+    resetTheSky: "PUT THE SKY BACK",
+    nothingByThatName: "nothing by that name in the collection.",
+    showAll: "show everything",
+    stamp: "SKY MAP",
+    genres: "Genres",
+    searchAll: "search the whole collection…",
+    takeAsFocus: "Take as focus",
+    pinAndStart: "Pin it to the sky and start from it",
+    heading: "The constellation",
     aFilm: "film",
     aThread: "thread",
     aWork: "work",
@@ -1514,8 +2469,33 @@ const en = {
     followCrews: "FOLLOW THE CREWS",
     dottedNote:
       "dotted: somebody shared by two or three films. Click a dotted line to pin it — it becomes a real red thread.",
-    fedBy: "fed by “{{motif}}”",
-    handmadeThread: "thread written by hand",
+    plainLink: "thread written by hand",
+    motifs: "Motifs",
+    filmCount_one: "{{count}} film",
+    filmCount_other: "{{count}} films",
+    putOut: "Put out “{{name}}”",
+    lightUp: "Light “{{name}}” back up",
+    settingsOf: "Settings for “{{name}}”",
+    carriedBy_one: "laid on {{count}} card",
+    carriedBy_other: "laid on {{count}} cards",
+    nameOfYourOwn: "CALL IT SOMETHING ELSE",
+    colour: "ITS COLOUR",
+    noteUnder: "WHAT IS WRITTEN UNDER IT",
+    whatItGathers_one: "IT GATHERS {{count}} CARD",
+    whatItGathers_other: "IT GATHERS {{count}} CARDS",
+    gathersNothing: "it gathers nothing yet",
+    setByHand: "BY HAND",
+    setAsideOne: "Set “{{title}}” aside",
+    setAsideCount_one: "{{count}} CARD SET ASIDE",
+    setAsideCount_other: "{{count}} CARDS SET ASIDE",
+    putBackOne: "Put it back into the gathering",
+    addByHand: "PUT A CARD IN BY HAND",
+    searchATitle: "search for a title…",
+    putItOut: "PUT THIS STAR OUT",
+    lightItUp: "LIGHT THIS STAR BACK UP",
+    backToPlain: "BACK TO PLAIN",
+    belowTheCount:
+      "This motif is laid on a single card: what holds it on the map is what you put in by hand. From {{count}} on, it lights up by itself.",
     whereToBegin: "Where to begin",
     whereToBeginNote:
       "choose a film — the map will show only it and its neighbours, and you will move on from one to the next",
@@ -1545,6 +2525,15 @@ const en = {
   },
 
   skins: {
+    siteSkinStamp: "SITE SKIN",
+    itChangesAll: "it changes everything — the ground, the colours, the fonts, the tabs",
+    handwriting: "HANDWRITING",
+    handPlume: "by hand",
+    handPlain: "printed",
+    notTouched:
+      "your cards and the decoration of your shelves keep their colours: those are your choices, not the site's dress",
+    siteSkin: "Site skin",
+    closeThePicker: "Close the skin picker",
     price: "{{price}} tokens",
     short_one: "{{count}} token needed",
     short_other: "{{count}} tokens needed",
@@ -1588,7 +2577,7 @@ const en = {
       keys: "the keyboard arrows leaf through, Escape closes",
       hintKicker: "THE TOUR",
       hintBody: "It is waiting for you at the foot of the tabs, under the “?”.",
-      hintReplay: "pick it up now",
+      hintReplay: "take it now",
       dismissHint: "Dismiss this reminder",
     },
 
@@ -1604,11 +2593,11 @@ const en = {
       },
       sort: {
         title: "Sorting, or filing",
-        body: "On the wall, sorting is a passing state. On the shelf, filing is a gesture: it rewrites the arrangement once, then steps aside. Clicking the same verb again turns the row around.",
+        body: "On the wall, sorting is a passing state. On the shelf, filing is a GESTURE: it rewrites the arrangement once, then steps aside. Clicking the same verb again turns the row around. The first filing asks for confirmation and keeps the arrangement you made by hand: “back to the hand arrangement” stays under the verbs until you place a card yourself again.",
       },
       filters: {
         title: "The sieves",
-        body: "Genres and decades stack up: two sieves laid one on the other. Clicking a lit label again takes it off.",
+        body: "Genres and decades stack up: two sieves laid one on the other. Each takes SEVERAL boxes — within one sieve they add up (either one), from one sieve to the other they multiply (the seventies and one of those genres). “Show all” empties a sieve in one gesture.",
       },
       views: {
         title: "Named views",
@@ -1619,8 +2608,8 @@ const en = {
         body: "The wall can be painted, and the cards have a gauge. On the shelf, the same button is called “Decor workshop” and lives in the views menu: the decor belongs to the view, not to the row.",
       },
       open: {
-        title: "A card opens",
-        body: "Click a poster to open its folder: that is where the review, the motifs and the red thread are kept.",
+        title: "A card is looked at before it opens",
+        body: "Click a poster: the quick view tells you everything known about the film — what it is about, who made it, how long it runs, what you made of it — without leaving the wall. Your own captures take the place of TMDB's frames as soon as you have put any there. The folder, where the review, the motifs and the red thread are kept, is one gesture away.",
       },
       drag: {
         title: "Filing with a finger",
@@ -1708,7 +2697,11 @@ const en = {
       },
       tags: {
         title: "Keywords and motifs",
-        body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on, and that a thread can be drawn from.",
+        body: "The keywords are yours. The motifs are a shared vocabulary — “the hero dies”, “it rains at the end” — that a question can bear on.",
+      },
+      motifStar: {
+        title: "A motif becomes a star",
+        body: "The figure says how many cards carry this motif; click it to see which, without leaving this one. From two cards on, the star lights up by itself on the sky map — putting it out or lighting it again is this one button.",
       },
       lists: {
         title: "Filing this film into a list",
@@ -1740,7 +2733,7 @@ const en = {
       },
       order: {
         title: "The order form",
-        body: "Years, language, minimum score and vote count, genres sought or set aside. The proposals come from TMDB, read through what your collection already says about you.",
+        body: "Years, language, minimum score and vote count. The genres you want and those you set aside sit in two sieves, each taking several boxes. “Feature films only” puts away the eight-minute reels, which are legion below the vote floor. The proposals come from TMDB, read through what your collection already says about you.",
       },
     },
 
@@ -1755,12 +2748,44 @@ const en = {
         body: "The second layer: dotted, the people shared by several films. Click a dotted line to pin it — it becomes a real red thread.",
       },
       threads: {
-        title: "The threads",
-        body: "A thread peoples the sky instead of narrowing it: it brings its members in, linked or not. That is what you get by drawing a thread from a motif, on a card.",
+        title: "The motifs",
+        body: "A motif peoples the sky instead of narrowing it: it brings in the cards that carry it, linked or not. A chip puts its star out; the button beside it opens its settings — call it something else, colour it, put a card in by hand.",
       },
       keyboard: {
         title: "The map from the keyboard",
         body: "The map can be crossed without a mouse: a tab enters it, the arrows go from one star to the nearest one in their direction, Enter takes it as the focus — or opens its card when it already is — and Escape lets the cursor go.",
+      },
+    },
+
+    program: {
+      label: "Programming",
+      runs: {
+        title: "One run, or several",
+        body: "A run is a viewing order and the thesis that holds it together. Open as many as you like — the chips switch between them. An empty one is never kept, so there is nothing to tidy away afterwards.",
+      },
+      order: {
+        title: "The order is the point",
+        body: "Your films as posters, in the order you mean to watch them. Drag one along the strip to reorder it, or use Alt and the arrows. A film-maker's name above the posters takes their whole block in one go; once several entries are taken, you can put them back in date order, oldest or newest first, without disturbing the rest of the run. Pick one and it opens below.",
+      },
+      add: {
+        title: "Laying down a film",
+        body: "Search the whole binder — a rewatch is a milestone like any other — and then TMDB for what you have not got yet: picking one files it under “to watch”, with its poster and its director, and adds it at the end.",
+      },
+      why: {
+        title: "Why this one, here",
+        body: "The picked entry opens here: the marginal note justifies its place, and just below, the bonds of its film-maker are offered as something to call upon. Tie a new one without leaving — the entry will point at it straight away.",
+      },
+      map: {
+        title: "The map of film-makers",
+        body: "It opens over the screen, because a graph folded into a column is no more than a picture of a map. Inside: the directors of your run, linked by what you know of them — master, legacy, affinity, counterpoint; the button that ties a bond, since nothing on a card says who taught whom; and the harvest, which asks Wikidata what it knows of your film-makers and never writes a thing on your behalf. Click a node and the running order lights up on the films that are theirs.",
+      },
+      progress: {
+        title: "Where you stand",
+        body: "How many of the run you have watched, and the next one in full. Nothing is ticked here: log a screening on a film card and this moves — a screening LATER than you laid the step down settles it, so a film you saw ten years ago is still ahead of you.",
+      },
+      thread: {
+        title: "Setting this run up",
+        body: "The name, the thesis and the red thread are set here, on a sheet: a filiation between film-makers, a motif, a decade, a genre — or a sentence of your own. The thread never refuses a film — it draws the evidence under the run and offers what you already hold. This is also where a run gets pinned, or deleted.",
       },
     },
 
@@ -1794,13 +2819,17 @@ const en = {
         title: "Completing the cards",
         body: "Letterboxd exports neither director nor poster: TMDB finds both. The key is free, and stays in this browser.",
       },
+      dupes: {
+        title: "The same films, twice",
+        body: "A film that comes back at every import is not an import insisting: it is a card nothing ties to TMDB, and which therefore has only its title to be recognised by. We ask TMDB who is who, show you the pairs, and you tick. The card that stays takes everything you had written on the other — and the binder remembers the vanished title, so the next import does not recreate it.",
+      },
       repair: {
         title: "Undoing a wrong move",
         body: "Appears only if there is something to undo: the “seen” cards with no viewing, no score and no text, which were probably wishes. To be ticked one by one — the list proposes, you decide.",
       },
       backup: {
         title: "The backup",
-        body: "Everything lives in this browser, and nowhere else. Clearing the site data erases the collection: the backup is the only net, take one away now and then.",
+        body: "Everything lives in this browser, and nowhere else — which is also where it can be lost: clearing the site data erases the collection, and a browser left alone for weeks may reclaim the space itself. Ask it to keep the binder, and take a backup away now and then.",
       },
     },
 
@@ -1822,37 +2851,49 @@ const en = {
 
     lists: {
       label: "Lists and challenges",
+      secondWind: {
+        title: "The second wind",
+        body: "A power bought at the counter, spent here — and the only one that is not a quiz power. Pushing back belongs to whoever set the challenge, twice at most, within the week after the end. The second wind belongs to whoever TAKES PART, works up to a month later, and consumes neither of the author's two pushes. What it does not do: reopen a challenge already settled.",
+      },
       extend: {
         title: "Pushing back",
         body: "A power bought at the counter, spent here: seven more days, twice at most, and only within the week after the end. One pushes back, one does not resurrect — and a challenge already settled cannot be extended, or the board would describe a period nobody was measured over.",
       },
       new: {
         title: "Opening a list",
-        body: "A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
+        body: "One button, one short form, and it is open. A list holds works and not your cards: it therefore means the same thing in somebody else's house, and does not empty the day you erase a film. You file into it from the card, from a poster's badge, or from here.",
       },
       mine: {
         title: "Yours, and the shared ones",
-        body: "Each list opens in a click. You can invite somebody to write in it: they add and remove films, they do not rename the list and do not erase it. Closed by default — making it visible is a tick box.",
+        body: "Each card shows the posters last filed, and opens in a click on the whole list. Everything about it lives in there: pouring a film into it, starting a challenge, and under “keeping this list” inviting somebody to write — they add and remove films, they do not rename the list and do not erase it. Closed by default.",
       },
       search: {
         title: "Pouring in a film you have not got",
         body: "Search TMDB from the open list: that is the whole point of holding works rather than copies. “Come and see this in March” is said about films one has precisely not got yet — from a card alone, those could never be proposed.",
       },
+      criterion: {
+        title: "A challenge out of no list",
+        body: "A decade, a country, a director — and how many films. This one counts across your WHOLE binder rather than inside a list, and it asks for a target: “all the films of the sixties” would have no end. It is never discoverable: one is in it, or one made it.",
+      },
       challenges: {
         title: "A challenge is a list and a period",
-        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing.",
+        body: "A list and a period make a challenge: one asks to take part, and the binder counts by itself what each has seen in time. Nobody ticks “seen”. A TARGET is optional: “eight of these forty” holds in a month where the whole list does not, and the list itself is left alone. And a challenge can ask you to WRITE rather than merely watch — a screening in the period and a real review, since a review carries no date. A challenge carried through earns points at the counter — half of one earns less, and under half earns nothing. Open one: the SCOREBOARD shows the posters in play, stamped as they get watched, and says where everybody stands. A challenge can also be run as a race: the first to watch a film claims it, and it no longer counts for the others.",
       },
     },
 
     quiz: {
       label: "The quizzes",
+      weekly: {
+        title: "The quiz of the week",
+        body: "The same one for everybody, renewed every Monday. Nobody deals it: it appears for whoever comes looking first. You need no invitation, and the board is PUBLIC — it compares everybody who played it, not just the people you know. A block still wins, both ways. As everywhere, an answer laid down is not taken back, and the corrections only come at the end.",
+      },
       powers: {
         title: "The powers",
         body: "Bought at the counter, spent here. Setting two wrong answers aside always gives back THE SAME two if you ask again — otherwise one would pay once and peel the question bare. Taking back clears your answer to that question, once only, and the retake stays marked for the other players. With no power, this bar does not exist.",
       },
       compose: {
         title: "Dealing a quiz",
-        body: "One does not write them, one deals them: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable.",
+        body: "One does not write them, one deals them. This button opens the deal: tick some categories, a level, a length, and the questions come at random out of the bank. The mix is fixed — a hard quiz keeps a couple of easy ones to breathe, an easy one keeps a sting — and two quizzes of the same level and length weigh the same number of points. That is what makes two scores comparable. The timer is optional and reads “none” by default: set, it counts from the last answer, and a late answer is accepted but worth zero.",
       },
       bank: {
         title: "The bank",
@@ -1866,13 +2907,17 @@ const en = {
         title: "The ones you were given",
         body: "Open one and it begins. You answer whenever you like, over as many sittings as you like. An answer once laid down is not taken back — unless a power bought at the counter is spent on it, once per question, and the retake stays marked for the other players. Once finished it is not played again.",
       },
+      open: {
+        title: "Open the game",
+        body: "An evening is played full screen, not inside this line: the game takes the window, the bar says where you are, and a stamp confirms each answer laid down. Leaving asks for confirmation and loses nothing — the answers already laid down are with the server, and you will pick up at the question you had reached. Unless the evening is timed: there the delay runs from the last answer, and the screen tells you so twice beforehand.",
+      },
       playing: {
         title: "One question at a time",
-        body: "The category and the points are announced before the question. The right answer only comes down once the quiz is finished — it is not hidden on screen, it is not in the server's reply. Finishing uncovers the corrections, and the explanations with them.",
+        body: "The category and the points are announced before the question. The stamp says “laid” and never “right”: the right answer only comes down once the quiz is finished — it is not hidden on screen, it is not in the server's reply. Finishing uncovers the corrections, and the explanations with them.",
       },
       players: {
         title: "Who plays",
-        body: "One invites by pseudonym, as for a list. There is no public leaderboard: the scores you compare are those of the people you invited, and a block wins in both directions.",
+        body: "One invites by pseudonym, as for a list. An evening stays private: the scores you compare are those of the people you invited, and a block wins in both directions. Removing somebody asks for confirmation, and their score stays on the board: a game played is not erased.",
       },
       scores: {
         title: "The scores",
@@ -1892,11 +2937,19 @@ const en = {
       },
       shop: {
         title: "The display case",
-        body: "Stamps to wear beside your pseudonym, packets of stickers, extra skins, and powers to spend during a game. Something too dear stays on the shelf and tells you what is missing. The binder's fourteen skins stay free and work with no account: what is sold here comes on top.",
+        body: "Six rows: stamps and titles to wear beside your pseudonym, papers that change the page's ground without touching the skin, the skins themselves, packets of stickers, and powers to spend during a game. Something too dear stays on the shelf, tells you what is missing and where to earn it. One skin is given; the other sixteen are taken here, in tokens — and tokens are earned. Wearing a skin or a paper puts it on AT ONCE: the page changes before your eyes.",
+      },
+      window: {
+        title: "What is within reach",
+        body: "The window shows only what your purse already allows, dearest first. It is the question one comes here to ask, and it goes away as soon as there is nothing left to afford.",
+      },
+      studio: {
+        title: "The object studio",
+        body: "Reserved to the role. Shelf objects and their packets live in the database: one creates a packet, drops pictures into it, and they appear on the stall without redeploying anything. It is the one door an object comes through — nobody uploads their own any more. One retires, one never erases: an identifier is written into everybody's collection, and onto their shelves.",
       },
       album: {
-        title: "The sheet",
-        body: "Eleven stickers, drawn by hand, dealt by the server — reloading the page does not re-open a packet. The empty squares show what is missing without showing what it is, and doubles are counted: they are what one swaps.",
+        title: "Your collection",
+        body: "A packet gives ONE object, dealt by the server — reloading the page replays nothing. The empty squares show what is missing without showing what it is, and doubles are counted. What you draw goes on a shelf, beside the house drawings; what comes out of a packet cannot be shared, or the shop would have no reason to exist.",
       },
     },
     global: {
@@ -1924,6 +2977,10 @@ const en = {
       language: {
         title: "French or English",
         body: "The binder reads in both languages, and the choice stays on this device: read in French on the telephone, in English at the desk, without one imposing on the other. What you have written — your notes, your reviews, your motifs — does not move: it is yours, not the product's.",
+      },
+      letterboxd: {
+        title: "What Letterboxd has that you do not",
+        body: "If you keep a Letterboxd account, the binder reads it by itself and offers you the films you watched there and the ones you set aside. It never files anything without you: you tick what you keep. This button only appears when there is something to look at — it is set in the Import tab.",
       },
       install: {
         title: "Laying it on the home screen",
@@ -1955,7 +3012,7 @@ const en = {
       },
       counter: {
         title: "And the counter, at the end",
-        body: "A challenge finished, a quiz played, a list one keeps alive: all of it counts. The counter says what you have earned, where you stand, and what you may do with it — a stamp to wear, a packet to open. None of this exists without an account, and your video library does not need one.",
+        body: "A challenge finished, a quiz played, a list one keeps alive: all of it counts. The counter says what you have earned, where you stand, and what you may do with it — a stamp to wear, a packet to open. All of it comes with the account, and is paid for only in earned tokens.",
       },
       tmdbKey: {
         title: "The TMDB key",
@@ -1966,6 +3023,22 @@ const en = {
         body: "This button reopens it whenever you like, in full or only for the page you are on. Happy collecting.",
       },
     },
+  },
+
+  boundary: {
+    title: "This page would not open.",
+    body: "Nothing is lost: the binder keeps what it has. You can try again, or change tab.",
+    detail: "the detail",
+  },
+
+  errors: {
+    notABackup: "This file is not a Ciné Hub backup.",
+    storageFull: "Storage is full — the object was not added.",
+    viewNotSaved: "The arrangement could not be saved — storage is full.",
+  },
+  tags: {
+    noneLaid: "no keyword",
+    addOne: "add a keyword, then Enter",
   },
 } as const;
 

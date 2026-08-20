@@ -1,0 +1,126 @@
+# ============================================================
+#  L'INSTALLATION — un VPS, quatre conteneurs
+# ============================================================
+#
+#    docker compose --env-file .env up -d --build
+#
+#  Le compose de `server/` ne lève qu'un Postgres de développement ;
+#  celui-ci est celui qu'on déploie. Tout ce qui varie d'une machine à
+#  l'autre est dans `.env` — voir `.env.deploiement.exemple`.
+#
+#  ------------------------------------------------------------
+#  UN SEUL POSTGRES, DEUX BASES
+#  ------------------------------------------------------------
+#
+#  Umami veut sa base ; il la prend DANS la même instance, sous un nom à
+#  lui. Sur un VPS d'une personne, deux moteurs Postgres, c'est deux fois
+#  la mémoire, deux réglages, deux sauvegardes — pour une isolation que
+#  deux bases distinctes donnent déjà. Ce qui les sépare vraiment, c'est
+#  qu'aucune migration d'Umami ne touche aux tables du classeur.
+#
+#  ------------------------------------------------------------
+#  CE QUI SE RECONSTRUIT, ET CE QUI SE RELANCE
+#  ------------------------------------------------------------
+#
+#  Les variables `VITE_*` sont CUITES dans le paquet du classeur :
+#  changer l'adresse du serveur ou de la mesure demande
+#  `docker compose up -d --build classeur`, pas un simple redémarrage.
+#  Le serveur, lui, lit son environnement à chaque démarrage.
+# ============================================================
+services:
+  base:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB}
+    volumes:
+      - donnees:/var/lib/postgresql/data
+      # Crée la seconde base au PREMIER démarrage seulement : ce
+      # répertoire n'est joué que sur un volume vide.
+      - ./deploiement/init-mesure.sh:/docker-entrypoint-initdb.d/init-mesure.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # AUCUN PORT PUBLIÉ. La base ne parle qu'aux conteneurs du réseau ;
+    # une ligne `ports:` ici l'exposerait à tout l'internet du VPS.
+
+  serveur:
+    build: ./server
+    restart: unless-stopped
+    depends_on:
+      base:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${PG_USER}:${PG_PASSWORD}@base:5432/${PG_DB}
+      # `ORIGIN` AU SINGULIER, et il en accepte plusieurs séparées par
+      # des virgules. C'est ce que le navigateur doit retrouver pour
+      # laisser passer une requête, et ce que les passkeys signent.
+      ORIGIN: https://${DOMAINE}
+      # LE DOMAINE DES PASSKEYS. Obligatoire hors développement — sans
+      # lui le serveur s'arrête au démarrage, et il a raison : une clé
+      # signée pour le mauvais domaine n'ouvre rien.
+      #
+      # Il doit être le domaine de la PAGE, ou un de ses parents : la
+      # cérémonie se joue dans le classeur, pas dans l'API.
+      RP_ID: ${DOMAINE}
+      # LE RÔLE, ET LA SEULE PORTE VERS LUI. Appliqué à chaque
+      # démarrage : une base recréée de zéro retrouve son auteur.
+      ADMINS: ${ADMINS}
+      TMDB_KEY: ${TMDB_KEY}
+      AZURE_BLOBS: ${AZURE_BLOBS}
+      AZURE_CONTAINER: ${AZURE_CONTAINER}
+      VAPID_PUBLIC: ${VAPID_PUBLIC}
+      VAPID_PRIVATE: ${VAPID_PRIVATE}
+      # Les plafonds de référence, ceux du palier abonné. Le gratuit en
+      # prend une part — voir `server/src/limits.ts`.
+      PLAFOND_MEDIAS: ${PLAFOND_MEDIAS}
+      PLAFOND_DECORS: ${PLAFOND_DECORS}
+      PLAFOND_DECORS_OCTETS: ${PLAFOND_DECORS_OCTETS}
+
+  mesure:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    restart: unless-stopped
+    depends_on:
+      base:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${PG_USER}:${PG_PASSWORD}@base:5432/mesure
+      APP_SECRET: ${UMAMI_SECRET}
+
+  classeur:
+    build:
+      context: .
+      args:
+        VITE_SERVEUR: https://${DOMAINE_API}
+        VITE_UMAMI: https://${DOMAINE_MESURE}
+        VITE_UMAMI_ID: ${UMAMI_SITE_ID}
+    restart: unless-stopped
+    depends_on:
+      - serveur
+      - mesure
+    environment:
+      DOMAINE: ${DOMAINE}
+      DOMAINE_API: ${DOMAINE_API}
+      DOMAINE_MESURE: ${DOMAINE_MESURE}
+      # Ce que la politique de sécurité autorise en plus de `'self'`.
+      # Écrites ici plutôt que dans le `Caddyfile` : ce sont des
+      # adresses de machine, et elles changent avec la machine.
+      CSP_SERVEUR: https://${DOMAINE_API}
+      CSP_MESURE: https://${DOMAINE_MESURE}
+      CSP_MEDIAS: ${CSP_MEDIAS}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_donnees:/data
+      - caddy_config:/config
+
+volumes:
+  donnees:
+  caddy_donnees:
+  caddy_config:

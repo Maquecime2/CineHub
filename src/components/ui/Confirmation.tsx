@@ -16,6 +16,7 @@
    this motif", and its grey frame drops into the middle of the notebook
    like a browser warning — which is what it is. */
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Layer } from "./Layer";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
@@ -39,6 +40,7 @@ export function Confirmation({
   request: ConfirmRequest | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   /* Escape backs out, and the committing button takes the keyboard — but
@@ -147,7 +149,7 @@ export function Confirmation({
                 color: C.inkFaded,
               }}
             >
-              RENONCER
+              {t("confirm.cancel")}
             </button>
           </div>
         </div>

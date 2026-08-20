@@ -47,6 +47,11 @@ vi.mock("../../services/server", () => ({
   myKeys: vi.fn(async () => {
     throw new Error("hors ligne");
   }),
+  /* « La place chez nous » lit l'occupation au montage, et se tait de la
+     même façon quand le serveur ne répond pas. */
+  myUsage: vi.fn(async () => {
+    throw new Error("hors ligne");
+  }),
   addKey: vi.fn(),
   forgetKey: vi.fn(),
   makePairingCode: vi.fn(),
@@ -150,5 +155,32 @@ describe("those one has silenced", () => {
     build(false);
     await new Promise((r) => setTimeout(r, 20));
     expect(myBlocks).not.toHaveBeenCalled();
+  });
+});
+
+/* ============================================================
+   LA MENTION QU'ON PORTE, ET LE SEUL ENDROIT OÙ ELLE PEUT PARAÎTRE
+   ============================================================
+
+   `wornTitle` n'avait aucun lecteur : on achetait un titre au comptoir,
+   on le portait, il n'apparaissait nulle part. Ce cas garde le geste —
+   et garde aussi le fait qu'il se lit à CÔTÉ du `span[data-pseudo]` et
+   jamais dedans : `pseudoOfThePage` lit cet attribut pour le partage de
+   lien, et un titre glissé à l'intérieur en ferait un champ de mines le
+   jour où quelqu'un passerait à `textContent`. */
+describe("the title one wears", () => {
+  it("draws it beside the pseudonym, and never inside the shared name", () => {
+    localStorage.setItem("cinehub.counter.title", "title-cinephile");
+    build();
+
+    expect(screen.getByText("Cinéphile")).toBeInTheDocument();
+    const named = document.querySelector("[data-pseudo]");
+    expect(named?.textContent).toBe("varda");
+    localStorage.removeItem("cinehub.counter.title");
+  });
+
+  it("draws nothing at all when none is worn", () => {
+    build();
+    expect(screen.queryByText("Cinéphile")).not.toBeInTheDocument();
   });
 });
