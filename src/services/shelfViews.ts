@@ -9,7 +9,7 @@
 import { store } from "./storage";
 import { documentsSettled } from "./documents";
 import i18n from "../i18n";
-import { VIEW_VERSION, upgradeView, buildViewsFromLegacy } from "../shelf-views";
+import { VIEW_VERSION, upgradeView, buildViewsFromLegacy, fromRoom } from "../shelf-views";
 import type { Divider, Film, FilmStatus, ShelfViews } from "../types";
 
 /** A shelf view. Its shape lives in shelf-views.js, still in JavaScript. */
@@ -17,6 +17,26 @@ type ViewDoc = { id: string; wall: FilmStatus } & Record<string, unknown>;
 
 export const VIEW_INDEX = "shelf-views";
 export const viewKey = (id: string) => `shelf-view:${id}`;
+
+/* L'INDEX DE « LA PIÈCE » SE LIT ENCORE, ET IL LE FAUT.
+
+   Une version de ce classeur a écrit `{ version, order: [id…] }` — une
+   liste PLATE, sans mur — là où celle-ci attend `{ byWall }`. Sans cette
+   lecture, `loadViewIndex` rend `null`, « un index absent » fait tomber
+   `ensureViews` dans `buildViewsFromLegacy`, et le classeur FABRIQUE des
+   vues neuves par-dessus des vraies qui dorment au coffre.
+
+   On rend donc les identifiants dans les DEUX formes. Le mur, lui, se
+   décide document par document, dans `fromRoom` : l'index plat ne le
+   connaît pas, et le deviner ici reviendrait à ranger de force. */
+const namedInIndex = (): string[] | null => {
+  const idx = store.get<{
+    byWall?: Record<FilmStatus, string[]>;
+    order?: string[];
+  } | null>(VIEW_INDEX, null);
+  if (idx?.byWall) return Object.values(idx.byWall).flat();
+  return Array.isArray(idx?.order) ? idx.order : null;
+};
 
 const loadViewIndex = (): { byWall: Record<FilmStatus, string[]> } | null => {
   const idx = store.get<{ byWall?: Record<FilmStatus, string[]> } | null>(VIEW_INDEX, null);
@@ -81,6 +101,34 @@ export function ensureViews({
       // an index leading nowhere is worth a missing index: we rebuild
       if (Object.keys(docs).length) return { byWall: idx.byWall, docs };
     }
+
+    /* PAS D'INDEX D'ICI, MAIS PEUT-ÊTRE UN INDEX DE « LA PIÈCE ».
+       On le reprend AVANT de fabriquer quoi que ce soit : fabriquer
+       laisserait les vraies vues orphelines au coffre et donnerait
+       l'impression de les avoir perdues. */
+    const flat = namedInIndex();
+    if (flat?.length) {
+      const byWall: Record<FilmStatus, string[]> = { watched: [], watchlist: [] };
+      const docs: Record<string, unknown> = {};
+      for (const id of flat) {
+        const v = loadView(id);
+        if (!v) continue;
+        for (const out of fromRoom(v) as ViewDoc[]) {
+          const up = upgradeView(out) as ViewDoc;
+          byWall[up.wall].push(up.id);
+          docs[up.id] = up;
+          store.set(viewKey(up.id), up);
+        }
+      }
+      if (Object.keys(docs).length) {
+        /* L'index repasse à la forme d'ici, une fois : sans cette
+           écriture on referait la reprise à chaque ouverture, et le jour
+           où la synchro parle, c'est l'index que l'autre appareil ne
+           saurait pas lire qui partirait. */
+        saveViewIndex(byWall);
+        return { byWall, docs };
+      }
+    }
   }
   /* ON FABRIQUE POUR MONTRER, ON N'ÉCRIT QUE SI L'ON SAIT.
 
@@ -136,8 +184,7 @@ export function ensureViews({
 
 /** Les vues présentes sur le disque que l'index ne nomme pas. */
 export function orphanViews(): ViewDoc[] {
-  const idx = loadViewIndex();
-  const named = new Set(idx ? Object.values(idx.byWall).flat() : []);
+  const named = new Set(namedInIndex() ?? []);
   const found: ViewDoc[] = [];
   /* `store.keys()` ET NON UN PARCOURS DE `localStorage` : les vues sont
      COFFRÉES (`storage`, `VAULTED_PREFIXES`). Ce parcours ne voyait donc
@@ -149,9 +196,14 @@ export function orphanViews(): ViewDoc[] {
     const id = key.slice("shelf-view:".length);
     if (named.has(id)) continue;
     const doc = loadView(id);
-    /* Un document illisible ou sans mur n'a nulle part où être rangé :
-       le proposer serait proposer de le perdre autrement. */
-    if (doc && (doc.wall === "watched" || doc.wall === "watchlist")) found.push(doc);
+    /* ON RECONNAÎT UNE VUE À SES RAYONS, ET PLUS SEULEMENT À SON MUR.
+
+       La garde exigeait `wall`. Une vue venue de « la pièce » n'en porte
+       plus : elle était donc REJETÉE, et ce panneau — dont tout l'objet
+       est de retrouver des vues perdues — annonçait « rien à récupérer »
+       exactement quand il y avait tout à récupérer. C'est le défaut déjà
+       payé sur `store.keys()`, dix lignes plus haut. */
+    if (doc?.shelves) found.push(doc);
   }
   return found;
 }
@@ -171,10 +223,19 @@ export function adoptViews(ids: string[]): number {
   let taken = 0;
   for (const id of ids) {
     const doc = loadView(id);
-    if (!doc || (doc.wall !== "watched" && doc.wall !== "watchlist")) continue;
-    if (byWall[doc.wall].includes(id)) continue;
-    byWall[doc.wall].push(id);
-    taken += 1;
+    if (!doc?.shelves) continue;
+    /* ON LA REPREND EN LA RETRANSFORMANT. Adoptée telle quelle, une vue
+       de « la pièce » n'aurait pas de mur, s'afficherait du côté « vu »,
+       et les fiches rangées sur sa PILE disparaîtraient au premier
+       `reconcileView` sans un mot. `fromRoom` peut donc en rendre DEUX,
+       et c'est le seul cas où adopter ÉCRIT. */
+    for (const out of fromRoom(doc) as ViewDoc[]) {
+      const up = upgradeView(out) as ViewDoc;
+      if (byWall[up.wall].includes(up.id)) continue;
+      if (up !== doc) store.set(viewKey(up.id), up);
+      byWall[up.wall].push(up.id);
+      taken += 1;
+    }
   }
   if (taken > 0) saveViewIndex(byWall);
   return taken;

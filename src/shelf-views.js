@@ -96,6 +96,83 @@ export function upgradeView(view) {
   return reflowView(drainUnplaced({ ...view, version: VIEW_VERSION, shelves }));
 }
 
+/* ============================================================
+   UNE VUE VENUE DE « LA PIÈCE » — comment on la reprend ici
+   ============================================================
+
+   Une version de ce classeur a fondu les deux murs en une seule PIÈCE à
+   quatre rayons : `pile` (à voir), `bedside`, `main`, `reserve`, et plus
+   de champ `wall`. Elle a écrit ces documents SUR PLACE, sous les mêmes
+   clés. Ouvrir ce classeur-ci ensuite ne les reconnaît pas : `wall` est
+   absent, l'index a changé de forme, et `ensureViews` retombe sur
+   `buildViewsFromLegacy` — il FABRIQUE des vues neuves, et les vraies
+   restent au coffre sans que rien ne les nomme.
+
+   RIEN N'EST PERDU, ET C'EST CE QUI REND CETTE FONCTION POSSIBLE :
+   `ensureViews` n'écrit que des `store.set`, jamais un `store.remove`.
+   Les documents sont là, orphelins.
+
+   ON LES RETRANSFORME PLUTÔT QUE DE LES ADOPTER TELS QUELS. Adoptés
+   sans mur, ils s'afficheraient sur le mur « vu », et les fiches rangées
+   sur la PILE — que ce classeur ne connaît pas — disparaîtraient au
+   premier `reconcileView` sans un mot. C'est exactement la perte
+   silencieuse que ce fichier refuse partout ailleurs.
+
+   ELLE PEUT RENDRE DEUX VUES, ET IL LE FAUT. Une vue de « la pièce »
+   arrange la collection ENTIÈRE ; ici une vue appartient à UN mur. Trois
+   cas, et un seul est ambigu :
+
+   — la pile est vide  → c'était une vue du mur « vu » ;
+   — la planche et le chevet sont vides → c'était une vue « à voir »,
+     et elle reprend son identifiant, donc l'index la retrouve ;
+   — les deux sont garnis → on ne peut pas choisir, donc on ne choisit
+     pas : DEUX vues, et la seconde prend un identifiant dérivé.
+
+   `version` N'EST PAS RABAISSÉ. Le document peut porter des champs que
+   cette version ignore — une rangée qui pose une question, par exemple —
+   et les effacer serait détruire ce qu'on vient de sauver. Ce classeur
+   les traverse sans les lire, et ils retrouvent leur sens ailleurs. */
+
+const arrangedRows = (shelf) => (shelf?.rows || []).filter((r) => !isUnplaced(r) && r.items.length);
+
+export function fromRoom(view) {
+  if (!view?.shelves) return [];
+  // déjà d'ici : on n'y touche pas
+  if (view.wall) return [view];
+
+  const { pile, ...rest } = view.shelves;
+  const shelves = {};
+  for (const kind of SHELF_KINDS) shelves[kind] = rest[kind] || makeShelf();
+
+  const held = arrangedRows(pile);
+  const seen = arrangedRows(shelves.main).length + arrangedRows(shelves.bedside).length;
+
+  /* La pile ne dit rien : c'est une vue du mur « vu », et il n'y a qu'à
+     lui rendre son mur. */
+  if (!held.length) return [{ ...view, wall: "watched", shelves }];
+
+  /* Le rayon « à voir » de ce classeur EST `main` : ses fiches y
+     tombaient déjà avant que la pile existe. On y repose donc les
+     rangées telles qu'elles étaient, ordre compris. */
+  const toWatch = {
+    ...view,
+    wall: "watchlist",
+    shelves: {
+      bedside: makeShelf(),
+      main: { ...pile, rows: [...held, makeRow({ kind: "unplaced" })] },
+      reserve: makeShelf(),
+    },
+  };
+
+  // rien du côté vu : c'était une vue « à voir », elle garde son identité
+  if (!seen) return [toWatch];
+
+  return [
+    { ...view, wall: "watched", shelves },
+    { ...toWatch, id: `${view.id}-a-voir`, name: `${view.name || "Vue"} — à voir` },
+  ];
+}
+
 /* An airlock that overflows is no longer an airlock, it is a heap. Past
    what a board accepts, its content takes boards — just before it, so
    that the order is kept. */
