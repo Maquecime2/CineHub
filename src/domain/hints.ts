@@ -312,11 +312,20 @@ export function binderHints(films: Film[]): Hint[] {
    pistes. Le service au-dessus fait les appels.
    ============================================================ */
 
+/**
+ * CE QUE LE CROISEMENT SAIT LIRE, ET IL EN SAIT UN DE PLUS.
+ *
+ * `KinshipRole` décrit ce qu'une FICHE porte ; le croisement lit des
+ * génériques entiers et y trouve l'assistanat, qu'aucune fiche ne range.
+ * C'est un rôle à lui, pas une valeur de plus dans le modèle des fiches.
+ */
+export type CrossRole = KinshipRole | "assistanat";
+
 /** Un rôle tenu sur un film, tel que `personCrew` le rend. */
 export interface CrossCredit {
   /** L'identifiant TMDB du film. C'est LUI qui fait la jointure. */
   film: number;
-  role: KinshipRole;
+  role: CrossRole;
 }
 
 /** Le générique d'une personne, tel qu'on l'a demandé. */
@@ -325,6 +334,11 @@ export interface CrossPerson {
   name: string;
   credits: CrossCredit[];
 }
+
+/* Les rôles qui font une piste au croisement. Ce n'est pas
+   `CREDIT_ROLES` : celui-là décrit ce qu'une FICHE porte, et une fiche ne
+   range pas l'assistanat. */
+const CROSSED_ROLES: CrossRole[] = [...CREDIT_ROLES, "assistanat"];
 
 export function crossedHints(people: CrossPerson[]): Hint[] {
   /* QUI A RÉALISÉ QUOI, d'abord. Sans cette table, chaque générique
@@ -344,16 +358,24 @@ export function crossedHints(people: CrossPerson[]): Hint[] {
 
   /* Un compte par (personne, réalisateur, rôle) — « chef opérateur sur
      trois films de » vaut mieux que trois pistes identiques. */
-  const tally = new Map<string, { from: string; to: string; role: KinshipRole; n: number }>();
+  const tally = new Map<string, { from: string; to: string; role: CrossRole; n: number }>();
 
   for (const person of people) {
     const key = normalize(person.name.trim());
     if (!key) continue;
     for (const credit of person.credits) {
-      /* L'INTERPRÉTATION EST ÉCARTÉE, et la réalisation avec : `JOBS` ne
-         connaît pas la première, et un réalisateur qui réalise n'est pas
-         au générique de quelqu'un d'autre. */
-      if (!CREDIT_ROLES.includes(credit.role)) continue;
+      /* CE QU'ON RETIENT, ET L'ASSISTANAT EN FAIT PARTIE. Assistant,
+         puis seconde équipe, puis réalisateur : c'est le chemin ordinaire
+         d'un apprentissage, et il dit bien plus qu'un poste à la photo —
+         Bava sur l'« Inferno » d'Argento n'est crédité qu'à la seconde
+         équipe, donc la filiation la plus célèbre du lot ne sortait pas.
+
+         La réalisation est écartée ici : un cinéaste qui réalise n'est
+         pas au générique de quelqu'un d'autre, il EST l'autre bout. La
+         coréalisation est donc laissée de côté avec elle, et c'est un
+         choix — deux cinéastes qui signent ensemble sont des PAIRS, pas
+         un maître et son élève. */
+      if (!CROSSED_ROLES.includes(credit.role)) continue;
       for (const boss of helm.get(credit.film) ?? []) {
         /* Se croiser soi-même n'est pas un lien : un cinéaste qui éclaire
            son propre film reste un seul homme. */

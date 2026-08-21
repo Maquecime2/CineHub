@@ -206,6 +206,9 @@ const en = {
     musique: "music",
     scénario: "screenwriting",
     thème: "theme",
+    /* Not a card's role: it comes only from the credit crossing, which
+       reads what no card files — assistant director, second unit. */
+    assistanat: "assistant directing",
   },
 
   wake: {

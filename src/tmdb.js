@@ -775,13 +775,68 @@ export async function personFilmography(personId, apiKey, { role = "réalisation
    exactement ce qu'on vient lire : les fondre perdrait la moitié des
    croisements possibles.
    ============================================================ */
+/* ============================================================
+   LES MÉTIERS DU CROISEMENT — SA PROPRE TABLE, ET C'EST DÉLIBÉRÉ
+
+   `JOBS` répond à « quels films cette personne a-t-elle signés, à ce
+   titre » : c'est une FILMOGRAPHIE, et elle doit rester étroite. Y
+   glisser « Assistant Director » ferait apparaître un poste d'assistant
+   dans la filmographie de RÉALISATEUR de quelqu'un, à la vue Générique —
+   la fuite exacte que `searchPerson` explique déjà pour la popularité.
+
+   LE CROISEMENT POSE UNE AUTRE QUESTION : « qui a travaillé sur le film
+   de qui ». D'où une table à lui.
+
+   ET C'EST L'ASSISTANAT QUI MANQUAIT LE PLUS. Mesuré sur vingt
+   cinéastes, les métiers qui apparaissent vraiment dans un croisement :
+   assistant à la réalisation douze fois, scénario onze, seconde équipe
+   trois, photographie trois. Bava sur l'« Inferno » d'Argento est
+   crédité « Second Unit Director » — donc la filiation la plus célèbre
+   du lot ne sortait pas, alors que la donnée était là. Assistant, puis
+   seconde équipe, puis réalisateur, c'est le chemin ordinaire d'un
+   apprentissage, et il dit bien plus qu'un poste à la photo.
+
+   LES DEUX SE RANGENT SOUS UN SEUL RÔLE, `assistanat` : ils disent la
+   même chose — ON A TRAVAILLÉ SOUS SES ORDRES — et les séparer aurait
+   demandé à quelqu'un de trancher entre « premier assistant » et
+   « seconde équipe » pour poser un lien qui ne fait pas la différence.
+
+   LA PRODUCTION EST ÉCARTÉE, et elle est pourtant fréquente (onze fois
+   sur la même mesure). Produire le film de quelqu'un est un rapport
+   d'argent, pas un apprentissage : le proposer comme filiation ferait
+   entrer sur la carte des liens que personne n'a voulus, exactement ce
+   que l'interprétation coûterait.
+
+   LA CORÉALISATION AUSSI, et c'est le refus le moins évident : elle est
+   le cas le plus fréquent de tous. Mais deux cinéastes qui signent
+   ensemble sont des PAIRS — un film à sketches relierait ses segments
+   sans que personne l'ait demandé. C'est une affinité que la carte sait
+   déjà dire, et c'est à la main qu'on la pose.
+   ============================================================ */
+const CROSS_JOBS = {
+  ...JOBS,
+  assistanat: [
+    "Assistant Director",
+    "First Assistant Director",
+    "Second Assistant Director",
+    "Second Unit Director",
+    "Second Unit",
+  ],
+};
+
 export async function personCrew(personId, apiKey) {
-  return cachedList(`cw:${personId}`, async () => {
+  /* LA CLÉ PORTE SON NUMÉRO, ET C'EST LE MÊME RÉFLEXE QUE
+     `SYNCABLE_VERSION`. Élargir la table sans toucher à la clé aurait
+     laissé les génériques déjà en cache — une SEMAINE de TTL — répondre
+     l'ancienne réponse, sans l'assistanat : celui qui vient de mettre à
+     jour ne verrait rien de neuf et croirait le correctif raté. Toute
+     table élargie ici monte le numéro. */
+  return cachedList(`cw2:${personId}`, async () => {
     const data = await get(`/person/${personId}/movie_credits`, {}, apiKey);
     const out = [];
     const seen = new Set();
     for (const c of data.crew || []) {
-      for (const [role, jobs] of Object.entries(JOBS)) {
+      for (const [role, jobs] of Object.entries(CROSS_JOBS)) {
         if (!jobs.includes(c.job)) continue;
         /* Un même rôle deux fois sur un film — « Screenplay » ET
            « Writer » — reste un seul rôle. */

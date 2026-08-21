@@ -11,8 +11,7 @@ import {
   readCreditNote,
   usefulHints,
 } from "./hints";
-import type { CrossPerson, Hint } from "./hints";
-import type { KinshipRole } from "../types";
+import type { CrossPerson, CrossRole, Hint } from "./hints";
 import { makeBond } from "./bonds";
 import { makeFilm } from "./film";
 import type { Bond } from "./bonds";
@@ -316,7 +315,7 @@ describe("les pistes tirées du classeur", () => {
    apport.
    ============================================================ */
 describe("le croisement de deux génériques", () => {
-  const who = (name: string, ...credits: [number, KinshipRole][]): CrossPerson => ({
+  const who = (name: string, ...credits: [number, CrossRole][]): CrossPerson => ({
     name,
     credits: credits.map(([film, role]) => ({ film, role })),
   });
@@ -379,10 +378,41 @@ describe("le croisement de deux génériques", () => {
     expect(hints).toHaveLength(0);
   });
 
-  /* L'INTERPRÉTATION EST ÉCARTÉE, et un réalisateur qui réalise n'est au
-     générique de personne d'autre. */
-  it("ne retient que l'image, le scénario et la musique", () => {
+  /* LA CORÉALISATION N'EST PAS UNE FILIATION, et c'est le refus le moins
+     évident : c'est pourtant le cas le plus fréquent. Deux cinéastes qui
+     signent ensemble sont des PAIRS — un film à sketches relierait ses
+     segments sans que personne l'ait demandé. */
+  it("ne relie pas deux coréalisateurs", () => {
     const hints = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "réalisation"])]);
+    expect(hints).toHaveLength(0);
+  });
+
+  /* LE CAS BAVA, ET IL A FAILLI PASSER À TRAVERS. Sur l'« Inferno »
+     d'Argento, Bava n'est crédité qu'à la SECONDE ÉQUIPE : la filiation
+     la plus célèbre du lot ne sortait pas, alors que la donnée était là.
+     Mesuré ensuite : l'assistanat est le métier qui apparaît le plus
+     souvent dans un croisement, devant la photographie. */
+  it("voit l'assistanat, qui est le vrai signal d'apprentissage", () => {
+    const hints = crossedHints([
+      who("Dario Argento", [1, "réalisation"]),
+      who("Mario Bava", [1, "assistanat"], [2, "réalisation"]),
+    ]);
+    expect(hints).toHaveLength(1);
+    expect(hints[0]).toMatchObject({
+      kind: "affinity",
+      fromName: "Mario Bava",
+      toName: "Dario Argento",
+      source: "tmdb",
+    });
+    expect(readCrossNote(hints[0]!.note)).toEqual({ role: "assistanat", n: 1 });
+  });
+
+  /* LA PRODUCTION RESTE DEHORS : produire le film de quelqu'un est un
+     rapport d'argent, pas un apprentissage. Elle n'entre pas dans la
+     table du croisement, donc `personCrew` ne la rend même pas — ce cas
+     garde la porte du domaine, qui est la dernière. */
+  it("ne connaît aucun rôle hors de sa table", () => {
+    const hints = crossedHints([who("A", [1, "réalisation"]), who("B", [1, "interprétation"])]);
     expect(hints).toHaveLength(0);
   });
 

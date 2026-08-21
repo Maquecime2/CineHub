@@ -217,6 +217,12 @@ const fr = {
     musique: "musique",
     scénario: "scénario",
     thème: "thème",
+    /* CELUI-CI N'EST PAS UN RÔLE DE FICHE. Il ne vient que du croisement
+       des génériques (`CrossRole`), qui lit ce qu'aucune fiche ne range :
+       assistant à la réalisation, seconde équipe. Un seul mot pour les
+       deux, parce qu'ils disent la même chose — on a travaillé sous ses
+       ordres. */
+    assistanat: "assistanat",
   },
 
   wake: {
