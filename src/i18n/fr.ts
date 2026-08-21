@@ -167,6 +167,7 @@ const fr = {
 
   tmdbKey: {
     setItHere: "La régler ici",
+    orOpenAccount: "— ou ouvrez un compte, qui vous en dispense.",
     title: "Clé TMDB",
     kicker: "CLÉ TMDB",
     note: "elle ouvre les Découvertes, les affiches, les fiches d'équipe et le sillage — elle reste sur votre machine, elle ne part nulle part",
@@ -216,6 +217,12 @@ const fr = {
     musique: "musique",
     scénario: "scénario",
     thème: "thème",
+    /* CELUI-CI N'EST PAS UN RÔLE DE FICHE. Il ne vient que du croisement
+       des génériques (`CrossRole`), qui lit ce qu'aucune fiche ne range :
+       assistant à la réalisation, seconde équipe. Un seul mot pour les
+       deux, parce qu'ils disent la même chose — on a travaillé sous ses
+       ordres. */
+    assistanat: "assistanat",
   },
 
   wake: {
@@ -1605,6 +1612,63 @@ const fr = {
   },
 
   shelf: {
+    /* CE QU'UN RAYON CONTIENT, ET CE QUE LA RECHERCHE Y TROUVE.
+       `reading.*` met en mots ce que `domain/shelfReading` rend en clés
+       et en nombres : la donnée reste une clé, l'écran la traduit. */
+    reading: {
+      cases_one: "{{count}} boîtier",
+      cases_other: "{{count}} boîtiers",
+      found_one: "{{count}} trouvé ici",
+      found_other: "{{count}} trouvés ici",
+      years: "{{from}}-{{to}}",
+      rating: "moyenne {{rating}} sur 5",
+    },
+    /* L'USURE D'UN BOÎTIER. Elle se VOIT sur l'objet ; ces mots sont ce
+       que le miroir en liste et l'infobulle en disent, parce qu'un
+       dégradé ne se lit pas au lecteur d'écran. */
+    wear: {
+      sealed: "jamais vu",
+      dormant: "pas revu depuis {{count}} jours",
+      undated: "vu, sans date",
+    },
+    legend: {
+      title: "SUR CE RAYON",
+      goTo: "Aller à {{name}}",
+    },
+    find: {
+      none: "rien de trouvé sur l'étagère",
+      count_one: "{{count}} boîtier trouvé",
+      count_other: "{{count}} boîtiers trouvés",
+      next: "aller au suivant",
+      previous: "revenir au précédent",
+      at: "{{at}} sur {{count}}",
+    },
+    mirror: {
+      title: "L'étagère, ligne à ligne",
+      row: "Ligne {{n}}",
+      unfiled: "Pas encore rangés",
+    },
+    addDecor: "+ DÉCOR",
+    newViewStamp: "+ NOUVELLE VUE",
+    removeObject: "retirer l'objet",
+    addLineStamp: "+ LIGNE",
+    nothingSetAside:
+      "Rien de côté. Glissez ici un film que vous ne voulez plus voir sur le mur — il reste entier, avec sa note et ses captures.",
+    /* LE NOM D'UNE VUE ET CELUI D'UNE CATÉGORIE SONT DES DONNÉES, et ces
+       trois clés ne les traduisent pas : elles les PROPOSENT au moment de
+       la création, une fois, comme un nom qu'on aurait tapé. Ensuite le
+       document porte ce nom-là et personne ne le réécrit. */
+    newCategory: "Catégorie",
+    views: {
+      new: "Nouvelle vue",
+      byDirector: "Par réalisateur",
+    },
+    /* LE RECUL. On ne dit pas « zoom » : on ne grossit rien, on s'éloigne
+       pour voir le rangement en entier. */
+    stepBack: {
+      title: "Le recul",
+      notch: "Voir l'étagère à {{percent}} %",
+    },
     anonymous: "anonyme",
     noDate: "s.d.",
     dropFilmsHere: "glissez-y des films",
@@ -1760,6 +1824,7 @@ const fr = {
   },
 
   stills: {
+    lossless: " · sans perte",
     leftOnOtherDevice: "restée sur l'autre appareil",
     escToClose: "ÉCHAP POUR FERMER",
     theFilmStrip: "La pellicule",
@@ -2050,7 +2115,7 @@ const fr = {
     confirmForgetHinted_one: "Reprendre un lien proposé ?",
     confirmForgetHinted_other: "Reprendre {{count}} liens proposés ?",
     confirmForgetHintedBody:
-      "On retire de la carte les liens venus de Wikidata. Ce que vous avez écrit vous-même ne bouge pas, et les étapes qui invoquaient ces liens restent en place — elles redeviendront justifiées si vous reposez les mêmes.",
+      "On retire de la carte tous les liens proposés — Wikidata, vos fiches, les génériques de TMDB. Ce que vous avez écrit vous-même ne bouge pas, et les étapes qui invoquaient ces liens restent en place — elles redeviendront justifiées si vous reposez les mêmes.",
     openPerson: "Ouvrir sa page au générique",
     /* ------------------------------------------------------------
        LES PISTES DE FILIATION
@@ -2063,11 +2128,18 @@ const fr = {
     hintFromWikidata: "· d'après Wikidata",
     hintFromCredits_one: "· {{role}}, sur un de ses films",
     hintFromCredits_other: "· {{role}}, sur {{count}} de ses films",
+    /* LE CROISEMENT DIT LA MÊME CHOSE QUE LE CLASSEUR, ET PAS DEPUIS LE
+       MÊME ENDROIT — d'où deux phrases et non une. « Sur un de ses
+       films » se lit dans vos fiches ; ici on l'a appris chez TMDB, sur
+       des films que vous ne possédez pas, et le dire est ce qui permet
+       de juger la piste. */
+    hintFromCrossed_one: "· {{role}}, sur un de ses films (générique TMDB)",
+    hintFromCrossed_other: "· {{role}}, sur {{count}} de ses films (générique TMDB)",
     harvest: "Chercher des filiations",
     harvestBlurb_one:
-      "On demande à Wikidata ce qu'on sait des maîtres et des influences du cinéaste du classeur. Rien ne s'écrit sans vous.",
+      "On demande à Wikidata ce qu'on sait des maîtres et des influences du cinéaste du classeur, et à TMDB qui a travaillé sur les films de qui. Rien ne s'écrit sans vous.",
     harvestBlurb_other:
-      "On demande à Wikidata ce qu'on sait des maîtres et des influences de vos {{count}} cinéastes. Rien ne s'écrit sans vous.",
+      "On demande à Wikidata ce qu'on sait des maîtres et des influences de vos {{count}} cinéastes, et à TMDB qui a travaillé sur les films de qui. Rien ne s'écrit sans vous.",
     harvestRun: "Lancer la recherche",
     harvestWho: "Quel cinéaste",
     harvestOne: "Chercher pour lui",
@@ -2685,6 +2757,30 @@ const fr = {
 
     library: {
       label: "La vidéothèque",
+      shelfFind: {
+        title: "Chercher ne trie pas",
+        body: "Sur l'étagère, une recherche ne retire rien : elle ternit ce qui ne répond pas, pour que le rangement reste debout. Le compte dit combien on a trouvé ; les deux pas vous mènent d'un trouvé au suivant, et au précédent, en ouvrant au passage le tiroir des mis de côté si c'est là que le film dormait.",
+      },
+      shelfZoom: {
+        title: "Prendre du recul",
+        body: "Une étagère pleine ne tient pas dans un écran, et c'est le rangement — quel rayon est chargé, où sont les objets posés — qu'on ne voyait jamais en entier. Ces quatre crans éloignent l'étagère sans rien lui faire : le nombre de boîtiers par ligne ne bouge pas, l'ordre non plus. On recule, on ne résume pas.",
+      },
+      shelfLegend: {
+        title: "Ce qu'il y a sur ce rayon",
+        body: "Chaque boîte de catégorie s'annonce ici avec sa couleur, son nom et son compte. Cliquez une pastille pour aller droit à la boîte.",
+      },
+      shelfRow: {
+        title: "Une ligne se lit sans se parcourir",
+        body: "Au-dessus de chaque ligne : combien de boîtiers, quelles années, quel genre domine, quelle moyenne. L'onglet à gauche ouvre ses réglages — son nom, et le nombre de boîtiers par planche.",
+      },
+      shelfQuickFile: {
+        title: "Ranger sans traverser la page",
+        body: "Attrapez un boîtier : les boîtes de l'étagère se rassemblent sur le bord droit, toujours au même endroit. Lâchez sur l'une d'elles, et le film y va — sans descendre six rangées plus bas en tenant le bouton. Le tiroir des mis de côté est juste à côté, et s'ouvre tout seul quand on passe dessus.",
+      },
+      shelfCabinet: {
+        title: "Le cabinet de curiosités",
+        body: "Une plante, un chat, un intercalaire, un cadre au mur : tirez un objet du cabinet et posez-le entre deux boîtiers. Une étagère n'est pas qu'une grille de films.",
+      },
       search: {
         title: "Chercher",
         body: "Un titre, un·e cinéaste, un mot de votre critique. Sur le mur, la recherche filtre ; sur l'étagère, elle éteint ce qu'elle ne trouve pas et laisse l'agencement en place. Pour chercher au-delà des films — les gens, les motifs, les fils, le carnet — la loupe, au pied du rail ou au bout de la barre du bas, interroge tout d'un coup.",
@@ -2761,6 +2857,14 @@ const fr = {
         title: "À quel titre",
         body: "Les tamis se cumulent, comme sur le mur. Par défaut le répertoire ne montre que celles et ceux qu'on croise au moins deux fois — les autres sont à un clic, sous « de passage ».",
       },
+      sort: {
+        title: "L'ordre est la question",
+        body: "« Qui revient le plus » et « qui je note le mieux » ne rendent pas le même annuaire : le premier dit vos habitudes, le second vos attachements. Vu récemment montre qui traverse vos derniers mois.",
+      },
+      list: {
+        title: "Chaque nom mène à ce que vous en avez",
+        body: "Une ligne par personne, avec ce que votre collection porte d'elle. Cliquez : son dossier s'ouvre, avec ses films chez vous, votre note moyenne et les noms qu'on croise sur ses fiches.",
+      },
       page: {
         title: "Ce que quelqu'un vaut chez vous",
         body: "Votre note moyenne sur ses films, son écart à votre propre moyenne — au-dessus ou en dessous de ce que vous donnez d'habitude — et votre écart à la note publique. Puis ses films, ce qui revient chez lui, et depuis quand.",
@@ -2788,6 +2892,10 @@ const fr = {
       elsewhere: {
         title: "Ce qu'on en dit ailleurs",
         body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste — le tiroir du compte liste ceux que vous avez fait taire, et leur rend la parole. Sans serveur ni compte, cette section n'existe pas.",
+      },
+      fileInList: {
+        title: "Ranger cette fiche dans une liste",
+        body: "Une liste rassemble des films autour d'une idée, et se tient à plusieurs. Depuis ici, la fiche y entre sans quitter la page — et c'est aussi ce qui la fait compter dans les défis montés sur cette liste.",
       },
       sharing: {
         title: "La retirer du partage",
@@ -2879,7 +2987,7 @@ const fr = {
       },
       map: {
         title: "La carte des cinéastes",
-        body: "Elle s'ouvre par-dessus, parce qu'un graphe replié dans une colonne n'est plus que l'image d'une carte. On y trouve les réalisateurs de votre file, reliés par ce que vous savez d'eux — maître, héritage, affinité, contrepoint ; le bouton de nouage, car rien dans une fiche ne dit qui a formé qui ; et la moisson, qui demande à Wikidata ce qu'on en sait de vos cinéastes sans jamais rien écrire à votre place. Cliquez un astre, la bande du programme s'allume aux films qui sont de lui.",
+        body: "Elle s'ouvre par-dessus, parce qu'un graphe replié dans une colonne n'est plus que l'image d'une carte. On y trouve les réalisateurs de votre file, reliés par ce que vous savez d'eux — maître, héritage, affinité, contrepoint ; le bouton de nouage, car rien dans une fiche ne dit qui a formé qui ; et la moisson, qui demande à Wikidata qui a formé qui et à TMDB qui a travaillé sur les films de qui, sans jamais rien écrire à votre place. Cliquez un astre, la bande du programme s'allume aux films qui sont de lui.",
       },
       progress: {
         title: "Où vous en êtes",
@@ -3071,6 +3179,14 @@ const fr = {
       searchAll: {
         title: "Chercher partout",
         body: "Une question posée à tout le classeur d'un coup : les films, les gens des génériques, les motifs, les fils et les pages du carnet. Elle cherche jusque dans vos critiques, et vous montre le passage. Ctrl+K l'ouvre aussi.",
+      },
+      tabImport: {
+        title: "Faire entrer une collection",
+        body: "L'onglet Import est le seul chemin par lequel un classeur entre d'un coup : un export Letterboxd ou TMDB, une sauvegarde, ou la clé TMDB qui complète vos fiches toutes seules. C'est aussi d'ici qu'on ressort tout.",
+      },
+      purse: {
+        title: "Le compte, sous les yeux",
+        body: "Le mérite et les jetons se gagnent partout — un quizz fini, un défi bouclé, une fiche rangée — et se lisaient seulement au comptoir, c'est-à-dire quand on savait déjà. Ils sont là, et un clic ouvre le comptoir où les jetons se dépensent.",
       },
       skin: {
         title: "La peau du site",

@@ -20,21 +20,6 @@ import {
 } from "../../theme/surfaces";
 import { CAT_FAMILIES, catInk } from "../shelf/constants";
 
-/** The studio panel format: set on the right, it leaves the view behind it. */
-export const STUDIO_BOX = {
-  position: "fixed",
-  right: 40,
-  top: 120,
-  zIndex: 45,
-  width: 300,
-  maxHeight: "calc(100vh - 170px)",
-  overflowY: "auto",
-  padding: "12px 14px",
-  background: C.card,
-  border: `1px solid ${C.line}`,
-  boxShadow: "2px 8px 20px rgba(30,20,10,0.34)",
-};
-
 export const Title = ({ children, top = 12 }) => (
   <div
     style={{

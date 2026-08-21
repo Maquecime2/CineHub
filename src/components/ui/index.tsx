@@ -146,7 +146,7 @@ export function NoKey({ what, style }: { what: string; style?: CSSProperties }) 
         {i18n.t("tmdbKey.setItHere")}
       </button>
       <span style={{ fontFamily: F.hand, fontSize: 14, color: C.inkFaded }}>
-        — ou ouvrez un compte, qui vous en dispense.
+        {i18n.t("tmdbKey.orOpenAccount")}
       </span>
     </div>
   );

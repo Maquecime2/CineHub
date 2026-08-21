@@ -179,6 +179,66 @@ const library: Tour = {
       ...says("library", "notebook"),
       placement: "bottom",
     },
+    /* L'ÉTAGÈRE, ET LES QUATRE PAS SONT `optional` — Y COMPRIS LE
+       CABINET.
+
+       On a d'abord voulu le rendre obligatoire, en se disant que le
+       bouton du cabinet existe toujours. Il existe toujours SUR
+       L'ÉTAGÈRE : la vue arrive en mode MUR, où rien de tout ceci n'est
+       monté. Un pas non facultatif visant une ancre absente arrête la
+       visite sur un classeur neuf, et la règle du projet est qu'elle doit
+       se jouer en entier. */
+    {
+      target: at("shelf-find"),
+      ...says("library", "shelfFind"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("shelf-legend"),
+      ...says("library", "shelfLegend"),
+      placement: "bottom",
+      optional: true,
+    },
+    /* LE RECUL VIENT JUSTE APRÈS CE QU'UN RAYON CONTIENT, et l'ordre
+       n'est pas décoratif : on vient de dire ce qu'une ligne rassemble,
+       la question suivante est « et l'étagère entière ? ». `optional`
+       comme ses quatre voisins — la vue arrive parfois en mode MUR, où
+       rien de tout ceci n'est monté. */
+    {
+      target: at("shelf-zoom"),
+      ...says("library", "shelfZoom"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("shelf-row"),
+      ...says("library", "shelfRow"),
+      placement: "right",
+      optional: true,
+    },
+    /* LE CLASSEUR RAPIDE NE PEUT PAS ÊTRE VISÉ, ET CE PAS DÉCRIT DONC LE
+       GESTE. Le panneau des boîtes n'existe à l'écran que PENDANT un
+       glissement — hors de là il est en `display: none` et `aria-hidden`,
+       parce qu'il est monté en permanence et ouvert à la main, sans
+       repasser par React. Lui poser une ancre ferait viser un élément
+       invisible : la visite s'arrêterait devant du vide.
+
+       Il vise donc la rangée, qui est permanente, et raconte ce qui se
+       passe quand on attrape un boîtier. C'est le raisonnement de
+       `quiz-open`, qui décrit la porte et non la table. */
+    {
+      target: at("shelf-row"),
+      ...says("library", "shelfQuickFile"),
+      placement: "right",
+      optional: true,
+    },
+    {
+      target: at("shelf-cabinet"),
+      ...says("library", "shelfCabinet"),
+      placement: "left",
+      optional: true,
+    },
   ],
 };
 
@@ -230,6 +290,21 @@ const credits: Tour = {
       placement: "bottom",
       optional: true,
     },
+    /* L'ORDRE EST LA QUESTION QU'ON POSE au générique : « qui revient le
+       plus » et « qui je note le mieux » ne rendent pas le même annuaire.
+       Il était offert et jamais expliqué. */
+    {
+      target: at("credits-sort"),
+      ...says("credits", "sort"),
+      placement: "bottom",
+      optional: true,
+    },
+    {
+      target: at("credits-list"),
+      ...says("credits", "list"),
+      placement: "top",
+      optional: true,
+    },
     {
       target: at("credits-page"),
       ...says("credits", "page"),
@@ -279,6 +354,16 @@ const detail: Tour = {
       target: at("detail-sharing"),
       tab: "film",
       ...says("detail", "sharing"),
+      placement: "right",
+      optional: true,
+    },
+    /* Ranger une fiche dans une liste se faisait d'ici depuis toujours et
+       ne se disait nulle part. `optional` : sans compte, il n'y a pas de
+       liste où ranger, et le bloc ne se monte pas. */
+    {
+      target: at("file-in-list"),
+      tab: "film",
+      ...says("detail", "fileInList"),
       placement: "right",
       optional: true,
     },
@@ -608,6 +693,26 @@ const global: Tour = {
       ...says("global", "searchAll"),
       placement: "right",
       view: "library",
+    },
+    /* L'IMPORT EST UN ONGLET DU RAIL, et le seul chemin par lequel une
+       collection entre d'un coup. Il n'était décrit qu'une fois DEDANS
+       (`import-drop`), c'est-à-dire pour qui l'avait déjà trouvé. */
+    {
+      target: at("tab-import"),
+      ...says("global", "tabImport"),
+      placement: "right",
+      view: "library",
+    },
+    /* LE COMPTE SE GAGNE PARTOUT ET NE SE LISAIT QU'AU COMPTOIR — ce que
+       dit déjà `Tally` en tête de fichier. `optional` : il ne se monte
+       ni sans serveur ni sans compte, et la visite doit se jouer en
+       entier sur un classeur qui n'en a pas. */
+    {
+      target: at("rail-purse"),
+      ...says("global", "purse"),
+      placement: "right",
+      view: "library",
+      optional: true,
     },
     {
       target: at("skin"),

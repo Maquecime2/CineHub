@@ -80,6 +80,7 @@ import { DetailView } from "./views/DetailView";
 
 import { useNotes } from "./hooks/useNotes";
 import { useShelfViews } from "./hooks/useShelfViews";
+import { nearestNotch } from "./components/shelf/useStepBack";
 import { countPlacedMotifs } from "./shelf-views";
 import { saveSoon, dropSoon, noteWritten } from "./services/saving";
 import { TourOverlay, TourHint, TourMenu } from "./components/tour";
@@ -1277,13 +1278,29 @@ export default function App() {
          brings it back to something sensible at the moment of using it,
          including when it is missing. */
       look: saved[wall]?.look || null,
+      /* LE RECUL — de combien on s'éloigne de l'étagère. Il vit ICI et
+         non dans un document neuf : c'est un réglage de mur, comme le
+         mode et le tri, et `wall-prefs` est déjà dans `SYNCABLE_KEYS`.
+         Un champ de plus voyage donc avec la clé, et `SYNCABLE_VERSION`
+         n'a pas à bouger — le rattrapage ne sert qu'aux clés NEUVES.
+         `nearestNotch` ramène sur un cran ce qui vient du disque : une
+         valeur d'une version future ou d'une main qui a édité le coffre
+         ne doit pas donner une étagère à 3 %. */
+      zoom: nearestNotch(saved[wall]?.zoom),
     });
     return { watched: one("watched"), watchlist: one("watchlist") };
   });
   const setUiFor = (wall) => (next) =>
     setWallUi((s) => {
       const merged = { ...s, [wall]: next };
-      const keep = ({ mode, sortBy, desc, viewId, look }) => ({ mode, sortBy, desc, viewId, look });
+      const keep = ({ mode, sortBy, desc, viewId, look, zoom }) => ({
+        mode,
+        sortBy,
+        desc,
+        viewId,
+        look,
+        zoom,
+      });
       store.set("wall-prefs", { watched: keep(merged.watched), watchlist: keep(merged.watchlist) });
       return merged;
     });
@@ -1314,6 +1331,7 @@ export default function App() {
           desc: kept.desc ?? s[wall].desc,
           viewId: kept.viewId ?? s[wall].viewId,
           look: kept.look ?? s[wall].look,
+          zoom: kept.zoom == null ? s[wall].zoom : nearestNotch(kept.zoom),
         };
       };
       return { watched: one("watched"), watchlist: one("watchlist") };

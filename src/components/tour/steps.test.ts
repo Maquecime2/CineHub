@@ -197,6 +197,66 @@ describe("the tour's targets exist in the product", () => {
     expect(placed.size).toBeGreaterThan(30);
   });
 
+  /* ---------- THE NET HAD ONLY ONE DIRECTION ----------
+
+     "Every step aims at a laid anchor" was checked; the reverse never
+     was, and the reverse is the side that leaks. An anchor laid in the
+     product and aimed at by nobody is either an oversight — a feature
+     the tour does not describe, which CLAUDE.md calls an incomplete
+     change — or a deliberate leftover. FOURTEEN of them had piled up,
+     and nothing told the two apart.
+
+     The exception list is what forces the call. It is named, it carries
+     its reason, and it must stay SHORT for the same reason `EXEMPT` in
+     `literals.test.ts` must: a list that grows swallows the rule it is
+     an exception to. */
+  const UNAIMED: Record<string, string> = {
+    /* Sous un voile. Une visite ne peut pas ouvrir une modale, et une
+       ancre sous un voile est une ancre morte : le pas se poserait au
+       milieu d'un écran qui ne montre pas ce qu'il décrit. Le même
+       raisonnement a fondu trois pas du Programme en un seul, voir
+       `steps.ts`. La visite vise LA PORTE, et ces portes sont décrites
+       ailleurs. */
+    "compte-tiroir": "dans le tiroir du compte",
+    "notebook-new": "dans le tiroir du carnet",
+    "motif-panel": "dans la feuille d'un motif",
+    "program-hints": "dans la feuille de la carte des filiations",
+    "soir-carte": "dans le tiroir du soir",
+    "soir-humeur": "dans le tiroir du soir",
+    "soir-temps": "dans le tiroir du soir",
+    "wall-choose-bar": "dans le panneau d'une sélection du mur",
+    /* Il n'existe que lorsqu'une version attend d'être installée. Un pas
+       qui ne se montre presque jamais est un pas qu'on n'écrit pas. */
+    maj: "n'existe que sous une mise à jour en attente",
+  };
+
+  it("every laid anchor is aimed at by a step, or excused by name", () => {
+    const aimed = new Set(
+      Object.values(TOURS).flatMap((t) =>
+        t.steps.flatMap((s) => {
+          const nom = s.target && /^\[data-tour="([\w-]+)"\]$/.exec(s.target)?.[1];
+          return nom ? [nom] : [];
+        })
+      )
+    );
+    for (const anchor of placed) {
+      expect(
+        aimed.has(anchor) || anchor in UNAIMED,
+        `« ${anchor} » est posé dans src/ et aucun pas ne le vise — ` +
+          `écrivez le pas, ou inscrivez-le dans UNAIMED avec sa raison`
+      ).toBe(true);
+    }
+  });
+
+  it("has no excuse for an anchor that no longer exists", () => {
+    /* Une exception qui survit à son ancre est une exception qui couvre
+       autre chose. */
+    for (const anchor of Object.keys(UNAIMED))
+      expect(placed.has(anchor), `« ${anchor} » est excusé et n'est plus posé nulle part`).toBe(
+        true
+      );
+  });
+
   it("every step aims at an anchor that is laid", () => {
     for (const [id, t] of Object.entries(TOURS)) {
       for (const [i, s] of t.steps.entries()) {

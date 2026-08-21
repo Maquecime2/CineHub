@@ -101,7 +101,17 @@ export const HINT_MARK = "Wikidata ";
    phrase, et l'écran les met en mots par `roles.<rôle>`. */
 export const CREDIT_MARK = "credits ";
 
-const MARKS = [HINT_MARK, CREDIT_MARK];
+/* La troisième marque : deux génériques qui se croisent CHEZ TMDB, et
+   non dans vos fiches. Le détail est de la même forme que `CREDIT_MARK`
+   — un rôle et un compte — parce que ça dit la même chose ; ce qui
+   change est OÙ on l'a appris, et l'écran le dit autrement. */
+export const CROSS_MARK = "crossed ";
+
+/* LES TROIS, ET IL FAUT LES TROIS. `isHinted` décide de ce que le
+   retrait en bloc emporte : une marque oubliée ici laisse des liens que
+   plus rien ne sait reprendre, et personne ne s'en aperçoit avant d'en
+   avoir posé cent. */
+const MARKS = [HINT_MARK, CREDIT_MARK, CROSS_MARK];
 
 /**
  * Ce lien vient-il d'une piste, et non d'une main ?
@@ -113,9 +123,20 @@ const MARKS = [HINT_MARK, CREDIT_MARK];
 export const isHinted = (bond: Bond): boolean => MARKS.some((m) => bond.note.startsWith(m));
 
 /** Ce que la note d'une piste de générique dit, ou `null`. */
-export const readCreditNote = (note: string): { role: string; n: number } | null => {
-  if (!note.startsWith(CREDIT_MARK)) return null;
-  const [role, n] = note.slice(CREDIT_MARK.length).split(" ");
+export const readCreditNote = (note: string): { role: string; n: number } | null =>
+  readRoleNote(note, CREDIT_MARK);
+
+/** Ce que la note d'un croisement de génériques dit, ou `null`. */
+export const readCrossNote = (note: string): { role: string; n: number } | null =>
+  readRoleNote(note, CROSS_MARK);
+
+/* LES DEUX NOTES ONT LA MÊME FORME, et c'est voulu : un rôle et un
+   compte. Les lire deux fois aurait laissé les deux lectures diverger
+   au premier champ ajouté — ce que ce projet vient de payer sur sept
+   coquilles de modale. */
+const readRoleNote = (note: string, mark: string): { role: string; n: number } | null => {
+  if (!note.startsWith(mark)) return null;
+  const [role, n] = note.slice(mark.length).split(" ");
   return role && n ? { role, n: Number(n) || 0 } : null;
 };
 
@@ -256,5 +277,124 @@ export function binderHints(films: Film[]): Hint[] {
       toName: to,
       note: `${CREDIT_MARK}${role} ${n}`,
       source: "binder" as const,
+    }));
+}
+
+/* ============================================================
+   LE CROISEMENT DE DEUX GÉNÉRIQUES — ce que le classeur ne peut pas savoir
+
+   `binderHints` ne voit que les films qu'on POSSÈDE. On a un Freda, on a
+   un Bava, mais pas les films où Bava a éclairé pour Freda : il se tait.
+   Wikidata, elle, ne connaît la filiation que d'environ un centième des
+   cinéastes. Entre les deux il reste un trou, et c'est le plus large.
+
+   LE CROISEMENT LE COMBLE SANS RIEN COÛTER DE PLUS. `personCrew`
+   (`src/tmdb.js`) rend, pour une personne, tous ses films AVEC son rôle
+   sur chacun — `réalisation` comprise. Donc si un même film porte
+   `réalisation` chez l'un et `image` chez l'autre, on sait que le second
+   a éclairé pour le premier, et on ne l'a demandé à personne. UN APPEL
+   PAR NOM, jamais par film : demander le réalisateur de chaque film
+   aurait été un appel par film, ce que le plafond du relais et la règle
+   « on ne moissonne que sur demande » interdisent tous les deux.
+
+   IL NE PRÉSENTE JAMAIS UN INCONNU, ET C'EST SA LIMITE. Il ne relie que
+   deux personnes dont on a demandé le générique — donc deux personnes
+   que le classeur nommait déjà. Faire entrer quelqu'un dont on ne
+   possède rien est le travail de Wikidata, et c'est pourquoi les trois
+   sources ne se remplacent pas.
+
+   ET C'EST UNE AFFINITÉ, JAMAIS UN MAGISTÈRE — la règle de
+   `binderHints`, mot pour mot. « A éclairé trois films de » est un fait ;
+   « a été formé par » est une lecture, et c'est la vôtre.
+
+   PUR, ET C'EST CE QUI LE REND ÉPROUVABLE. Il ne connaît ni le réseau ni
+   le cache : on lui donne des génériques déjà ramenés, il rend des
+   pistes. Le service au-dessus fait les appels.
+   ============================================================ */
+
+/**
+ * CE QUE LE CROISEMENT SAIT LIRE, ET IL EN SAIT UN DE PLUS.
+ *
+ * `KinshipRole` décrit ce qu'une FICHE porte ; le croisement lit des
+ * génériques entiers et y trouve l'assistanat, qu'aucune fiche ne range.
+ * C'est un rôle à lui, pas une valeur de plus dans le modèle des fiches.
+ */
+export type CrossRole = KinshipRole | "assistanat";
+
+/** Un rôle tenu sur un film, tel que `personCrew` le rend. */
+export interface CrossCredit {
+  /** L'identifiant TMDB du film. C'est LUI qui fait la jointure. */
+  film: number;
+  role: CrossRole;
+}
+
+/** Le générique d'une personne, tel qu'on l'a demandé. */
+export interface CrossPerson {
+  /** Le nom tel que le classeur l'écrit — c'est celui qui ira au lien. */
+  name: string;
+  credits: CrossCredit[];
+}
+
+/* Les rôles qui font une piste au croisement. Ce n'est pas
+   `CREDIT_ROLES` : celui-là décrit ce qu'une FICHE porte, et une fiche ne
+   range pas l'assistanat. */
+const CROSSED_ROLES: CrossRole[] = [...CREDIT_ROLES, "assistanat"];
+
+export function crossedHints(people: CrossPerson[]): Hint[] {
+  /* QUI A RÉALISÉ QUOI, d'abord. Sans cette table, chaque générique
+     serait relu une fois par personne, et le croisement deviendrait
+     quadratique sur des filmographies de deux cents titres. */
+  const helm = new Map<number, { key: string; name: string }[]>();
+  for (const person of people) {
+    const key = normalize(person.name.trim());
+    if (!key) continue;
+    for (const credit of person.credits) {
+      if (credit.role !== "réalisation") continue;
+      const at = helm.get(credit.film);
+      if (at) at.push({ key, name: person.name });
+      else helm.set(credit.film, [{ key, name: person.name }]);
+    }
+  }
+
+  /* Un compte par (personne, réalisateur, rôle) — « chef opérateur sur
+     trois films de » vaut mieux que trois pistes identiques. */
+  const tally = new Map<string, { from: string; to: string; role: CrossRole; n: number }>();
+
+  for (const person of people) {
+    const key = normalize(person.name.trim());
+    if (!key) continue;
+    for (const credit of person.credits) {
+      /* CE QU'ON RETIENT, ET L'ASSISTANAT EN FAIT PARTIE. Assistant,
+         puis seconde équipe, puis réalisateur : c'est le chemin ordinaire
+         d'un apprentissage, et il dit bien plus qu'un poste à la photo —
+         Bava sur l'« Inferno » d'Argento n'est crédité qu'à la seconde
+         équipe, donc la filiation la plus célèbre du lot ne sortait pas.
+
+         La réalisation est écartée ici : un cinéaste qui réalise n'est
+         pas au générique de quelqu'un d'autre, il EST l'autre bout. La
+         coréalisation est donc laissée de côté avec elle, et c'est un
+         choix — deux cinéastes qui signent ensemble sont des PAIRS, pas
+         un maître et son élève. */
+      if (!CROSSED_ROLES.includes(credit.role)) continue;
+      for (const boss of helm.get(credit.film) ?? []) {
+        /* Se croiser soi-même n'est pas un lien : un cinéaste qui éclaire
+           son propre film reste un seul homme. */
+        if (boss.key === key) continue;
+        const id = `${key}|${boss.key}|${credit.role}`;
+        const seen = tally.get(id);
+        if (seen) seen.n += 1;
+        else tally.set(id, { from: person.name, to: boss.name, role: credit.role, n: 1 });
+      }
+    }
+  }
+
+  return [...tally.values()]
+    .sort((a, b) => b.n - a.n || a.from.localeCompare(b.from, "fr"))
+    .map(({ from, to, role, n }) => ({
+      kind: "affinity" as const,
+      fromName: from,
+      toName: to,
+      note: `${CROSS_MARK}${role} ${n}`,
+      source: "tmdb" as const,
     }));
 }

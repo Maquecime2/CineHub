@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { Layer } from "../ui/Layer";
+import { Sheet } from "../ui/Sheet";
 import { watchWorn, wornTitle } from "../../theme/owned";
 import { Label, Tally } from "../ui";
 import { Confirmation, type ConfirmRequest } from "../ui/Confirmation";
@@ -184,47 +184,35 @@ export function AccountDrawer({
   const title = useSyncExternalStore(watchWorn, wornTitle, () => null);
 
   return (
-    <Layer>
-      <div
-        onClick={onClose}
-        data-veil
-        style={{ position: "fixed", inset: 0, zIndex: 59, background: alpha(C.ink, 0.45) }}
-      />
-      <div
-        role="dialog"
-        aria-label={t("account.title")}
-        data-tour="compte-tiroir"
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: "min(400px, 92vw)",
-          zIndex: 60,
-          background: C.paper,
-          borderLeft: `1px solid ${C.line}`,
-          boxShadow: `-6px 0 24px ${alpha(C.ink, 0.28)}`,
-          overflowY: "auto",
-          padding: "26px 24px calc(40px + var(--safe-bottom))",
-          animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-          <div
-            style={{
-              fontFamily: F.title,
-              fontStyle: "italic",
-              fontWeight: 700,
-              fontSize: 26,
-              color: C.ink,
-            }}
-          >
-            <span data-pseudo={signedIn ? report.person!.pseudo : undefined}>
-              {signedIn ? report.person!.pseudo : t("account.title")}
-            </span>
-          </div>
+    <Sheet
+      /* LE NOM DU TIROIR EST LE PSEUDONYME quand il y en a un : c'est ce
+         que porte l'en-tête, et le lecteur d'écran doit entendre la même
+         chose que l'oeil. */
+      title={signedIn ? report.person!.pseudo : t("account.title")}
+      variant="drawer"
+      width={400}
+      /* L'en-tête se refuse : celui d'ici porte le pseudonyme ET la
+         mention qu'on porte, que `Sheet` ne sait pas dessiner. */
+      heading={false}
+      tour="compte-tiroir"
+      onClose={onClose}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+        <div
+          style={{
+            fontFamily: F.title,
+            fontStyle: "italic",
+            fontWeight: 700,
+            fontSize: 26,
+            color: C.ink,
+          }}
+        >
+          <span data-pseudo={signedIn ? report.person!.pseudo : undefined}>
+            {signedIn ? report.person!.pseudo : t("account.title")}
+          </span>
+        </div>
 
-          {/* ============================================================
+        {/* ============================================================
               LA MENTION QU'ON PORTE, ENFIN DESSINÉE
               ============================================================
 
@@ -250,186 +238,186 @@ export function AccountDrawer({
               PAR ABONNEMENT ET NON PAR APPEL DIRECT, sinon porter un
               titre ne se verrait qu'au rechargement — le défaut exact que
               `watchWorn` a été écrit pour fermer. */}
-          {signedIn && title && (
-            <span
-              style={{
-                fontFamily: F.mono,
-                fontSize: 10,
-                letterSpacing: 1.2,
-                textTransform: "uppercase",
-                color: C.inkFaded,
-                border: `1px solid ${C.line}`,
-                padding: "2px 6px",
-              }}
-            >
-              {t(`counter.items.${title}`)}
-            </span>
-          )}
-          <button
-            onClick={onClose}
-            aria-label={t("common.close")}
-            style={{ ...tap, all: "unset", cursor: "pointer", marginLeft: "auto" }}
+        {signedIn && title && (
+          <span
+            style={{
+              fontFamily: F.mono,
+              fontSize: 10,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              color: C.inkFaded,
+              border: `1px solid ${C.line}`,
+              padding: "2px 6px",
+            }}
           >
-            <X size={16} color={C.inkFaded} />
-          </button>
-        </div>
+            {t(`counter.items.${title}`)}
+          </span>
+        )}
+        <button
+          onClick={onClose}
+          aria-label={t("common.close")}
+          style={{ ...tap, all: "unset", cursor: "pointer", marginLeft: "auto" }}
+        >
+          <X size={16} color={C.inkFaded} />
+        </button>
+      </div>
 
-        <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 20 }}>
-          {signedIn ? t("account.signedInNote") : t("account.signedOutNote")}
-        </div>
+      <div style={{ fontFamily: F.hand, fontSize: 17, color: C.inkFaded, marginBottom: 20 }}>
+        {signedIn ? t("account.signedInNote") : t("account.signedOutNote")}
+      </div>
 
-        {/* EN HAUT ET NON EN BAS DU TIROIR. Placé sous les trois boutons
+      {/* EN HAUT ET NON EN BAS DU TIROIR. Placé sous les trois boutons
             d'effacement, le lien ne serait lu que par qui a déjà décidé
             de partir — or ces conditions se lisent AVANT d'ouvrir un
             compte, et le tiroir s'ouvre pour qui n'en a pas. */}
-        <button
-          onClick={() => setLegal(true)}
-          style={{
-            all: "unset",
-            ...tap,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 20,
-            fontFamily: F.mono,
-            fontSize: 10,
-            letterSpacing: 1,
-            color: C.inkFaded,
-            borderBottom: `1px solid ${C.line}`,
-          }}
-        >
-          <Scale size={11} /> {t("legal.title")}
-        </button>
+      <button
+        onClick={() => setLegal(true)}
+        style={{
+          all: "unset",
+          ...tap,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 20,
+          fontFamily: F.mono,
+          fontSize: 10,
+          letterSpacing: 1,
+          color: C.inkFaded,
+          borderBottom: `1px solid ${C.line}`,
+        }}
+      >
+        <Scale size={11} /> {t("legal.title")}
+      </button>
 
-        {/* ---- the state ---- */}
-        <Label>{t("account.sync")}</Label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 12px",
-            marginBottom: 18,
-            background: C.card,
-            border: `1px solid ${C.line}`,
-            fontFamily: F.mono,
-            fontSize: 11,
-            color: C.inkFaded,
-          }}
-        >
-          {report.state === "up-to-date" && <Check size={14} color={C.pine} />}
-          {report.state === "waiting" && <CloudOff size={14} color={C.inkFaded} />}
-          {report.state === "running" && <RefreshCw size={14} color={C.inkFaded} />}
-          <span style={{ flex: 1 }}>
-            {report.state === "absent" && t("account.noServer")}
-            {report.state === "no-account" && t("account.allStaysHere")}
-            {report.state === "running" && t("account.running")}
-            {report.state === "up-to-date" &&
-              t("account.upToDate", { when: whenSaid(report.at, t, i18n.language) })}
-            {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
+      {/* ---- the state ---- */}
+      <Label>{t("account.sync")}</Label>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 12px",
+          marginBottom: 18,
+          background: C.card,
+          border: `1px solid ${C.line}`,
+          fontFamily: F.mono,
+          fontSize: 11,
+          color: C.inkFaded,
+        }}
+      >
+        {report.state === "up-to-date" && <Check size={14} color={C.pine} />}
+        {report.state === "waiting" && <CloudOff size={14} color={C.inkFaded} />}
+        {report.state === "running" && <RefreshCw size={14} color={C.inkFaded} />}
+        <span style={{ flex: 1 }}>
+          {report.state === "absent" && t("account.noServer")}
+          {report.state === "no-account" && t("account.allStaysHere")}
+          {report.state === "running" && t("account.running")}
+          {report.state === "up-to-date" &&
+            t("account.upToDate", { when: whenSaid(report.at, t, i18n.language) })}
+          {/* "0 CARDS ARE WAITING FOR THE NETWORK" MEANS NOTHING, and
                 that is nonetheless what showed when the server was
                 unreachable without our having changed anything: an empty
                 countdown instead of the one useful piece of news. */}
-            {report.state === "waiting" &&
-              (report.pending === 0
-                ? t("account.unreachable")
-                : t("account.pending", { count: report.pending }))}
-            {report.state === "error" && (report.message || t("account.refused"))}
-          </span>
-          {signedIn && (
-            <button
-              onClick={onSync}
-              title={t("account.syncNow")}
-              style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
-            >
-              <RefreshCw size={14} />
-            </button>
-          )}
-        </div>
+          {report.state === "waiting" &&
+            (report.pending === 0
+              ? t("account.unreachable")
+              : t("account.pending", { count: report.pending }))}
+          {report.state === "error" && (report.message || t("account.refused"))}
+        </span>
+        {signedIn && (
+          <button
+            onClick={onSync}
+            title={t("account.syncNow")}
+            style={{ ...tap, all: "unset", cursor: "pointer", color: C.burgundy }}
+          >
+            <RefreshCw size={14} />
+          </button>
+        )}
+      </div>
 
-        {/* WHAT THE CONTAINER REFUSED, SAID HERE. The blobs travel last
+      {/* WHAT THE CONTAINER REFUSED, SAID HERE. The blobs travel last
             and outside the guard that watches the cards, so a container
             in trouble leaves the synchronisation "up to date" — which is
             true of the cards and says nothing of the posters. Without
             this line the only trace was a row of failed uploads in the
             browser's network panel, which is not a place one looks. */}
-        {signedIn && mediaSays.kind !== "none" && (
-          <div
-            style={{
-              display: "flex",
-              gap: 7,
-              padding: "9px 11px",
-              marginBottom: 18,
-              background: C.card,
-              borderLeft: `2px solid ${C.burgundy}`,
-              fontFamily: F.hand,
-              fontSize: 15,
-              color: C.inkFaded,
-            }}
-          >
-            <CloudOff size={14} style={{ flexShrink: 0, color: C.burgundy }} aria-hidden />
-            <span>
-              {mediaSays.kind === "cors"
-                ? t("account.mediaCors")
-                : /* Which DIRECTION failed. The two sentences below are not
+      {signedIn && mediaSays.kind !== "none" && (
+        <div
+          style={{
+            display: "flex",
+            gap: 7,
+            padding: "9px 11px",
+            marginBottom: 18,
+            background: C.card,
+            borderLeft: `2px solid ${C.burgundy}`,
+            fontFamily: F.hand,
+            fontSize: 15,
+            color: C.inkFaded,
+          }}
+        >
+          <CloudOff size={14} style={{ flexShrink: 0, color: C.burgundy }} aria-hidden />
+          <span>
+            {mediaSays.kind === "cors"
+              ? t("account.mediaCors")
+              : /* Which DIRECTION failed. The two sentences below are not
                      interchangeable: one says nothing is leaving, the other
                      that nothing is arriving, and sending somebody to look
                      at the wrong end of the mirror costs hours. */
-                  t(
-                    mediaSays.kind === "read-refused"
-                      ? "account.mediaPullRefused"
-                      : "account.mediaRefused",
-                    { detail: mediaSays.detail || "" }
-                  )}
-            </span>
-          </div>
-        )}
+                t(
+                  mediaSays.kind === "read-refused"
+                    ? "account.mediaPullRefused"
+                    : "account.mediaRefused",
+                  { detail: mediaSays.detail || "" }
+                )}
+          </span>
+        </div>
+      )}
 
-        {/* ---- entrer, ou partir ---- */}
-        {!signedIn ? (
-          <>
-            <Label>{t("account.handle")}</Label>
-            <input
-              value={pseudo}
-              onChange={(e) => setPseudo(e.target.value)}
-              placeholder={t("account.handlePlaceholder")}
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                ...tap,
-                padding: "10px 12px",
-                marginBottom: 10,
-                background: C.card,
-                border: `1px solid ${C.line}`,
-                fontFamily: F.mono,
-                fontSize: 13,
-                color: C.ink,
-              }}
-            />
-            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
-              {/* We explain the passkey in one sentence: nobody should
+      {/* ---- entrer, ou partir ---- */}
+      {!signedIn ? (
+        <>
+          <Label>{t("account.handle")}</Label>
+          <input
+            value={pseudo}
+            onChange={(e) => setPseudo(e.target.value)}
+            placeholder={t("account.handlePlaceholder")}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              ...tap,
+              padding: "10px 12px",
+              marginBottom: 10,
+              background: C.card,
+              border: `1px solid ${C.line}`,
+              fontFamily: F.mono,
+              fontSize: 13,
+              color: C.ink,
+            }}
+          />
+          <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginBottom: 12 }}>
+            {/* We explain the passkey in one sentence: nobody should
                   have to know what WebAuthn is in order to sign up. */}
-              {t("account.passkeyNote")}
-            </div>
+            {t("account.passkeyNote")}
+          </div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                disabled={busy || pseudo.trim().length < 3}
-                onClick={() => attempt(signUp)}
-                style={button(C.burgundy, busy || pseudo.trim().length < 3)}
-              >
-                <UserPlus size={12} /> {t("account.signUp")}
-              </button>
-              <button disabled={busy} onClick={() => attempt(signIn)} style={button(C.ink, busy)}>
-                <KeyRound size={12} /> {t("account.signIn")}
-              </button>
-            </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              disabled={busy || pseudo.trim().length < 3}
+              onClick={() => attempt(signUp)}
+              style={button(C.burgundy, busy || pseudo.trim().length < 3)}
+            >
+              <UserPlus size={12} /> {t("account.signUp")}
+            </button>
+            <button disabled={busy} onClick={() => attempt(signIn)} style={button(C.ink, busy)}>
+              <KeyRound size={12} /> {t("account.signIn")}
+            </button>
+          </div>
 
-            {/* ------------------------------------------------------
+          {/* ------------------------------------------------------
                 ARRIVING FROM ANOTHER MACHINE
 
                 The handle above needs a passkey THIS computer holds, and
@@ -443,82 +431,82 @@ export function AccountDrawer({
                 is the second thing one tries, after finding out that the
                 first cannot work here.
                 ------------------------------------------------------ */}
-            <div style={{ borderTop: `1px dashed ${C.line}`, marginTop: 16, paddingTop: 12 }}>
-              <Label>{t("account.pairClaimTitle")}</Label>
-              <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && claim()}
-                  placeholder="XXXXXXXXXX"
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  maxLength={12}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    ...tap,
-                    padding: "10px 12px",
-                    background: C.card,
-                    border: `1px solid ${C.line}`,
-                    fontFamily: F.mono,
-                    fontSize: 15,
-                    letterSpacing: 3,
-                    color: C.ink,
-                  }}
-                />
-                <button
-                  disabled={busy || code.trim().length < 8}
-                  onClick={claim}
-                  style={button(C.pine, busy || code.trim().length < 8)}
-                >
-                  {t("account.pairClaim")}
-                </button>
-              </div>
-              <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
-                {t("account.pairClaimNote")}
-              </div>
-            </div>
-            {trouble && (
-              <div
+          <div style={{ borderTop: `1px dashed ${C.line}`, marginTop: 16, paddingTop: 12 }}>
+            <Label>{t("account.pairClaimTitle")}</Label>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === "Enter" && claim()}
+                placeholder="XXXXXXXXXX"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={12}
                 style={{
-                  marginTop: 12,
-                  fontFamily: F.hand,
-                  fontSize: 16,
-                  color: C.burgundy,
+                  flex: 1,
+                  minWidth: 0,
+                  ...tap,
+                  padding: "10px 12px",
+                  background: C.card,
+                  border: `1px solid ${C.line}`,
+                  fontFamily: F.mono,
+                  fontSize: 15,
+                  letterSpacing: 3,
+                  color: C.ink,
                 }}
+              />
+              <button
+                disabled={busy || code.trim().length < 8}
+                onClick={claim}
+                style={button(C.pine, busy || code.trim().length < 8)}
               >
-                {trouble}
-              </div>
-            )}
-          </>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <Share />
-            <Standing />
-
-            <Devices lang={i18n.language} />
-            <Usage />
-
-            <Blocks />
-
-            <Reminders />
-
-            <button
-              onClick={async () => {
-                await signOut();
-                /* The collection STAYS: signing out is not being
-                   dispossessed. Only the link with the server is cut. */
-                forgetSync();
-                onAccountChange(null);
+                {t("account.pairClaim")}
+              </button>
+            </div>
+            <div style={{ fontFamily: F.hand, fontSize: 15, color: C.inkFaded, marginTop: 6 }}>
+              {t("account.pairClaimNote")}
+            </div>
+          </div>
+          {trouble && (
+            <div
+              style={{
+                marginTop: 12,
+                fontFamily: F.hand,
+                fontSize: 16,
+                color: C.burgundy,
               }}
-              style={button(C.ink, false)}
             >
-              <LogOut size={12} /> {t("account.signOut")}
-            </button>
+              {trouble}
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <Share />
+          <Standing />
 
-            {/* ------------------------------------------------------
+          <Devices lang={i18n.language} />
+          <Usage />
+
+          <Blocks />
+
+          <Reminders />
+
+          <button
+            onClick={async () => {
+              await signOut();
+              /* The collection STAYS: signing out is not being
+                   dispossessed. Only the link with the server is cut. */
+              forgetSync();
+              onAccountChange(null);
+            }}
+            style={button(C.ink, false)}
+          >
+            <LogOut size={12} /> {t("account.signOut")}
+          </button>
+
+          {/* ------------------------------------------------------
                 WHAT IS YOURS, AND THE RIGHT TO LEAVE
 
                 Both routes had existed since the server's first day and
@@ -526,137 +514,137 @@ export function AccountDrawer({
                 finger is not a right, it is a line in a configuration
                 file.
                 ------------------------------------------------------ */}
-            <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
-              <Label>{t("account.yourData")}</Label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                <button
-                  disabled={busy}
-                  onClick={async () => {
-                    setTrouble(null);
-                    setBusy(true);
-                    try {
-                      const everything = await myData();
-                      /* A file, not a screen: what one takes away must
+          <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
+            <Label>{t("account.yourData")}</Label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+              <button
+                disabled={busy}
+                onClick={async () => {
+                  setTrouble(null);
+                  setBusy(true);
+                  try {
+                    const everything = await myData();
+                    /* A file, not a screen: what one takes away must
                          be readable elsewhere, and in ten years. */
-                      const link = document.createElement("a");
-                      link.href = URL.createObjectURL(
-                        new Blob([JSON.stringify(everything, null, 2)], {
-                          type: "application/json",
-                        })
-                      );
-                      link.download = `cine-hub-${report.person!.pseudo}.json`;
-                      link.click();
-                      URL.revokeObjectURL(link.href);
-                    } catch (e) {
-                      setTrouble((e as Error).message || t("account.exportFailed"));
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  style={button(C.slate, busy)}
-                >
-                  <Download size={12} /> {t("account.takeEverything")}
-                </button>
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(
+                      new Blob([JSON.stringify(everything, null, 2)], {
+                        type: "application/json",
+                      })
+                    );
+                    link.download = `cine-hub-${report.person!.pseudo}.json`;
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                  } catch (e) {
+                    setTrouble((e as Error).message || t("account.exportFailed"));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                style={button(C.slate, busy)}
+              >
+                <Download size={12} /> {t("account.takeEverything")}
+              </button>
 
-                {/* REPARTIR DE ZÉRO, entre exporter et s'en aller.
+              {/* REPARTIR DE ZÉRO, entre exporter et s'en aller.
 
                     Sa place est ici et pas ailleurs : c'est là qu'on
                     vient quand on veut faire le ménage, et l'avoir mis
                     à côté du bouton qui SUPPRIME oblige à écrire
                     clairement ce qui les sépare. Les deux cartes de
                     confirmation le disent, mot pour mot. */}
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    setRequest({
-                      title: t("account.wipeTitle"),
-                      body: t("account.wipeBody"),
-                      action: t("account.wipeAction"),
-                      severe: true,
-                      onConfirm: async () => {
-                        setRequest(null);
-                        setBusy(true);
-                        /* LES DEUX CÔTÉS, ET LE SERVEUR EN PREMIER.
+              <button
+                disabled={busy}
+                onClick={() =>
+                  setRequest({
+                    title: t("account.wipeTitle"),
+                    body: t("account.wipeBody"),
+                    action: t("account.wipeAction"),
+                    severe: true,
+                    onConfirm: async () => {
+                      setRequest(null);
+                      setBusy(true);
+                      /* LES DEUX CÔTÉS, ET LE SERVEUR EN PREMIER.
 
                            Le classeur est local d'abord : effacer le
                            serveur seul laissait tous les films en place,
                            et la synchro suivante les y aurait repoussés
                            — le ménage défait par son propre envoi. */
-                        try {
-                          const survived = await startOver(wipeMyData);
-                          if (survived.local || survived.images) {
-                            setTrouble(t("account.wipePartly"));
-                            setBusy(false);
-                            return;
-                          }
-                          location.reload();
-                        } catch (e) {
-                          setTrouble((e as Error).message || t("account.wipeFailed"));
+                      try {
+                        const survived = await startOver(wipeMyData);
+                        if (survived.local || survived.images) {
+                          setTrouble(t("account.wipePartly"));
                           setBusy(false);
+                          return;
                         }
-                      },
-                    })
-                  }
-                  style={{ ...button(C.ochre, busy), background: "transparent", color: C.ochre }}
-                >
-                  <Eraser size={12} /> {t("account.wipeMine")}
-                </button>
+                        location.reload();
+                      } catch (e) {
+                        setTrouble((e as Error).message || t("account.wipeFailed"));
+                        setBusy(false);
+                      }
+                    },
+                  })
+                }
+                style={{ ...button(C.ochre, busy), background: "transparent", color: C.ochre }}
+              >
+                <Eraser size={12} /> {t("account.wipeMine")}
+              </button>
 
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    setRequest({
-                      title: t("account.deleteTitle"),
-                      body: t("account.deleteBody"),
-                      action: t("account.deleteAction"),
-                      severe: true,
-                      onConfirm: async () => {
-                        setRequest(null);
-                        setBusy(true);
-                        try {
-                          await deleteMyAccount();
-                          forgetSync();
-                          onAccountChange(null);
-                        } catch (e) {
-                          setTrouble((e as Error).message || t("account.deleteFailed"));
-                        } finally {
-                          setBusy(false);
-                        }
-                      },
-                    })
-                  }
-                  style={{
-                    ...button(C.burgundy, busy),
-                    background: "transparent",
-                    color: C.burgundy,
-                  }}
-                >
-                  <Trash2 size={12} /> {t("account.deleteMine")}
-                </button>
-              </div>
+              <button
+                disabled={busy}
+                onClick={() =>
+                  setRequest({
+                    title: t("account.deleteTitle"),
+                    body: t("account.deleteBody"),
+                    action: t("account.deleteAction"),
+                    severe: true,
+                    onConfirm: async () => {
+                      setRequest(null);
+                      setBusy(true);
+                      try {
+                        await deleteMyAccount();
+                        forgetSync();
+                        onAccountChange(null);
+                      } catch (e) {
+                        setTrouble((e as Error).message || t("account.deleteFailed"));
+                      } finally {
+                        setBusy(false);
+                      }
+                    },
+                  })
+                }
+                style={{
+                  ...button(C.burgundy, busy),
+                  background: "transparent",
+                  color: C.burgundy,
+                }}
+              >
+                <Trash2 size={12} /> {t("account.deleteMine")}
+              </button>
             </div>
-
-            {trouble && (
-              <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{trouble}</div>
-            )}
           </div>
-        )}
 
-        <Confirmation request={request} onClose={() => setRequest(null)} />
-        {legal && <LegalPanel onClose={() => setLegal(false)} />}
+          {trouble && (
+            <div style={{ fontFamily: F.hand, fontSize: 16, color: C.burgundy }}>{trouble}</div>
+          )}
+        </div>
+      )}
 
-        <div
-          style={{
-            marginTop: 24,
-            fontFamily: F.mono,
-            fontSize: 9.5,
-            color: alpha(C.inkFaded, 0.7),
-            lineHeight: 1.7,
-          }}
-        >
-          {ADDRESS || t("account.noServerShort")}
-          <br />
-          {/* THIS SENTENCE SAID THE OPPOSITE OF WHAT HAPPENS, and I saw
+      <Confirmation request={request} onClose={() => setRequest(null)} />
+      {legal && <LegalPanel onClose={() => setLegal(false)} />}
+
+      <div
+        style={{
+          marginTop: 24,
+          fontFamily: F.mono,
+          fontSize: 9.5,
+          color: alpha(C.inkFaded, 0.7),
+          lineHeight: 1.7,
+        }}
+      >
+        {ADDRESS || t("account.noServerShort")}
+        <br />
+        {/* THIS SENTENCE SAID THE OPPOSITE OF WHAT HAPPENS, and I saw
               it lie by watching what actually left: the whole card is
               sent, notes and screenings included.
 
@@ -664,10 +652,9 @@ export function AccountDrawer({
               the phone is a noted lost. But it cannot be guessed, so it is
               said — and sharing, for its part, will send only the public
               part of the card (see `publicPart`). */}
-          {t("account.footer")}
-        </div>
+        {t("account.footer")}
       </div>
-    </Layer>
+    </Sheet>
   );
 }
 

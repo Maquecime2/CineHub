@@ -147,8 +147,17 @@ describe("useRowCap — the count a width allows", () => {
     vi.stubGlobal("ResizeObserver", RO);
   };
 
+  /* LA LARGEUR DE MISE EN PAGE, ET NON UN RECTANGLE CLIENT. Depuis le
+     recul, la planche vit dans un sous-arbre transforme : `offsetWidth`
+     est la seule des deux que l'echelle ne touche pas, et c'est celle que
+     `useRowCap` lit desormais. On donne les DEUX au faux noeud, avec des
+     valeurs differentes — c'est ce qui fera echouer ces cas si quelqu'un
+     revient un jour au rectangle client. */
   const rowOf = (width) => ({
-    current: { getBoundingClientRect: () => ({ width }) },
+    current: {
+      offsetWidth: width,
+      getBoundingClientRect: () => ({ width: width * 0.4 }),
+    },
   });
 
   /* The LAST observer laid down, and not the first: React can mount an
@@ -211,5 +220,38 @@ describe("useRowCap — the count a width allows", () => {
     const { unmount } = renderHook(() => useRowCap(rowOf(900), null));
     unmount();
     expect(observed.every((o) => o.gone)).toBe(true);
+  });
+});
+
+/* LA DISPOSITION EST LA DONNEE, ET LE RECUL N'Y TOUCHE PAS.
+
+   C'est le contrat sur lequel tout le chantier du recul repose :
+   s'eloigner ne doit pas changer d'un boitier ce qu'une ligne porte,
+   sans quoi regarder son etagere de loin la REARRANGERAIT. Il tient
+   parce que la mesure est celle de la MISE EN PAGE, que la
+   transformation ne touche pas — ni `ResizeObserver`, ni `offsetWidth`. */
+describe("useRowCap — sous le recul", () => {
+  it("compte pareil, que la planche soit reduite ou non", () => {
+    class RO {
+      constructor(cb) {
+        this.cb = cb;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", RO);
+    const width = 20 + 7 * (BOX_W + GAP_X);
+    /* Le meme noeud, vu a 40 % : sa mise en page n'a pas bouge d'un
+       pixel, seul son rectangle client a retreci. */
+    const shrunk = {
+      current: {
+        offsetWidth: width,
+        getBoundingClientRect: () => ({ width: width * 0.4 }),
+      },
+    };
+    const { result } = renderHook(() => useRowCap(shrunk, null));
+    expect(result.current).toBe(7);
+    cleanup();
+    vi.unstubAllGlobals();
   });
 });

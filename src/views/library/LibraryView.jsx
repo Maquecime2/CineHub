@@ -20,6 +20,8 @@ import { matchFilm } from "../../domain/search";
 import { CoffeeRing, TapeResidue, StampCorner, InkUnderline } from "../../components/atmosphere";
 import { Label } from "../../components/ui";
 import { ShelfBoard } from "../../components/shelf/ShelfBoard";
+import { ShelfFind } from "../../components/shelf/ShelfFind";
+import { StepBack } from "../../components/shelf/StepBack";
 import { THEMES } from "../../components/shelf/constants";
 import { DecorStudio } from "../../components/shelf/DecorStudio";
 import {
@@ -254,7 +256,7 @@ function ViewSwitcher({
                   color: C.inkFaded,
                 }}
               >
-                + NOUVELLE VUE
+                {t("shelf.newViewStamp")}
               </button>
               {/* One shelf per film-maker: a line and a box per director.
                   It is a view like any other once laid down — one files
@@ -471,6 +473,17 @@ export function LibraryView({
      wall setting one finds again on coming back, it is a question one
      asks once. */
   const [soir, setSoir] = useState(false);
+
+  /* LE TIROIR DES MIS DE CÔTÉ, ICI ET NON DANS `ShelfBoard`.
+
+     Il y était, et la recherche est ici : `ShelfFind` ne pouvait donc
+     pas l'ouvrir, alors qu'un film mis de côté est COMPTÉ parmi les
+     trouvés et rendu invisible tant que le tiroir est fermé. Sauter
+     dessus ne faisait rien, sans un mot.
+
+     Local à la vue et non dans `ui`, comme le tiroir du soir : ce n'est
+     pas un réglage de mur qu'on retrouve en revenant, c'est un geste. */
+  const [drawer, setDrawer] = useState(false);
 
   /* The wall's look comes from disk and may be missing, or have been
      written by another version: `wallLookOf` always brings it back to a
@@ -714,6 +727,11 @@ export function LibraryView({
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
+            {/* SUR L'ÉTAGÈRE SEULEMENT, et c'est le mode qui le veut :
+                le mur, lui, FILTRE — ce qui reste à l'écran EST le
+                résultat, et le compter serait compter ce qu'on voit.
+                L'étagère ternit, donc elle doit dire. */}
+            {mode === "shelf" && <ShelfFind matching={dimSet} onReveal={() => setDrawer(true)} />}
           </div>
           {/* DEUX TAMIS REPLIÉS, LÀ OÙ IL Y AVAIT DEUX RANGÉES. Dix-neuf
               genres et onze décennies toujours dépliés poussaient les
@@ -862,6 +880,15 @@ export function LibraryView({
               onDecor={() => setStudio(true)}
             />
           )}
+          {/* LE RECUL — à côté du sélecteur de vue, parce que c'est la
+              même question posée de deux façons : QUELLE étagère on
+              regarde, et de QUELLE distance. */}
+          {mode === "shelf" && (
+            <div>
+              <Label>{t("shelf.stepBack.title")}</Label>
+              <StepBack value={ui.zoom ?? 1} onChange={(zoom) => set({ zoom })} />
+            </div>
+          )}
           {/* THE EVENING'S QUESTION — on the "à voir" list, and there only.
 
             The film library has no call to ask it: what it holds has
@@ -969,9 +996,13 @@ export function LibraryView({
               onOpen={lookAt}
               onUpdateMany={onUpdateMany}
               dimSet={dimSet}
+              drawer={drawer}
+              setDrawer={setDrawer}
+              zoom={ui.zoom ?? 1}
             />
             {studio && shelfView && (
               <DecorStudio
+                drawerOpen={drawer}
                 view={shelfView}
                 onChange={(part, patch) => onShelfView(patchViewDecor(shelfView, part, patch))}
                 onReset={() => onShelfView(clearViewDecor(shelfView))}
@@ -1021,6 +1052,7 @@ export function LibraryView({
             </div>
             {wallStudio && (
               <WallStudio
+                drawerOpen={drawer}
                 look={look}
                 onChange={(patch) => set({ look: { ...look, ...patch } })}
                 onReset={() => set({ look: DEFAULT_WALL_LOOK })}

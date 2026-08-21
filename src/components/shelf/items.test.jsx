@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { CategoryBox, DecorItem, FilmBox, carryGhost, leanOf } from "./items";
 import { tiltOf } from "../../domain/seeded";
 import { makeCat, makeDecor, filmItem } from "../../shelf-views";
+import { WearProvider } from "./wear";
 
 const film = (id, over = {}) => ({
   id,
@@ -409,4 +410,115 @@ describe("carryGhost — what one carries under the cursor", () => {
     expect(document.body.contains(ghost)).toBe(false);
     vi.useRealTimers();
   });
+});
+
+/* ============================================================
+   L'USURE — ce que le temps a fait de ce film
+
+   Le seuil descend par contexte : sans `WearProvider`, aucun boîtier ne
+   prend de marque, et c'est le cas qui doit rester sans effort.
+   ============================================================ */
+const aCase = (over = {}, neglectDays = 400) =>
+  render(
+    <WearProvider neglectDays={neglectDays}>
+      <FilmBox film={film("f1", over)} ctx={{}} onOpen={noop} dim={false} {...dnd} />
+    </WearProvider>
+  );
+
+/** Les nœuds décoratifs que `FilmBox` pose EN PLUS de son arbre ordinaire. */
+const marks = (container) => container.querySelectorAll("span[aria-hidden]");
+
+describe("FilmBox — l'usure", () => {
+  /* LA RÈGLE QUI FAIT TENIR LE RESTE. Si chaque boîtier porte une
+     marque, aucun n'est marqué : l'arbre d'un boîtier ordinaire doit
+     rester exactement celui d'hier. */
+  it("un film vu récemment ne porte AUCUNE marque de plus", () => {
+    const { container } = aCase({ watches: [{ date: "2026-08-01", rating: 4 }] });
+    const plain = render(
+      <FilmBox film={film("f1")} ctx={{}} onOpen={noop} dim={false} {...dnd} />
+    ).container;
+    expect(marks(container).length).toBe(marks(plain).length);
+  });
+
+  it("sans seuil posé, rien ne se marque non plus", () => {
+    const { container } = render(
+      <FilmBox
+        film={film("f1", { status: "watchlist", watches: [] })}
+        ctx={{}}
+        onOpen={noop}
+        dim={false}
+        {...dnd}
+      />
+    );
+    const withThreshold = aCase({ status: "watchlist", watches: [] }).container;
+    expect(marks(container).length).toBeLessThan(marks(withThreshold).length);
+  });
+
+  it("un film qu'on n'a pas vu porte un reflet de cellophane", () => {
+    const { container } = aCase({ status: "watchlist", watches: [] });
+    const sheen = [...marks(container)].filter((n) => n.style.background.includes("gradient"));
+    expect(sheen.length).toBeGreaterThan(0);
+  });
+
+  it("un film vu il y a longtemps recule vers le fond", () => {
+    const { container } = aCase({ watches: [{ date: "2019-01-01", rating: 4 }] });
+    const veil = [...marks(container)].filter(
+      (n) => n.style.zIndex === "1" && n.style.background.includes("gradient")
+    );
+    expect(veil.length).toBe(1);
+  });
+
+  /* `undated` N'EST PAS `dormant`. Une fiche vue sans date n'est pas
+     négligée : le classeur ne sait pas. Le lui reprocher à l'écran
+     serait accuser quelqu'un d'avoir manqué de dates. */
+  it("une fiche vue sans date ne recule pas", () => {
+    const dated = aCase({ watches: [{ date: "2019-01-01", rating: 4 }] }).container;
+    const undated = aCase({ watches: [{ date: "", rating: 4 }] }).container;
+    expect(marks(undated).length).toBeLessThan(marks(dated).length);
+  });
+
+  it("la patine monte sur la tranche, sans un nœud de plus", () => {
+    const once = aCase({ watches: [{ date: "2026-08-01", rating: 4 }] }).container;
+    const often = aCase({
+      watches: [
+        { date: "2026-08-01", rating: 4 },
+        { date: "2026-06-01", rating: 4 },
+        { date: "2026-04-01", rating: 4 },
+      ],
+    }).container;
+    expect(marks(often).length).toBe(marks(once).length);
+    const spineOf = (c) => [...marks(c)].find((n) => n.style.width === "11px");
+    expect(spineOf(once).style.background).not.toBe(spineOf(often).style.background);
+    expect(spineOf(often).style.background).toContain("gradient");
+  });
+});
+
+/* ============================================================
+   LA GARDE DE COÛT — et c'est la contrainte la plus facile à perdre
+
+   « Les effets chers appartiennent aux MOMENTS, pas aux LISTES. » Une
+   étagère montre quatre cents boîtiers : un `filter` ou un
+   `mixBlendMode` par case ferait ramper le défilement, et le glissement
+   avec lui. Rien n'échouerait — ça deviendrait seulement lent, et
+   personne ne saurait depuis quand.
+   ============================================================ */
+describe("FilmBox — ce qu'un boîtier n'a pas le droit de coûter", () => {
+  const states = [
+    ["sous cellophane", { status: "watchlist", watches: [] }],
+    ["endormi", { watches: [{ date: "2019-01-01", rating: 4 }] }],
+    ["sans date", { watches: [{ date: "", rating: 4 }] }],
+    ["patiné", { watches: [1, 2, 3, 4, 5].map((n) => ({ date: `2026-0${n}-01`, rating: 4 })) }],
+  ];
+
+  for (const [name, over] of states)
+    it(`un boîtier ${name} ne paie ni filtre ni fusion`, () => {
+      const { container } = aCase(over);
+      for (const node of container.querySelectorAll("*")) {
+        /* `none` est ce que le ternissement de la recherche écrit déjà,
+           et un filtre à `none` ne coûte rien : ce qu'on refuse est un
+           filtre QUI TRAVAILLE. */
+        expect(["", "none"]).toContain(node.style.filter || "");
+        expect(["", "normal"]).toContain(node.style.mixBlendMode || "");
+      }
+    });
 });

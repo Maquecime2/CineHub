@@ -263,7 +263,9 @@ export function StillsStrip({
                     {(s.bytes ?? 0) > 1e6
                       ? `${((s.bytes ?? 0) / 1e6).toFixed(1)} Mo`
                       : `${Math.round((s.bytes ?? 0) / 1024)} Ko`}
-                    {s.type === "image/png" && <span style={{ color: C.pine }}> · sans perte</span>}
+                    {s.type === "image/png" && (
+                      <span style={{ color: C.pine }}>{t("stills.lossless")}</span>
+                    )}
                   </div>
                 )}
                 <div

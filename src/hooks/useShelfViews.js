@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { makeView, layoutView, layoutByDirector, duplicateView, reflowView } from "../shelf-views";
 import { saveView, saveViewIndex, deleteViewKey } from "../services/shelfViews";
 
@@ -7,6 +8,16 @@ import { saveView, saveViewIndex, deleteViewKey } from "../services/shelfViews";
    only its own, the rest of the library is not re-serialised. */
 export function useShelfViews(films) {
   const [views, setViews] = useState({ byWall: { watched: [], watchlist: [] }, docs: {} });
+  /* LE NOM D'UNE VUE EST UNE DONNÉE, ET C'EST L'ÉCRAN QUI LE PROPOSE.
+     `shelf-views.js` est du JavaScript pur et n'a pas de `t` — délibéré,
+     et ça le reste. Ses défauts (« Nouvelle vue », « Par réalisateur »)
+     restent donc de purs derniers recours. Mais une vue créée par un
+     geste naît chez quelqu'un qui a une langue, et lui donner le nom de
+     CETTE langue-là est exactement ce que fait un nom tapé à la main :
+     il part sur le disque, il se synchronise, et plus personne ne le
+     réécrit. C'est la règle de `threadLabel` prise par l'autre bout —
+     on ne traduit pas une donnée, on la NOMME une fois. */
+  const { t } = useTranslation();
 
   /* All in `useCallback`: these are gestures, never rendering. They
      timestamp, and an impure function called during a render would be a
@@ -34,7 +45,7 @@ export function useShelfViews(films) {
 
   const create = useCallback(
     (wall, name) => {
-      const blank = makeView({ wall, name: name || "Nouvelle vue", now: Date.now() });
+      const blank = makeView({ wall, name: name || t("shelf.views.new"), now: Date.now() });
       /* Leaving everything in the airlock would give an empty shelf and
        a heap: a brand-new view arrives already tidy, in boards of ten. */
       const doc = layoutView(blank, poolFor(wall));
@@ -42,7 +53,7 @@ export function useShelfViews(films) {
       return doc.id;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [add, films]
+    [add, films, t]
   );
 
   /* The shelf by film-maker. It is born tidy — one line and one box per
@@ -50,13 +61,13 @@ export function useShelfViews(films) {
      behind its back, and what one moves in it stays there. */
   const createByDirector = useCallback(
     (wall) => {
-      const blank = makeView({ wall, name: "Par réalisateur", now: Date.now() });
+      const blank = makeView({ wall, name: t("shelf.views.byDirector"), now: Date.now() });
       const doc = layoutByDirector(blank, poolFor(wall));
       add(wall, doc);
       return doc.id;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [add, films]
+    [add, films, t]
   );
 
   const copy = useCallback(

@@ -41,7 +41,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import { C, F, alpha } from "../../theme/tokens";
-import { bare } from "../../theme/styles";
+import { bare, HIDDEN } from "../../theme/styles";
 import { bondLabel } from "../../domain/bonds";
 import type { Bond, BondKind } from "../../domain/bonds";
 import type { LineageLink, LineageNode } from "../../domain/lineageMap";
@@ -80,19 +80,6 @@ const BOND_INK: Record<BondKind, string> = {
   affinity: C.moss,
   counterpoint: C.vermillion,
 };
-
-/** Le miroir en liste : masqué à l'œil, jamais au lecteur d'écran. */
-const HIDDEN = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  margin: -1,
-  padding: 0,
-  border: 0,
-} as const;
 
 interface LineageMapProps {
   /** La disposition, calculée par l'appelant : voir `MAP_W`. */

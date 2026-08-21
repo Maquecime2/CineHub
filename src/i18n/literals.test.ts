@@ -54,18 +54,33 @@ const EXEMPT = [
   "src/components/atmosphere",
 ];
 
-/** The props whose value lands under somebody's eyes. */
-const SPOKEN = /(?:title|label|legende|placeholder|aria-label|alt|what|empty)=\{?"([^"]+)"/g;
-/** Text written straight between two tags. */
-const BETWEEN = />\s*([A-Za-zÀ-ÿ][^<>{}\n]{2,})\s*</g;
+/* LES PROPS DONT LA VALEUR TOMBE SOUS LES YEUX DE QUELQU'UN.
+
+   LE NOM SE PREFIXE, ET C'EST PAR LA QUE PASSAIT UNE PHRASE. `removeLabel`
+   contient bien `Label`, mais avec une MAJUSCULE : la liste nue ne voyait
+   donc pas `removeLabel="retirer l'objet"` dans `ShelfBoard`, juste sous
+   un voisin qui appelait `t()`. On tolere un prefixe et la capitale qui
+   vient avec. Mesure faite au moment d'elargir : un seul fichier tombait,
+   celui qu'on corrigeait dans la meme passe. */
+const SAID = String.raw`[A-Za-z]*(?:[Tt]itle|[Ll]abel|[Ll]egende|[Pp]laceholder|aria-label|[Aa]lt|[Ww]hat|[Ee]mpty)`;
+const SPOKEN = new RegExp(`${SAID}=\\{?"([^"]+)"`, "g");
+
+/* TEXTE ECRIT DROIT ENTRE DEUX BALISES.
+
+   IL POUVAIT COMMENCER PAR AUTRE CHOSE QU'UNE LETTRE. Exiger une lettre
+   en premier caractere laissait passer `>+ DECOR<` et `>+ LIGNE<` — deux
+   boutons de l'etagere, en francais, sous les yeux de tout le monde. On
+   tolere donc une ponctuation d'ouverture, sans lacher l'exigence d'une
+   lettre derriere : c'est elle qui distingue une phrase d'un fragment de
+   code. */
+const BETWEEN = />\s*(?:[+·—-]\s*)?([A-Za-zÀ-ÿ][^<>{}\n]{2,})\s*</g;
 
 /* LE MEME ATTRIBUT, MAIS ECRIT EN CODE. `title={x ? "…" : "…"}` et un
    gabarit ne portent pas de guillemet juste apres le `=`, donc `SPOKEN`
    les manque entierement : c'est par la que passaient les ternaires. On
    capture le corps accolade, une accolade imbriquee comprise, et on y
    cherche les chaines ensuite. */
-const BRACED =
-  /(?:title|label|legende|placeholder|aria-label|alt|what|empty)=\{((?:[^{}]|\{[^{}]*\})*)\}/g;
+const BRACED = new RegExp(`${SAID}=\\{((?:[^{}]|\\{[^{}]*\\})*)\\}`, "g");
 /** Les chaines d'un corps accolade : guillemets, apostrophes, gabarit. */
 const STRINGS = /"([^"\n]*)"|`([^`]*)`/g;
 

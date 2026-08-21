@@ -925,6 +925,19 @@ export function layoutView(view, films, cap = null) {
 /* A film's filmmaker, or the name we give to their absence. The grouped
    wall already uses exactly this label: two places showing the same
    thing must name it the same way. */
+/* `UNKNOWN_DIRECTOR` EST UNE DONNÉE ET LE RESTE — la doctrine est écrite
+   mot pour mot dans `domain/lineageMap`, et ce fichier ne la portait pas.
+   Cette chaîne devient la CLÉ d'un rangement et l'étiquette d'une boîte
+   qui part sur le disque : la traduire figerait la langue du jour dans le
+   document de quelqu'un, et changer de langue casserait le regroupement
+   qu'on avait rangé.
+
+   Il en va de même des trois défauts de ce fichier — « Nouvelle vue »,
+   « Catégorie », « Par réalisateur ». Ce sont de purs DERNIERS RECOURS :
+   ce module est du JavaScript sans crochet et sans `t`, délibérément.
+   Quand un geste crée l'objet, c'est l'écran qui le nomme dans SA langue
+   (`useShelfViews`, `ShelfBoard`), une fois, comme un nom tapé à la
+   main. */
 export const UNKNOWN_DIRECTOR = "Réalisateur inconnu";
 
 export const directorOf = (film) => film.director?.trim() || UNKNOWN_DIRECTOR;

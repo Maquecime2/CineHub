@@ -159,6 +159,7 @@ const en = {
 
   tmdbKey: {
     setItHere: "Set it here",
+    orOpenAccount: "— or open an account, which spares you it.",
     title: "TMDB key",
     kicker: "TMDB KEY",
     note: "it opens the Discoveries, the posters, the crew cards and the wake — it stays on your machine, it goes nowhere",
@@ -205,6 +206,9 @@ const en = {
     musique: "music",
     scénario: "screenwriting",
     thème: "theme",
+    /* Not a card's role: it comes only from the credit crossing, which
+       reads what no card files — assistant director, second unit. */
+    assistanat: "assistant directing",
   },
 
   wake: {
@@ -1571,6 +1575,54 @@ const en = {
   },
 
   shelf: {
+    reading: {
+      cases_one: "{{count}} case",
+      cases_other: "{{count}} cases",
+      found_one: "{{count}} found here",
+      found_other: "{{count}} found here",
+      years: "{{from}}-{{to}}",
+      rating: "average {{rating}} out of 5",
+    },
+    wear: {
+      sealed: "never watched",
+      dormant: "not seen again for {{count}} days",
+      undated: "watched, undated",
+    },
+    legend: {
+      title: "ON THIS SHELF",
+      goTo: "Go to {{name}}",
+    },
+    find: {
+      none: "nothing found on the shelf",
+      count_one: "{{count}} case found",
+      count_other: "{{count}} cases found",
+      next: "go to the next one",
+      previous: "back to the previous one",
+      at: "{{at}} of {{count}}",
+    },
+    mirror: {
+      title: "The shelf, row by row",
+      row: "Row {{n}}",
+      unfiled: "Not filed yet",
+    },
+    addDecor: "+ DECOR",
+    newViewStamp: "+ NEW VIEW",
+    removeObject: "remove the object",
+    addLineStamp: "+ ROW",
+    nothingSetAside:
+      "Nothing set aside. Drop here a film you no longer want on the wall — it stays whole, with its rating and its stills.",
+    /* A VIEW NAME AND A CATEGORY NAME ARE DATA, and these three keys do
+       not translate them: they PROPOSE them at creation time, once, like
+       a name somebody would have typed. */
+    newCategory: "Category",
+    views: {
+      new: "New view",
+      byDirector: "By film-maker",
+    },
+    stepBack: {
+      title: "Step back",
+      notch: "See the shelf at {{percent}}%",
+    },
     anonymous: "anonymous",
     noDate: "n.d.",
     dropFilmsHere: "drop films here",
@@ -1717,6 +1769,7 @@ const en = {
   },
 
   stills: {
+    lossless: " · lossless",
     leftOnOtherDevice: "left on the other device",
     escToClose: "ESC TO CLOSE",
     theFilmStrip: "The film strip",
@@ -1997,7 +2050,7 @@ const en = {
     confirmForgetHinted_one: "Take back one suggested bond?",
     confirmForgetHinted_other: "Take back {{count}} suggested bonds?",
     confirmForgetHintedBody:
-      "The bonds that came from Wikidata leave the map. What you wrote yourself does not move, and the steps that invoked those bonds stay where they are — they will read as justified again if you lay the same ones down.",
+      "Every suggested bond leaves the map — Wikidata, your own cards, TMDB credits. What you wrote yourself does not move, and the steps that invoked those bonds stay where they are — they will read as justified again if you lay the same ones down.",
     openPerson: "Open their page in the Credits",
     /* ------------------------------------------------------------
        THE FILIATION HINTS
@@ -2010,11 +2063,13 @@ const en = {
     hintFromWikidata: "· from Wikidata",
     hintFromCredits_one: "· {{role}}, on one of their films",
     hintFromCredits_other: "· {{role}}, on {{count}} of their films",
+    hintFromCrossed_one: "· {{role}}, on one of their films (TMDB credits)",
+    hintFromCrossed_other: "· {{role}}, on {{count}} of their films (TMDB credits)",
     harvest: "Look for filiations",
     harvestBlurb_one:
-      "We ask Wikidata what is known of your binder's film-maker's masters and influences. Nothing is written without you.",
+      "We ask Wikidata what is known of your binder's film-maker's masters and influences, and TMDB who worked on whose films. Nothing is written without you.",
     harvestBlurb_other:
-      "We ask Wikidata what is known of your {{count}} film-makers' masters and influences. Nothing is written without you.",
+      "We ask Wikidata what is known of your {{count}} film-makers' masters and influences, and TMDB who worked on whose films. Nothing is written without you.",
     harvestRun: "Start looking",
     harvestWho: "Which film-maker",
     harvestOne: "Look for them",
@@ -2583,6 +2638,30 @@ const en = {
 
     library: {
       label: "The library",
+      shelfFind: {
+        title: "Searching does not sort",
+        body: "On the shelf a search removes nothing: it dims what does not answer, so the arrangement stays standing. The count says how many were found; the two steps take you from one to the next and back again, opening the set-aside drawer on the way if that is where the film was sleeping.",
+      },
+      shelfZoom: {
+        title: "Standing back",
+        body: "A full shelf does not fit on a screen, and the arrangement — which board is loaded, where the objects sit — was the one thing you could never see whole. These four notches move the shelf away without doing anything to it: the number of cases per row does not change, nor does the order. You step back, you do not summarise.",
+      },
+      shelfLegend: {
+        title: "What is on this shelf",
+        body: "Every category box announces itself here with its colour, its name and its count. Click a swatch to go straight to the box.",
+      },
+      shelfRow: {
+        title: "A row reads without being walked",
+        body: "Above each row: how many cases, which years, which genre dominates, what the average is. The tab on the left opens its settings — its name, and how many cases fit on a board.",
+      },
+      shelfQuickFile: {
+        title: "Filing without crossing the page",
+        body: "Pick up a case: the shelf's boxes gather on the right edge, always in the same place. Drop on one of them and the film goes there — no holding the button down six rows further. The drawer of things set aside sits right beside them, and opens by itself when you pass over it.",
+      },
+      shelfCabinet: {
+        title: "The cabinet of curiosities",
+        body: "A plant, a cat, a divider, a frame on the wall: pull an object out of the cabinet and set it between two cases. A shelf is not just a grid of films.",
+      },
       search: {
         title: "Searching",
         body: "A title, a filmmaker, a word from your own review. On the wall, the search filters; on the shelf, it dims what it cannot find and leaves the arrangement standing. To search beyond the films — people, motifs, threads, the notebook — the magnifier, at the foot of the rail or at the end of the bottom bar, asks everything at once.",
@@ -2659,6 +2738,14 @@ const en = {
         title: "In what capacity",
         body: "The sieves stack up, as on the wall. By default the directory shows only those you meet at least twice — the rest are one click away, under “passing through”.",
       },
+      sort: {
+        title: "The order is the question",
+        body: "“Who comes back most” and “who I rate best” do not give the same directory: the first tells your habits, the second your attachments. Seen recently shows who is running through your last few months.",
+      },
+      list: {
+        title: "Each name leads to what you hold",
+        body: "One line per person, with what your collection carries of them. Click: their folder opens, with their films in your house, your average score, and the names met on their cards.",
+      },
       page: {
         title: "What somebody is worth in your house",
         body: "Your average score on their films, their gap to your own average — above or below what you usually give — and your gap to the public score. Then their films, what keeps coming back in them, and since when.",
@@ -2686,6 +2773,10 @@ const en = {
       elsewhere: {
         title: "What is said elsewhere",
         body: "With an account open, the card shows what other public libraries say of the same film: their average — without yours — and their reviews. Each one can be reported, and its author silenced in one gesture — the account drawer lists those you have silenced, and gives them their voice back. With no server and no account, this section does not exist.",
+      },
+      fileInList: {
+        title: "Filing this card into a list",
+        body: "A list gathers films around an idea, and is kept by several hands. From here the card joins one without leaving the page — and that is also what makes it count towards the challenges built on that list.",
       },
       sharing: {
         title: "Taking it out of the sharing",
@@ -2777,7 +2868,7 @@ const en = {
       },
       map: {
         title: "The map of film-makers",
-        body: "It opens over the screen, because a graph folded into a column is no more than a picture of a map. Inside: the directors of your run, linked by what you know of them — master, legacy, affinity, counterpoint; the button that ties a bond, since nothing on a card says who taught whom; and the harvest, which asks Wikidata what it knows of your film-makers and never writes a thing on your behalf. Click a node and the running order lights up on the films that are theirs.",
+        body: "It opens over the screen, because a graph folded into a column is no more than a picture of a map. Inside: the directors of your run, linked by what you know of them — master, legacy, affinity, counterpoint; the button that ties a bond, since nothing on a card says who taught whom; and the harvest, which asks Wikidata who taught whom and TMDB who worked on whose films, and never writes a thing on your behalf. Click a node and the running order lights up on the films that are theirs.",
       },
       progress: {
         title: "Where you stand",
@@ -2969,6 +3060,14 @@ const en = {
       searchAll: {
         title: "Searching everywhere",
         body: "One question put to the whole binder at once: the films, the people in the credits, the motifs, the threads and the notebook pages. It searches right into your reviews, and shows you the passage. Ctrl+K opens it too.",
+      },
+      tabImport: {
+        title: "Bringing a collection in",
+        body: "The Import tab is the only way a binder comes in all at once: a Letterboxd or TMDB export, a backup, or the TMDB key that fills your cards in by itself. It is also where everything goes back out.",
+      },
+      purse: {
+        title: "The count, in plain sight",
+        body: "Merit and tokens are earned everywhere — a quiz finished, a challenge closed, a card filed — and could only be read at the counter, that is, once you already knew. Here they are, and one click opens the counter where tokens are spent.",
       },
       skin: {
         title: "The skin of the site",

@@ -47,11 +47,13 @@ import { useSay } from "../ui/Feedback";
 import { Sheet } from "../ui/Sheet";
 import { bondLabel, contradicts, hasBond, makeBond } from "../../domain/bonds";
 import type { Bond } from "../../domain/bonds";
-import { binderHints, hintId, readCreditNote, usefulHints } from "../../domain/hints";
+import { binderHints, hintId, usefulHints } from "../../domain/hints";
+import { hintSays } from "./hintSays";
 import type { Hint } from "../../domain/hints";
 import { census } from "../../domain/people";
 import { normalize } from "../../domain/search";
 import { hintsFor } from "../../services/lineageHints";
+import { crossHintsFor } from "../../services/tmdbHints";
 import { useTmdbKey } from "../../services/tmdbKey";
 import type { Film } from "../../types";
 
@@ -68,6 +70,10 @@ export function HintHarvest({ films, bonds, onLay, onClose }: HintHarvestProps) 
   const say = useSay();
   const apiKey = useTmdbKey();
   const [found, setFound] = useState<Hint[] | null>(null);
+  /* La troisième source, tenue à part : le classeur s'intercale ENTRE
+     elle et Wikidata, donc les fondre en un tableau ferait passer le
+     croisement devant lui. */
+  const [crossed, setCrossed] = useState<Hint[] | null>(null);
   const [done, setDone] = useState(0);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -99,9 +105,18 @@ export function HintHarvest({ films, bonds, onLay, onClose }: HintHarvestProps) 
     return mine.filter((h) => normalize(h.fromName) === key || normalize(h.toName) === key);
   }, [mine, who]);
 
+  /* L'ORDRE EST LE MÊME QUE DANS `useLineageHints`, ET IL EST ÉCRIT AUX
+     DEUX ENDROITS : Wikidata, qui ÉNONCE ; le classeur, gratuit et qui
+     tient l'information de VOS fiches ; le croisement des génériques,
+     qui dit la même chose pour des films qu'on ne possède pas.
+     `usefulHints` dédoublonne par `bondId`, premier arrivé gagne.
+
+     CETTE FEUILLE NE PASSE PAS PAR LE HOOK, et c'est le piège du
+     chantier : une source ajoutée là-bas et oubliée ici n'apparaîtrait
+     jamais dans la moisson, en silence. */
   const leads = useMemo(
-    () => usefulHints([...(found ?? []), ...forWho], bonds),
-    [found, forWho, bonds]
+    () => usefulHints([...(found ?? []), ...forWho, ...(crossed ?? [])], bonds),
+    [found, forWho, crossed, bonds]
   );
 
   const run = async (names: string[]) => {
@@ -109,10 +124,35 @@ export function HintHarvest({ films, bonds, onLay, onClose }: HintHarvestProps) 
     setBusy(true);
     setTrouble(false);
     setDone(0);
-    setTotal(names.length + 1);
+    /* DEUX PASSAGES PAR NOM, ET LA BARRE DOIT LE DIRE. Chaque cinéaste
+       est demandé à Wikidata ET à TMDB : compter une fois par nom
+       ferait atteindre le bout à mi-chemin, puis attendre en silence
+       devant une barre pleine — ce qui se lit comme une panne. Le `+1`
+       est la requête au relais, qui vient après. */
+    setTotal(names.length * 2 + 1);
     setOff(new Set());
+    /* UN SEUL COMPTEUR POUR LES DEUX, tenu ici. Chaque moitié compte
+       depuis un, et laisser l'une écrire `setDone` ferait reculer la
+       barre chaque fois que l'autre parle. */
+    let seen = 0;
+    const tick = () => setDone((seen += 1));
     try {
-      setFound(await hintsFor(names, apiKey, (n) => setDone(n)));
+      /* LES DEUX MOITIÉS DE RÉSEAU PARTENT ENSEMBLE, et `allSettled`
+         plutôt que `all` : elles ne savent pas la même chose. Wikidata
+         muette ne doit pas emporter le croisement des génériques, ni
+         l'inverse.
+
+         L'ÉCHEC D'UNE SEULE SE DIT QUAND MÊME. Cette feuille montre
+         `Trouble` À CÔTÉ de ce qu'elle a trouvé, jamais à la place :
+         taire la moitié manquante ferait croire que le classeur ne
+         connaît que ça. */
+      const [wiki, cross] = await Promise.allSettled([
+        hintsFor(names, apiKey, tick),
+        crossHintsFor(names, apiKey, tick),
+      ]);
+      setFound(wiki.status === "fulfilled" ? wiki.value : []);
+      setCrossed(cross.status === "fulfilled" ? cross.value : []);
+      if (wiki.status === "rejected" || cross.status === "rejected") setTrouble(true);
     } catch {
       /* « On n'a pas pu demander » n'est pas « il n'y a rien », et cette
          feuille est le seul endroit qui puisse le dire. */
@@ -253,15 +293,7 @@ export function HintHarvest({ films, bonds, onLay, onClose }: HintHarvestProps) 
                           {bondLabel(bond, bond.from, t)}
                           <span style={{ color: alpha(C.ink, 0.55), fontSize: 12 }}>
                             {" "}
-                            {(() => {
-                              const credit = readCreditNote(hint.note);
-                              return credit
-                                ? t("program.hintFromCredits", {
-                                    role: t(`roles.${credit.role}`),
-                                    count: credit.n,
-                                  })
-                                : t("program.hintFromWikidata");
-                            })()}
+                            {hintSays(hint, t)}
                           </span>
                         </span>
                       </label>

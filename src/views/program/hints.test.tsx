@@ -30,6 +30,15 @@ vi.mock("../../services/lineageHints", () => ({
   hintsFor: (...args: unknown[]) => hintsFor(...args),
   forgetHints: () => {},
 }));
+/* LA TROISIÈME SOURCE SE BOUCHE AUSSI, et ce n'est pas une précaution :
+   sans ce double, `crossHintsFor` appelait le VRAI `searchPerson`, donc
+   une requête réseau depuis la suite de tests — huit secondes et un 401
+   dans la sortie, pour une moitié dont ce fichier ne parle même pas.
+   Un test qui touche le dehors n'est plus un test. */
+const crossHintsFor = vi.fn(async (..._args: unknown[]) => [] as unknown[]);
+vi.mock("../../services/tmdbHints", () => ({
+  crossHintsFor: (...args: unknown[]) => crossHintsFor(...args),
+}));
 /* Une clé est présente : sans elle la moitié « pistes » ne se dessine
    pas du tout, et c'est le bon comportement — testé plus bas. */
 const key = vi.fn(() => "UNE-CLE");

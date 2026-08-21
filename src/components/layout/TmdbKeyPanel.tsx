@@ -19,6 +19,7 @@ import { checkApiKey } from "../../tmdb";
 import { writtenKey, setTmdbKey } from "../../services/tmdbKey";
 import { accountOpen, relayServesTmdb } from "../../services/server";
 import { useDialog } from "../../hooks/useDialog";
+import { useEscape } from "../../hooks/useEscape";
 
 /* The same band as the skin picker: they are two drawers of the same
    rail, and the `z-index` budget reserves 59–60 for them. */
@@ -62,14 +63,15 @@ export function TmdbKeyPanel({ onClose }: { onClose: () => void }) {
   const [essai, setEssai] = useState<Attempt>({ state: "repos" });
 
   /* Escape closes, as everywhere else: a drawer one can only close with
-     the mouse is one drawer too many for whoever navigates by keyboard. */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+     the mouse is one drawer too many for whoever navigates by keyboard.
+
+     `useEscape` ET NON UN ÉCOUTEUR À LA MAIN, et la différence se voit
+     ici plus qu'ailleurs. La copie écrite là fermait sur TOUT `Escape`,
+     sans la garde `defaultPrevented` du crochet — or ce panneau est
+     d'abord un CHAMP DE SAISIE : annuler une clé qu'on est en train de
+     taper refermait le panneau entier avec. Le crochet laisse le champ
+     prendre la touche en premier, et on ferme au second appui. */
+  useEscape(onClose);
 
   /* WE TRY BEFORE SAVING. A wrong key saved without a word gives eight
      screens each failing in its own corner, and nothing to point at the

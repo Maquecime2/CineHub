@@ -73,7 +73,7 @@ const DAY = 24 * 3600 * 1000;
 const FILM_NEGLECT = { share: 1 / 3, min: 150, max: 730 };
 const THEME_NEGLECT = { share: 1 / 4, min: 120, max: 540 };
 
-interface Thresholds {
+export interface Thresholds {
   film: number;
   theme: number;
 }
@@ -81,7 +81,7 @@ interface Thresholds {
 const clamp = (n: number, min: number, max: number): number =>
   Math.round(Math.max(min, Math.min(max, n)));
 
-const thresholdsFor = (span: number): Thresholds => ({
+export const thresholdsFor = (span: number): Thresholds => ({
   film: clamp(span * FILM_NEGLECT.share, FILM_NEGLECT.min, FILM_NEGLECT.max),
   theme: clamp(span * THEME_NEGLECT.share, THEME_NEGLECT.min, THEME_NEGLECT.max),
 });
@@ -136,6 +136,35 @@ const dated = (films: Film[], now: number): Dated[] => {
   }
   return out;
 };
+
+/* THE SPAN OF THE PRACTICE: from the oldest screening to the most
+   recent. It is what gives the scale of "a long time ago".
+
+   We start from the OLDEST screening and not the most recent: what we
+   measure is how long the binder has been kept, not how long it has been
+   since we opened it.
+
+   It was written inline in `atHomeSuggestions`. It comes out here because
+   the shelf now asks the same question of the same collection, and a
+   second span computed next door would have drifted from this one the
+   first time either was touched. */
+const spanOf = (pool: Dated[]): number =>
+  pool.length === 0
+    ? 0
+    : Math.max(...pool.map((d) => d.days)) - Math.min(...pool.map((d) => d.days));
+
+/**
+ * How long is "a long time ago, FOR YOU" — in days, for a whole
+ * collection.
+ *
+ * The shelf reads it to know which case has gone dormant. It is the SAME
+ * number `atHomeSuggestions` uses to decide what is worth watching again,
+ * and it must stay so: a case that looks neglected on the shelf while the
+ * suggestions panel says nothing about it would make one of the two a
+ * liar, with nothing on screen to say which.
+ */
+export const neglectDaysFor = (films: Film[], now: number = Date.now()): number =>
+  thresholdsFor(spanOf(dated(films, now))).film;
 
 /* ------------------------------------------------------------
    1. TO WATCH AGAIN — what you had loved and set aside
@@ -298,8 +327,7 @@ export function atHomeSuggestions(
      We start from the OLDEST screening and not the most recent: what we
      measure is how long the binder has been kept, not how long it has
      been since we opened it. */
-  const span = Math.max(...pool.map((d) => d.days)) - Math.min(...pool.map((d) => d.days));
-  const thresholds = thresholdsFor(span);
+  const thresholds = thresholdsFor(spanOf(pool));
 
   const byNature: Record<Nature, Suggestion[]> = {
     rewatch: toRewatch(pool, thresholds.film),
