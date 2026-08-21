@@ -21,16 +21,19 @@
 
    LES FAITS DE L'ÉDITEUR VIENNENT DE `src/legal.ts`, pas d'ici : voir
    là-bas pourquoi ils ne sont pas dans le catalogue de traduction.
+
+   C'EST UNE `Sheet`, ET IL NE PIÉGEAIT PAS LE FOCUS. Il montait sa
+   propre coquille — voile, boîte, titre, croix — avec `useEscape` seul :
+   ouvert au clavier, le curseur restait DERRIÈRE le voile, et refermer
+   renvoyait au début du document. `useDialog`, que `Sheet` porte, fait
+   entrer le focus, l'y fait tourner, et le rend au bouton qui a ouvert.
    ============================================================ */
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
-import { C, F, alpha } from "../../theme/tokens";
-import { tap } from "../../theme/styles";
-import { Layer } from "../ui/Layer";
+import { C, F } from "../../theme/tokens";
+import { Sheet } from "../ui/Sheet";
 import { Label } from "../ui";
 import { OPERATOR, TERMS_SINCE, operatorNamed, orBlank } from "../../legal";
-import { useEscape } from "../../hooks/useEscape";
 
 const Para = ({ children }: { children: ReactNode }) => (
   <div
@@ -48,7 +51,6 @@ const Para = ({ children }: { children: ReactNode }) => (
 
 export function LegalPanel({ onClose }: { onClose: () => void }) {
   const { t, i18n } = useTranslation();
-  useEscape(onClose);
   const blank = t("legal.toFill");
   const since = new Date(TERMS_SINCE).toLocaleDateString(i18n.language, {
     day: "numeric",
@@ -57,102 +59,64 @@ export function LegalPanel({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <Layer>
-      <div
-        onClick={onClose}
-        data-veil
-        style={{ position: "fixed", inset: 0, zIndex: 59, background: alpha(C.ink, 0.45) }}
-      />
-      <div
-        role="dialog"
-        aria-label={t("legal.title")}
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: "min(460px, 94vw)",
-          zIndex: 60,
-          background: C.paper,
-          borderLeft: `1px solid ${C.line}`,
-          boxShadow: `-6px 0 24px ${alpha(C.ink, 0.28)}`,
-          overflowY: "auto",
-          padding: "26px 24px calc(40px + var(--safe-bottom))",
-          animation: "drawerIn var(--motion-slow) var(--motion-ease) backwards",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-          <div
-            style={{
-              fontFamily: F.title,
-              fontStyle: "italic",
-              fontWeight: 700,
-              fontSize: 24,
-              color: C.ink,
-            }}
-          >
-            {t("legal.title")}
-          </div>
-          <button
-            onClick={onClose}
-            aria-label={t("common.close")}
-            style={{ ...tap, all: "unset", cursor: "pointer", marginLeft: "auto" }}
-          >
-            <X size={16} color={C.inkFaded} />
-          </button>
-        </div>
-        <div style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded, marginBottom: 18 }}>
+    <Sheet
+      title={t("legal.title")}
+      variant="drawer"
+      width={460}
+      aside={
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.inkFaded }}>
           {t("legal.since", { date: since })}
-        </div>
-
-        {/* ON DIT QU'IL MANQUE QUELQUE CHOSE PLUTÔT QUE DE LAISSER
+        </span>
+      }
+      onClose={onClose}
+    >
+      {/* ON DIT QU'IL MANQUE QUELQUE CHOSE PLUTÔT QUE DE LAISSER
             CROIRE QUE NON. Un panneau juridique à moitié rempli qui n'en
             dit rien est plus trompeur qu'un panneau absent. */}
-        {!operatorNamed() && (
-          <div
-            style={{
-              border: `1px solid ${C.burgundy}`,
-              padding: "10px 12px",
-              marginBottom: 16,
-              fontFamily: F.hand,
-              fontSize: 16,
-              color: C.burgundy,
-              lineHeight: 1.35,
-            }}
-          >
-            {t("legal.incomplete")}
-          </div>
-        )}
-
-        <Label>{t("legal.publisher")}</Label>
-        <Para>
-          {orBlank(OPERATOR.name, blank)}
-          {OPERATOR.status.trim() && ` — ${OPERATOR.status.trim()}`}
-        </Para>
-        <Para>{orBlank(OPERATOR.address, blank)}</Para>
-        <Para>{orBlank(OPERATOR.contact, blank)}</Para>
-        {OPERATOR.registration.trim() && <Para>{OPERATOR.registration.trim()}</Para>}
-        <Para>{t("legal.hostedBy", { host: orBlank(OPERATOR.host, blank) })}</Para>
-
-        <div style={{ marginTop: 22 }}>
-          <Label>{t("legal.privacy")}</Label>
+      {!operatorNamed() && (
+        <div
+          style={{
+            border: `1px solid ${C.burgundy}`,
+            padding: "10px 12px",
+            marginBottom: 16,
+            fontFamily: F.hand,
+            fontSize: 16,
+            color: C.burgundy,
+            lineHeight: 1.35,
+          }}
+        >
+          {t("legal.incomplete")}
         </div>
-        {/* L'ORDRE DIT LA DOCTRINE : ce qui NE sort pas d'abord, parce
+      )}
+
+      <Label>{t("legal.publisher")}</Label>
+      <Para>
+        {orBlank(OPERATOR.name, blank)}
+        {OPERATOR.status.trim() && ` — ${OPERATOR.status.trim()}`}
+      </Para>
+      <Para>{orBlank(OPERATOR.address, blank)}</Para>
+      <Para>{orBlank(OPERATOR.contact, blank)}</Para>
+      {OPERATOR.registration.trim() && <Para>{OPERATOR.registration.trim()}</Para>}
+      <Para>{t("legal.hostedBy", { host: orBlank(OPERATOR.host, blank) })}</Para>
+
+      <div style={{ marginTop: 22 }}>
+        <Label>{t("legal.privacy")}</Label>
+      </div>
+      {/* L'ORDRE DIT LA DOCTRINE : ce qui NE sort pas d'abord, parce
             que c'est la promesse du produit et la première chose qu'on
             vient vérifier. */}
-        <Para>{t("legal.privacyLocal")}</Para>
-        <Para>{t("legal.privacyServer")}</Para>
-        <Para>{t("legal.privacyMeasure")}</Para>
-        <Para>{t("legal.privacyRights")}</Para>
+      <Para>{t("legal.privacyLocal")}</Para>
+      <Para>{t("legal.privacyServer")}</Para>
+      <Para>{t("legal.privacyMeasure")}</Para>
+      <Para>{t("legal.privacyRights")}</Para>
 
-        <div style={{ marginTop: 22 }}>
-          <Label>{t("legal.terms")}</Label>
-        </div>
-        <Para>{t("legal.termsFree")}</Para>
-        <Para>{t("legal.termsPaid")}</Para>
-        <Para>{t("legal.termsStop")}</Para>
-        <Para>{t("legal.termsConduct")}</Para>
+      <div style={{ marginTop: 22 }}>
+        <Label>{t("legal.terms")}</Label>
       </div>
-    </Layer>
+      <Para>{t("legal.termsFree")}</Para>
+      <Para>{t("legal.termsPaid")}</Para>
+      <Para>{t("legal.termsStop")}</Para>
+      <Para>{t("legal.termsConduct")}</Para>
+    </Sheet>
   );
 }
