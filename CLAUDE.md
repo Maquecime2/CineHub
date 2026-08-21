@@ -1,3 +1,13 @@
+# Instructions générales
+
+Ne te met pas en co-auteur des commits
+
+Commit à chaque fois par feature si possible, pas trop détaillé, concis, en anglais
+
+Code en anglais, de la documentation, aux commentaire, aux noms de variables, etc...
+
+Dis moi toujours de manière concise et claire comment je peux vérifier les changements que tu appliques au code, avec des mots simples
+
 # CineHub — notes pour les agents
 
 Vidéothèque personnelle, entièrement côté client : React + Vite, données en
