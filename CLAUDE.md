@@ -1177,6 +1177,83 @@ facturation n'existe pas.
 appliqué à chaque démarrage par `index.ts` : un rôle qu'aucune requête ne peut
 accorder est un rôle dans lequel personne ne peut monter.
 
+### La capacité se voit, sinon personne ne peut vouloir la payer
+
+**ON NE VEND RIEN QU'ON NE MONTRE.** Le palier vivait dans une colonne
+qu'aucune route n'écrivait et qu'aucun écran ne lisait, et le seul plafond qui
+morde refusait EN SILENCE. Trois choses en découlent, et aucune n'est un
+argument commercial.
+
+- **`Infinity` NE SURVIT PAS AU JSON, et l'infini de l'admin est ce qu'il
+  emportait.** `ceilingsFor` rend `Infinity` — le bon choix, « une comparaison
+  contre l'infini ne se trompe jamais ». Mais `JSON.stringify(Infinity)` vaut
+  `null`, donc le tiroir d'un admin affichait « 12 / null » et restait teint en
+  rouge comme s'il était plein : `12 >= null` vaut `12 >= 0`. La conversion
+  (`borne`, `store.ts`) était écrite POUR LE SQL et oubliée POUR LE FIL. Sur le
+  fil, **`null` est une VALEUR — « rien ne refuse » — et se lit en `!= null`**.
+  Et **un plafond absent se dit par un MOT**, « sans limite » : c'est la règle
+  du verdict.
+- **LE PLAFOND PARLE.** `POST /media/tickets` posait `full: true` depuis
+  toujours, avec au-dessus un commentaire décrivant ce que le client en ferait ;
+  `mediaTickets` ne gardait que `r.tickets`. Un contrat écrit d'un côté et
+  ignoré de l'autre, dont la conséquence n'était pas une panne mais un
+  SILENCE — les captures cessaient d'être miroitées, et on l'apprenait en
+  changeant d'ordinateur. `MediaTrouble` gagne `"full"`, et **la phrase dit ce
+  qui SURVIT** : rien n'est effacé, l'image est entière ici, elle partira dès
+  qu'il y aura de la place. Ce n'est pas une panne et elle ne doit pas en avoir
+  l'air.
+- **LES BORNES VIENNENT DU SERVEUR, JAMAIS D'UN CALCUL CÔTÉ ÉCRAN.**
+  `ceilingsFor` prend la PERSONNE et non le palier, exprès — « pour que personne
+  n'ait à se souvenir de tester `is_admin` à côté ». Un écran qui déduirait un
+  plafond de `plan` serait cet oubli : un admin est `free` dans la colonne et
+  sans borne dans les faits, et il hériterait du plafond du gratuit.
+- **DEUX PORTES POUR ACCORDER UN PALIER, ET CE N'EST PAS UN DOUBLON.**
+  `POST /dev/plan` vit derrière la porte de développement — hors production ET
+  `DEV_DOOR=1` — et tient la boucle « créer, basculer, essayer », puisque
+  `/dev/session` crée déjà la personne. `PUT /people/:pseudo/plan` demande le
+  RÔLE, parce qu'honorer un abonnement réel ne peut pas dépendre d'un drapeau
+  fermé en ligne. **Ni l'une ni l'autre n'écrit `is_admin`** : le rôle ne
+  s'obtient que par l'environnement du déploiement, et une route qui le
+  distribuerait défairait la seule garantie que ce serveur donne sur lui-même.
+- **CE QUI EST DÉCLARÉ ET INATTEIGNABLE NE SE DESSINE PAS.** Les deux plafonds
+  de décor sont du code mort depuis le retrait de `POST /decor` — `createDecor`
+  n'a plus d'appelant. Un compteur qu'aucun geste ne fait bouger apprend à
+  ignorer les compteurs.
+
+### La planche est la seule image qui soit à vous
+
+L'almanach exportait déjà « l'année en boîte » — une grille d'AFFICHES, que
+TMDB héberge, qui ne coûtent rien, et qui sont **les mêmes pour tout le
+monde** : deux personnes ayant vu les mêmes films en sortaient la même image.
+
+`drawYearPlate` est sa SŒUR dans le même module, et dessine ce qu'on a capturé
+soi-même. Ce n'est pas une fonctionnalité qu'on verrouille : c'est ce qui rend
+désirable la capacité qu'on héberge, la seule chose qu'on facture.
+
+- **UNE SŒUR ET NON UN MODE.** La boîte est un BILAN — un millésime, dix
+  chiffres, une phrase de pied ; la planche est une IMAGE. Fondues derrière un
+  drapeau, chaque moitié aurait contourné l'autre à chaque paragraphe. Ce qui
+  est réellement partagé est la grille, et `gridFor` prend donc un RAPPORT :
+  une affiche est en 2:3, un photogramme en 16:9, et le calcul délicat — la
+  cellule prend la plus petite des deux mesures — ne change pas.
+- **LE CHOIX DES IMAGES EST DU DOMAINE** (`almanac.plateShots`), pur et
+  éprouvé ; le service ne fait que dessiner. `db` et `tmdb` lui sont DONNÉS,
+  comme `yearInBox` reçoit ses couleurs — « elles lui sont données ».
+- **LES VÔTRES D'ABORD, ET LE RESTE COMBLE.** Une année où l'on a capturé trois
+  films sur vingt rendrait, dans l'ordre des séances, une planche d'emprunts
+  avec trois des siennes perdues au milieu — l'inverse de ce qu'elle montre.
+- **`Film.frames` EST LE REPLI, ET C'EST LE MÉCANISME.** Aucune fiche au monde
+  ne porte de capture le jour de la sortie : sans emprunt la planche serait vide
+  pour tout le monde, le défaut exact que `Film.synopsis` a coûté. Elle est donc
+  belle tout de suite, **faite des images de quelqu'un d'autre** — et c'est en
+  la voyant qu'on veut la sienne. **On marque donc laquelle est laquelle**, par
+  un TRAIT et non une couleur : sur une image qu'on exporte, la peau du lecteur
+  n'existe plus.
+- **UNE IMAGE PAR FILM.** Six captures d'un même film rempliraient la planche et
+  diraient « j'ai travaillé cette fiche », pas « voici mon année ».
+- **LE BOUTON N'EXISTE PAS S'IL N'Y A RIEN À DESSINER**, et `plateShots` répond
+  sans rien charger. Son pas de visite est `optional` pour la même raison.
+
 ### Les jetons ne se vendent pas
 
 Une seule peau est donnée ; les seize autres se prennent au comptoir, **en
@@ -1322,7 +1399,7 @@ l'écran. Quatre erreurs de ce genre — `STRENGTHS[].valeur` et
 `SkyNode.couleur` — ont survécu à `npm test` et à `npm run build` avant
 que `tsc` ne les nomme.
 
-- Les 129 avertissements du lint sont tolérés ; ce sont les ERREURS qui
+- Les 130 avertissements du lint sont tolérés ; ce sont les ERREURS qui
   arrêtent tout. On écrit `import type { ReactNode } from "react"` et
   jamais le préfixe `React.` — c'est la convention du reste du projet.
 - `npm run format` réécrit, `--check` se contente de dire.
