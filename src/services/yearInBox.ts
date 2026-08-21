@@ -24,7 +24,7 @@ import { getImage, isIdbPoster, idbKeyOf } from "../db";
 import { POSTER_BASE, POSTER_THUMB } from "../tmdb";
 import { initialsOf } from "../domain/film";
 import { hueOf } from "../theme/ink";
-import type { FilmOfYear } from "../domain/almanac";
+import type { FilmOfYear, PlateShot } from "../domain/almanac";
 
 export interface BoxPalette {
   paper: string;
@@ -219,16 +219,22 @@ const FOOT = 130;
 /** Title and rating, under each case. */
 const CAPTION = 52;
 
-function gridFor(n: number): Grid {
+/* LE RAPPORT EST UN ARGUMENT, ET IL EST ARRIVÉ AVEC LA PLANCHE. Une
+   affiche est en 2:3 et un photogramme en 16:9 : la même grille ne peut
+   pas les tenir tous les deux, et la dupliquer aurait dédoublé le calcul
+   qui, lui, ne change pas — la cellule prend la plus petite des deux
+   mesures, celle que la largeur permet et celle que la hauteur restante
+   permet. C'est ce calcul-là qui est délicat, pas le rapport. */
+function gridFor(n: number, ratio = 1.5, caption = CAPTION): Grid {
   const cols = n <= 2 ? Math.max(n, 1) : n <= 6 ? 3 : 4;
   const rows = Math.ceil(n / cols);
 
   const byWidth = (W - MARGIN * 2 - (cols - 1) * GAP) / cols;
-  const room = H - FOOT - TOP - rows * (GAP + CAPTION);
-  const byHeight = room / rows / 1.5;
+  const room = H - FOOT - TOP - rows * (GAP + caption);
+  const byHeight = room / rows / ratio;
 
   const width = Math.max(60, Math.min(byWidth, byHeight));
-  const height = width * 1.5;
+  const height = width * ratio;
   const total = cols * width + (cols - 1) * GAP;
 
   return {
@@ -237,7 +243,7 @@ function gridFor(n: number): Grid {
     height,
     left: (W - total) / 2,
     gap: GAP,
-    step: height + GAP + CAPTION,
+    step: height + GAP + caption,
   };
 }
 /* THE IMAGE SPEAKS THE READER'S LANGUAGE TOO, and it is the one thing
@@ -494,4 +500,175 @@ export function download(blob: Blob, name: string): void {
   /* Revoking straight away would cut the download short in some
      browsers: we let one frame go by. */
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ============================================================
+   LA PLANCHE DE L'ANNÉE — les images, et non les affiches
+   ============================================================
+
+   UNE SŒUR ET NON UN MODE. La boîte est un BILAN : un millésime de cent
+   cinquante pixels, dix chiffres, une phrase de bas de page. La planche
+   est une IMAGE, et rien d'autre. Les fondre derrière un drapeau aurait
+   obligé chaque moitié à contourner l'autre à chaque paragraphe, pour
+   une seule chose vraiment partagée — la grille, et elle l'est déjà.
+
+   POURQUOI ELLE EXISTE. La boîte dessine des AFFICHES : hébergées par
+   TMDB, gratuites pour nous, et les mêmes pour tout le monde. Deux
+   personnes ayant vu les mêmes films en sortent la même image. Celle-ci
+   dessine ce qu'on a CAPTURÉ soi-même — la seule matière de ce produit
+   qui soit à vous, et la seule qui consomme la place qu'on héberge.
+
+   ELLE EMPRUNTE QUAND ON N'A RIEN, et ce n'est pas un pis-aller : sans
+   les `frames` de TMDB elle serait vide le jour de sa sortie, pour tout
+   le monde. Le choix des images vit dans `domain/almanac.plateShots`,
+   qui est pur et éprouvé ; ici on ne fait que dessiner.
+   ============================================================ */
+
+/** Combien de cases. Moins que la boîte, et plus grandes : on regarde
+    une image, on ne compte pas des vignettes. Exporté parce que la vue
+    doit savoir, AVANT de dessiner, s'il y aura quelque chose à voir. */
+export const PLATE_MAX = 8;
+/** Le titre sous la case, seul — pas de note, pas de compte de séances. */
+const PLATE_CAPTION = 34;
+
+export interface PlateData {
+  year: number;
+  shots: PlateShot[];
+  /** Combien des cases sont de vous, pour la phrase du bas. */
+  mine: number;
+}
+
+export async function drawYearPlate(data: PlateData, p: BoxPalette, t: Say): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("le canevas n'a pas de contexte 2d");
+
+  ctx.fillStyle = p.paper;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = p.ink;
+  ctx.globalAlpha = 0.03;
+  for (let i = 0; i < 2000; i++) ctx.fillRect(Math.random() * W, Math.random() * H, 1.5, 1.5);
+  ctx.globalAlpha = 1;
+
+  /* ---- LE BANDEAU ---- */
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = p.inkFaded;
+  ctx.font = `28px ${p.mono}`;
+  ctx.fillText(t("plate.title"), 72, 96);
+
+  ctx.fillStyle = p.accent;
+  ctx.font = `bold 150px ${p.title}`;
+  ctx.fillText(String(data.year), 68, 218);
+
+  ctx.strokeStyle = p.accent;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(72, 238);
+  ctx.bezierCurveTo(180, 231, 300, 245, 400, 236);
+  ctx.stroke();
+
+  /* ---- LES CASES ---- */
+  const shots = data.shots.slice(0, PLATE_MAX);
+  const { cols, width, height, left, gap, step } = gridFor(shots.length, 9 / 16, PLATE_CAPTION);
+  const images = await Promise.all(shots.map((s) => loadPoster(s.src)));
+
+  shots.forEach((shot, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const gx = left + col * (width + gap);
+    const gy = TOP + row * step;
+
+    ctx.save();
+    ctx.translate(gx + width / 2, gy + height / 2);
+    ctx.rotate((((i * 37) % 11) - 5) * 0.0022);
+    ctx.translate(-width / 2, -height / 2);
+
+    ctx.shadowColor = "rgba(30,20,10,0.35)";
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = p.card;
+    ctx.fillRect(-6, -6, width + 12, height + 12);
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    const img = images[i];
+    if (img) {
+      const ratio = Math.max(width / img.width, height / img.height);
+      const dw = img.width * ratio;
+      const dh = img.height * ratio;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, width, height);
+      ctx.clip();
+      ctx.drawImage(img, (width - dw) / 2, (height - dh) / 2, dw, dh);
+      ctx.restore();
+    } else {
+      /* L'ÉMULSION DE REMPLACEMENT, la même que sur le mur : `hueOf` est
+         la source de vérité de cette teinte, et on la lit plutôt que de
+         la redéfinir. Une image qui n'a pas pu être chargée reste une
+         case, jamais un trou. */
+      ctx.fillStyle = hueOf(shot.filmId);
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "rgba(243,234,216,0.8)";
+      ctx.font = `italic ${Math.round(height * 0.34)}px ${p.title}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(initialsOf(shot.title), width / 2, height / 2);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+    }
+
+    ctx.strokeStyle = p.line;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
+
+    /* CE QUI EST DE VOUS SE VOIT, et se dit par un TRAIT et non par une
+       couleur — la règle du verdict, et ici elle vaut deux fois : sur une
+       image qu'on exporte, la peau du lecteur n'existe plus. Un coin
+       relevé à l'encre d'accent, comme une photo collée. */
+    if (shot.mine) {
+      ctx.strokeStyle = p.accent;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(width - 26, 2);
+      ctx.lineTo(width - 2, 2);
+      ctx.lineTo(width - 2, 26);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = p.ink;
+    ctx.font = `20px ${p.body}`;
+    ctx.fillText(truncate(ctx, shot.title, width), 0, height + 26);
+
+    ctx.restore();
+  });
+
+  /* ---- LE PIED ---- */
+  /* LA PHRASE DIT D'OÙ VIENNENT LES IMAGES, et c'est ce qui rend la
+     planche honnête : montrer des photogrammes de TMDB sans le dire
+     laisserait croire qu'on a capturé ce qu'on n'a pas. Quand tout est
+     de vous, elle le dit aussi — c'est le seul cas où elle félicite. */
+  ctx.fillStyle = p.inkFaded;
+  ctx.font = `italic 27px ${p.body}`;
+  const sentence =
+    data.mine === 0
+      ? t("plate.allBorrowed")
+      : data.mine >= shots.length
+        ? t("plate.allMine")
+        : t("plate.someMine", { count: data.mine });
+  ctx.fillText(truncate(ctx, sentence, W - MARGIN * 2), MARGIN, H - 82);
+
+  ctx.font = `19px ${p.mono}`;
+  ctx.fillText(t("yearInBox.signature"), MARGIN, H - 22);
+
+  return await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error(t("yearInBox.couldNotDraw")))),
+      "image/png"
+    )
+  );
 }

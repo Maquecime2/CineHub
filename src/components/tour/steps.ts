@@ -574,6 +574,16 @@ const almanac: Tour = {
       placement: "left",
       optional: true,
     },
+    /* `optional`, et pour la raison la plus forte : ce bouton n'est
+       monté QUE s'il y a des images à mettre dessus. Une année sans une
+       capture ni un photogramme ne donne pas de planche, et la visite
+       doit se jouer en entier sur un classeur neuf. */
+    {
+      target: at("almanac-plate"),
+      ...says("almanac", "plate"),
+      placement: "left",
+      optional: true,
+    },
   ],
 };
 

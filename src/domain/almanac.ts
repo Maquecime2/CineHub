@@ -800,3 +800,89 @@ export function driftHighlights(films: Film[], howMany = 5): Drift[] {
   }
   return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, howMany);
 }
+
+/* ============================================================
+   LA PLANCHE — CE QU'ON A VU, ET NON CE QU'ON A ACHETÉ
+   ============================================================
+
+   LA BOÎTE DE L'ANNÉE DESSINE DES AFFICHES, et une affiche n'est de
+   personne : elle est hébergée par TMDB, elle ne coûte rien, et deux
+   personnes ayant vu les mêmes films exportent la même image. Une
+   planche de PHOTOGRAMMES est la seule image de ce produit qui puisse
+   être à vous.
+
+   DEUX SOURCES, ET L'ORDRE N'EST PAS UN GOÛT.
+
+   `stills` sont VOS captures : elles vivent dans le coffre, elles sont
+   miroitées, elles comptent dans `MEDIA_CEILING`. `frames` sont des
+   plans que TMDB héberge, dont on ne garde que le CHEMIN, qui ne
+   coûtent ni un appel ni un octet de capacité.
+
+   Les vôtres passent devant, toujours. Et les `frames` ne sont pas un
+   pis-aller honteux : sans elles la planche serait VIDE le jour de sa
+   sortie, pour tout le monde — le défaut exact que `Film.synopsis` a
+   coûté. C'est en voyant une belle planche faite des images de
+   quelqu'un d'autre qu'on a envie d'y mettre les siennes.
+
+   ON MARQUE DONC LAQUELLE EST LAQUELLE (`mine`), et l'écran le montre :
+   sans cela on croirait avoir capturé ce qu'on n'a pas.
+
+   UNE IMAGE PAR FILM, ET C'EST CE QUI FAIT UNE ANNÉE. Six captures d'un
+   même film rempliraient la planche à elles seules et diraient
+   « j'ai travaillé cette fiche », pas « voici mon année ».
+   ============================================================ */
+
+/** Une case de la planche. `src` est prêt à charger, jamais à composer. */
+export interface PlateShot {
+  filmId: string;
+  title: string;
+  /** `idb:<clé>` pour une capture à soi, une adresse TMDB pour un plan. */
+  src: string;
+  /** Vraie de vous. Ce que la planche distingue à l'œil. */
+  mine: boolean;
+}
+
+/**
+ * Choisit les images d'une planche, dans l'ordre des séances.
+ *
+ * @param idb     le préfixe des clés de coffre (`db.IDB_PREFIX`)
+ * @param frameAt compose l'adresse d'un photogramme depuis son chemin
+ *
+ * LES DEUX SONT DONNÉS ET NON IMPORTÉS : ce module est du domaine pur,
+ * et `db` comme `tmdb` sont des entrées-sorties. C'est la règle que
+ * `yearInBox` énonce pour les couleurs — « elles lui sont données ».
+ */
+export function plateShots(
+  films: FilmOfYear[],
+  howMany: number,
+  idb: string,
+  frameAt: (path: string) => string
+): PlateShot[] {
+  const mine: PlateShot[] = [];
+  const borrowed: PlateShot[] = [];
+
+  for (const { film } of films) {
+    /* La vignette plutôt que l'originale : décoder du 4K pour une case
+       de planche est ce que `thumbKey` existe pour éviter. */
+    const still = (film.stills || []).find((s) => s.thumbKey || s.key);
+    if (still) {
+      mine.push({
+        filmId: film.id,
+        title: film.title,
+        src: idb + (still.thumbKey || still.key),
+        mine: true,
+      });
+      continue;
+    }
+    const frame = (film.frames || [])[0];
+    if (frame) {
+      borrowed.push({ filmId: film.id, title: film.title, src: frameAt(frame), mine: false });
+    }
+  }
+
+  /* LES VÔTRES D'ABORD, ET LE RESTE COMBLE. Mélangés dans l'ordre des
+     séances, une année où l'on a capturé trois films sur vingt aurait
+     rendu une planche d'emprunts avec trois des siennes perdues au
+     milieu — c'est-à-dire l'inverse de ce qu'elle sert à montrer. */
+  return [...mine, ...borrowed].slice(0, howMany);
+}

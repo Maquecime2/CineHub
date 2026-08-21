@@ -36,19 +36,28 @@
    see it coming. */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Images } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { tap, tapSquare } from "../theme/styles";
 import {
   almanacFor,
   driftHighlights,
   filmsOfYear,
+  plateShots,
   yearsCovered,
   type Almanac,
   type Drift,
   type Period,
 } from "../domain/almanac";
-import { drawYearInBox, download, type BoxPalette } from "../services/yearInBox";
+import {
+  drawYearInBox,
+  drawYearPlate,
+  download,
+  PLATE_MAX,
+  type BoxPalette,
+} from "../services/yearInBox";
+import { IDB_PREFIX } from "../db";
+import { FRAME_FULL } from "../tmdb";
 import { hash, seededRand, tiltOf } from "../domain/seeded";
 import { CoffeeRing, InkUnderline, PushPin, StampCorner, Tape } from "../components/atmosphere";
 import { Honours, InkStars, Label, Nothing, Tally } from "../components/ui";
@@ -1100,6 +1109,40 @@ export function AlmanacView({
     }
   };
 
+  /* LA PLANCHE — les images, et non les affiches.
+     ------------------------------------------------------------
+
+     Son propre état, et non celui de la boîte : deux boutons qui
+     partagent un « en cours » se grisent ensemble, et celui qu'on n'a
+     pas cliqué a l'air en panne.
+
+     ELLE NE S'AFFICHE PAS SI ELLE SERAIT VIDE. Une année dont aucune
+     fiche ne porte ni capture ni photogramme ne donne rien à dessiner,
+     et un bouton qui rend une planche blanche est pire que pas de
+     bouton. `plateShots` répond à la question sans rien charger. */
+  const shots =
+    typeof period === "number"
+      ? plateShots(filmsOfYear(films, period), PLATE_MAX, IDB_PREFIX, (path) => FRAME_FULL + path)
+      : [];
+
+  const [plateState, setPlateState] = useState<"repos" | "en cours" | "raté">("repos");
+  const takePlate = async () => {
+    if (typeof period !== "number" || shots.length === 0) return;
+    setPlateState("en cours");
+    try {
+      const blob = await drawYearPlate(
+        { year: period, shots, mine: shots.filter((s) => s.mine).length },
+        skinApplied(),
+        t
+      );
+      download(blob, `cine-hub-planche-${period}.png`);
+      setPlateState("repos");
+    } catch (e) {
+      console.error(e);
+      setPlateState("raté");
+    }
+  };
+
   if (period == null || a == null) {
     return (
       <div style={{ padding: "34px 44px 70px", maxWidth: 760, position: "relative" }}>
@@ -1271,6 +1314,42 @@ export function AlmanacView({
                 : box === "raté"
                   ? t("almanac.exportFailed")
                   : t("almanac.yearInABox")}
+            </button>
+          )}
+          {/* LA PLANCHE, À CÔTÉ DE LA BOÎTE ET NON DEDANS. La boîte est
+              un bilan — un millésime, dix chiffres, une phrase ; la
+              planche est une image. Deux gestes voisins et distincts,
+              comme le studio des pochettes et les images de fin. */}
+          {!always && shots.length > 0 && (
+            <button
+              onClick={takePlate}
+              data-tour="almanac-plate"
+              disabled={plateState === "en cours"}
+              title={t("plate.hint")}
+              style={{
+                all: "unset",
+                ...tap,
+                cursor: plateState === "en cours" ? "progress" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                padding: "7px 13px",
+                fontFamily: F.mono,
+                fontSize: 11,
+                letterSpacing: "var(--tag-tracking)",
+                color: C.ink,
+                border: `1px solid ${C.line}`,
+                background: C.card,
+                borderRadius: "var(--tag-radius)",
+                opacity: plateState === "en cours" ? 0.6 : 1,
+              }}
+            >
+              <Images size={14} />
+              {plateState === "en cours"
+                ? t("almanac.developing")
+                : plateState === "raté"
+                  ? t("almanac.exportFailed")
+                  : t("plate.take")}
             </button>
           )}
         </div>

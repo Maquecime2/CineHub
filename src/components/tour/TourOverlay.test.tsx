@@ -201,27 +201,50 @@ describe("a missing target does not block the tour", () => {
     }
   }
 
+  /* THE LAST STEP, WHICHEVER IT IS — and it used to be named.
+
+     This test used to spell out `almanac-export`, because that step was
+     the last one at the time of writing. Adding a step after it made the
+     test fail on a promise it does not hold: it then laid every anchor
+     except the export's, reached a bubble it had itself withheld, and
+     complained about a missing text. The tour had not broken; the test
+     had recorded an ORDER it never meant to guard.
+
+     What it means to guard is "an optional step with no target ends the
+     tour rather than holding it up". That sentence names no step, so
+     neither does the test any more. */
   it("skips the optional step whose target is missing", async () => {
     const steps = TOURS.almanac!.steps;
-    const box = steps.find((s) => s.target === '[data-tour="almanac-export"]')!;
-    expect(box.optional, "the test only means something if the step is optional").toBe(true);
+    const last = steps[steps.length - 1]!;
+    const name = last.target!.match(/^\[data-tour="(.+)"\]$/)![1]!;
+    expect(last.optional, "the test only means something if the step is optional").toBe(true);
 
-    poserSauf("almanac", "almanac-export");
+    poserSauf("almanac", name);
     const onClose = vi.fn();
     render(<TourOverlay tourId="almanac" onClose={onClose} onView={vi.fn()} />);
 
-    // we do reach the second to last…
-    const before = steps[steps.length - 2]!;
-    expect(await screen.findByText(said(before.title))).toBeInTheDocument();
-    await userEvent.click(screen.getByText(/suivant|terminer/i));
+    /* ON MARCHE, ON NE VISE PLUS UN RANG. La version d'avant nommait
+       `almanac-export` et attendait de tomber pile sur l'avant-dernier
+       pas : elle enregistrait donc un ORDRE qu'elle n'a jamais voulu
+       garder, et un pas ajouté derrière la faisait échouer sur une
+       promesse qui tenait toujours.
 
-    /* …and the last, deprived of a target, does not hold the tour up: it
-       ends in its place.
+       Ce qu'elle garde est « un pas facultatif sans cible termine la
+       visite au lieu de la bloquer ». Cette phrase ne nomme aucun rang,
+       donc le test non plus : on avance jusqu'au bout, et c'est de ne
+       PAS rester coincé qui est éprouvé. */
+    for (let i = 0; i <= steps.length; i++) {
+      if (onClose.mock.calls.length) break;
+      const next = screen.queryByText(/suivant|terminer/i);
+      if (!next) break;
+      await userEvent.click(next);
+    }
 
-       We check the CALL and not the bubble disappearing: here `onClose`
-       is a mock, and in real life it is the caller that unmounts the
-       guide. Requiring the text to vanish would test the double, not the
-       component. */
+    /* ON VÉRIFIE L'APPEL ET NON LA BULLE QUI DISPARAÎT — la raison est
+       écrite plus haut dans ce fichier et vaut ici mot pour mot :
+       `onClose` est un double, et dans la vraie vie c'est l'appelant qui
+       démonte le guide. Exiger que le texte s'efface éprouverait le
+       double, pas le composant. */
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });
