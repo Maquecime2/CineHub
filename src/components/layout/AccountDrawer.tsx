@@ -360,16 +360,23 @@ export function AccountDrawer({
           <span>
             {mediaSays.kind === "cors"
               ? t("account.mediaCors")
-              : /* Which DIRECTION failed. The two sentences below are not
+              : mediaSays.kind === "full"
+                ? /* CE N'EST PAS UNE PANNE, et la phrase ne doit pas en
+                     avoir l'air : rien n'est cassé, rien n'est effacé, et
+                     l'image attend sa place. La ranger sous « refusé »
+                     enverrait chercher une horloge décalée qui va très
+                     bien. */
+                  t("account.mediaFull")
+                : /* Which DIRECTION failed. The two sentences below are not
                      interchangeable: one says nothing is leaving, the other
                      that nothing is arriving, and sending somebody to look
                      at the wrong end of the mirror costs hours. */
-                t(
-                  mediaSays.kind === "read-refused"
-                    ? "account.mediaPullRefused"
-                    : "account.mediaRefused",
-                  { detail: mediaSays.detail || "" }
-                )}
+                  t(
+                    mediaSays.kind === "read-refused"
+                      ? "account.mediaPullRefused"
+                      : "account.mediaRefused",
+                    { detail: mediaSays.detail || "" }
+                  )}
           </span>
         </div>
       )}
@@ -859,23 +866,46 @@ function Usage() {
 
   if (!usage) return null;
 
+  /* SANS LIMITE SE DIT PAR UN MOT, jamais par un nombre ni par un tiret.
+     C'est la règle du verdict, et elle vaut ici pour une raison de plus :
+     ce qui arrive sur le fil est `null`, et l'écrire tel quel donnait
+     « 12 / null ». */
+  const gauge = (used: number, ceiling: number | null, label: string) => (
+    <Tally
+      label={label}
+      value={ceiling != null ? `${used} / ${ceiling}` : `${used} · ${t("account.usageNoLimit")}`}
+      /* LE VERDICT SE DIT PAR UN MOT, PAS PAR UNE COULEUR — mais un
+         compteur n'est pas un verdict. On teinte seulement quand il ne
+         reste presque rien, et la phrase en dessous le dit. Un plafond
+         ABSENT ne se teint jamais : `used >= null` vaut `used >= 0`,
+         donc le tiroir d'un admin était rouge en permanence. */
+      ink={ceiling != null && used >= ceiling ? C.burgundy : undefined}
+    />
+  );
+
   return (
     <div style={{ borderTop: `1px dashed ${C.line}`, paddingTop: 14 }}>
       <Label>{t("account.usage")}</Label>
       <div style={{ marginTop: 6 }}>
+        {/* LE PALIER D'ABORD : un compteur ne veut rien dire tant qu'on
+            ne sait pas contre quoi il compte. L'admin n'est pas un
+            troisième palier — c'est un champ de la personne, et il passe
+            au-dessus des deux. */}
         <Tally
-          label={t("account.usageMedia")}
-          value={`${usage.media} / ${usage.mediaCeiling}`}
-          /* LE VERDICT SE DIT PAR UN MOT, PAS PAR UNE COULEUR — mais un
-             compteur n'est pas un verdict. On teinte seulement quand il
-             ne reste presque rien, et la phrase en dessous le dit. */
-          ink={usage.media >= usage.mediaCeiling ? C.burgundy : undefined}
+          label={t("account.plan")}
+          value={t(usage.isAdmin ? "account.planAdmin" : `account.plan_${usage.plan}`)}
         />
-        <Tally
-          label={t("account.usageDecors")}
-          value={`${usage.decors} / ${usage.decorCeiling}`}
-          ink={usage.decors >= usage.decorCeiling ? C.burgundy : undefined}
-        />
+        {gauge(usage.media, usage.mediaCeiling, t("account.usageMedia"))}
+        {/* LES IMPORTS SONT LE GESTE LE PLUS CHER DU PRODUIT, et le seul
+            autre plafond qui morde. Il était compté par le serveur,
+            montré dans l'écran d'import, et absent d'ici — c'est-à-dire
+            absent de l'endroit où l'on vient voir ce qu'on occupe. */}
+        {gauge(usage.imports, usage.importCeiling, t("account.usageImports"))}
+        {/* CE QU'ON NE DESSINE PLUS : les décors. Leurs deux plafonds sont
+            déclarés et inatteignables — `createDecor` n'a plus aucun
+            appelant depuis que `POST /decor` a été retiré, les bibelots
+            se tirent désormais d'une pochette. Un compteur qu'aucun geste
+            ne fait bouger apprend à ignorer les compteurs. */}
       </div>
       <div
         style={{

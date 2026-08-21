@@ -131,10 +131,18 @@ const fr = {
       "Vos affiches et captures ne partent pas : le navigateur refuse le dépôt avant même de l'envoyer. Il manque presque toujours une règle CORS sur le container Azure — autorisez l'origine du site en PUT et en GET. Vos images restent entières sur cet appareil en attendant.",
     mediaRefused:
       "Le container a refusé le dépôt ({{detail}}). Un 403 vient le plus souvent d'une horloge décalée : la signature est datée. Vos images restent entières sur cet appareil.",
+    mediaFull:
+      "Vous occupez toute la place de votre palier : vos dernières affiches et captures ne sont plus recopiées chez nous. Rien n'est effacé et rien n'est perdu — elles sont entières sur cet appareil, et elles partiront d'elles-mêmes dès qu'il y aura de la place. Ce qui manque est la copie qui vous suivrait sur un autre ordinateur.",
     mediaPullRefused:
       "Les affiches et captures faites sur vos autres appareils n'ont pas pu être rapatriées ({{detail}}). Un 429 veut dire que le serveur a refusé le débit, pas que les images sont perdues : elles sont intactes sur le container, et la prochaine ouverture réessaiera.",
     usage: "La place chez nous",
+    plan: "votre palier",
+    plan_free: "gratuit",
+    plan_plus: "abonné",
+    planAdmin: "sans palier",
     usageMedia: "affiches et captures en miroir",
+    usageImports: "imports sur trente jours",
+    usageNoLimit: "sans limite",
     usageDecors: "objets de décor déposés",
     usageNote:
       "Ces plafonds bornent la place que vous occupez chez nous, et rien d'autre : les fiches, elles, ne se comptent pas. Un abonnement les desserre sans rien ouvrir de plus.",
@@ -1217,6 +1225,23 @@ const fr = {
 
   /* LE BUREAU DE MODÉRATION. Il ne parle jamais du plaignant : on juge
      un contenu, pas une personne qui se plaint. */
+  plate: {
+    title: "LA PLANCHE",
+    take: "la planche",
+    hint: "Une planche de vos images de l'année, à emporter.",
+    allMine: "Huit images, et toutes sont de vous.",
+    someMine: "{{count}} de ces images sont de vous ; les autres viennent de TMDB.",
+    allBorrowed: "Ces images viennent de TMDB. Les vôtres prendraient leur place.",
+  },
+
+  tiers: {
+    title: "Qui peut stocker quoi",
+    trouble: "La table des comptes n'a pas pu être lue.",
+    nobody: "Aucun compte.",
+    granted: "{{pseudo}} passe en {{plan}}.",
+    refused: "Le palier n'a pas pu être changé.",
+  },
+
   moderation: {
     title: "CE QUI A ÉTÉ SIGNALÉ",
     empty: "Rien n'attend.",
@@ -3008,6 +3033,10 @@ const fr = {
       plates: {
         title: "Quatre planches",
         body: "Le compte, les goûts, les gens, puis les sujets. Les flèches du clavier feuillettent. La dernière planche dit de quoi vos films parlaient — mots-clés et motifs —, quels chefs opérateurs et compositeurs vous suivez sans le savoir, et sur quels titres exactement vous êtes plus tendre ou plus sévère que la foule.",
+      },
+      plate: {
+        title: "Vos images de l'année",
+        body: "La boîte montre des affiches, qui sont les mêmes pour tout le monde. La planche montre les plans que VOUS avez capturés sur vos fiches — et, tant qu'il vous en manque, quelques images que TMDB prête. Un coin d'encre marque celles qui sont de vous.",
       },
       export: {
         title: "L'année en boîte",

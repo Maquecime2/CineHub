@@ -442,19 +442,70 @@ export async function relayServesTmdb(): Promise<boolean> {
 /** What the server holds, in a single object — to take it away with you. */
 export const myData = () => call<Record<string, unknown>>("/my-data");
 
-/** Ce qu'un compte occupe chez nous, et ce qu'il a le droit d'occuper. */
+/** Ce qu'un compte occupe chez nous, et ce qu'il a le droit d'occuper.
+ *
+ * UN PLAFOND VAUT `null` QUAND RIEN NE REFUSE, et ce n'est pas un
+ * accident : `ceilingsFor` rend `Infinity` à un admin, et `Infinity` ne
+ * traverse pas le JSON. Le serveur le convertit donc explicitement
+ * (`borne`, `store.ts`), et **ici on lit en `!= null`** — la règle déjà
+ * écrite dans CLAUDE.md, absent veut dire absent et non « la valeur
+ * opposée ». C'est très exactement le piège qui faisait lire
+ * `12 >= null`, donc `12 >= 0`, et teignait en rouge le tiroir d'un
+ * admin qui n'a aucune limite.
+ *
+ * LES BORNES NE SE RECALCULENT JAMAIS ICI. `ceilingsFor` prend la
+ * PERSONNE et non le palier, exprès — pour que personne n'ait à se
+ * souvenir de tester `is_admin` à côté. Un écran qui déduirait les
+ * bornes du seul `plan` serait cet oubli. */
 export interface Usage {
   media: number;
-  mediaCeiling: number;
+  mediaCeiling: number | null;
   decors: number;
-  decorCeiling: number;
+  decorCeiling: number | null;
   decorBytes: number;
-  decorBytesCeiling: number;
+  decorBytesCeiling: number | null;
+  imports: number;
+  importCeiling: number | null;
+  /** `"free"` ou `"plus"` — la colonne, telle quelle. */
+  plan: string;
+  /** Un admin est `free` dans la colonne et sans borne dans les faits. */
+  isAdmin: boolean;
 }
 
 /* UN PLAFOND INVISIBLE EST UN PLAFOND QU'ON DÉCOUVRE EN LE HEURTANT, au
    pire moment — celui où l'on vient de déposer quelque chose. */
 export const myUsage = () => call<Usage>("/my-usage");
+
+/** Une ligne de la table des paliers, réservée au rôle. */
+export interface PersonTier {
+  id: string;
+  pseudo: string;
+  plan: string;
+  isAdmin: boolean;
+  media: number;
+  /** `null` : rien ne refuse. Voir `Usage`, même contrat. */
+  mediaCeiling: number | null;
+  imports: number;
+  importCeiling: number | null;
+}
+
+/**
+ * Qui peut stocker quoi.
+ *
+ * LES BORNES ARRIVENT CALCULÉES, et l'écran n'en déduit aucune. Le
+ * serveur les tire de `ceilingsFor`, qui prend la PERSONNE — un admin
+ * est `free` dans la colonne et sans borne dans les faits, donc un
+ * tableau qui lirait `plan` pour choisir un plafond lui collerait celui
+ * du gratuit.
+ */
+export const peopleTiers = () => call<{ people: PersonTier[] }>("/people").then((r) => r.people);
+
+/** Accorde un palier. Le rôle est exigé par la route, jamais ici. */
+export const setPersonPlan = (pseudo: string, plan: "free" | "plus") =>
+  call<{ pseudo: string; plan: string }>(`/people/${encodeURIComponent(pseudo)}/plan`, {
+    method: "PUT",
+    body: JSON.stringify({ plan }),
+  });
 
 /**
 /**
@@ -600,11 +651,23 @@ export const claimPairingCode = (code: string) =>
    between the browser and Azure without passing through the server at
    all. */
 
+/**
+ * Les tickets, ET le refus du plafond.
+ *
+ * `full` NE SE JETTE PLUS. Le serveur l'écrit depuis toujours — un
+ * chemin refusé par le plafond vaut un ticket manquant, pas un lot en
+ * erreur — avec, au-dessus de la ligne, un commentaire disant que « le
+ * client voit dans `full` qu'il n'y a plus la place ». Or cette
+ * fonction ne gardait que `r.tickets` : le contrat était écrit d'un
+ * côté et ignoré de l'autre, et le plafond refusait EN SILENCE. Les
+ * captures cessaient d'être miroitées sans un mot, ce qui ne se
+ * découvre qu'en changeant d'ordinateur — la pire des pertes.
+ */
 export const mediaTickets = (paths: string[], mode: "read" | "write" = "write") =>
-  call<{ tickets: { path: string; url: string }[] }>("/media/tickets", {
+  call<{ tickets: { path: string; url: string }[]; full?: boolean }>("/media/tickets", {
     method: "POST",
     body: JSON.stringify({ paths, mode }),
-  }).then((r) => r.tickets);
+  });
 
 /** A read ticket, or `null` when there is nothing there for us. */
 export const mediaTicket = (path: string) =>

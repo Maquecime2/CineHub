@@ -3052,6 +3052,20 @@ export async function createDecor(
  * traverse la frontière sans mentir, et le SQL le lit comme « pas de
  * plafond ».
  */
+/* L INFINI NE SURVIT PAS AU JSON, ET IL FAUT LE CONVERTIR EXPRES.
+
+   `ceilingsFor` rend `Infinity` a un admin, et c est le bon choix : une
+   comparaison contre l infini ne se trompe jamais, la ou un milliard
+   finit par ressembler a une limite. Mais `JSON.stringify(Infinity)`
+   vaut `null`, en silence.
+
+   Cette conversion etait ecrite POUR LE SQL — `$4::bigint IS NULL` veut
+   dire « rien ne refuse » — et oubliee POUR LE FIL. L usage partait donc
+   avec `mediaCeiling: null` sans que personne l ait decide, et l ecran
+   lisait `12 >= null`, c est-a-dire `12 >= 0` : le tiroir d un admin
+   s affichait « 12 / null » et rouge, comme plein. Les deux bouts
+   passent desormais par ici, et `null` y est une VALEUR — « sans
+   limite » — et non un accident de serialisation. */
 const borne = (n: number): number | null => (Number.isFinite(n) ? n : null);
 
 export async function noteMedia(
@@ -3093,14 +3107,17 @@ export async function usageOf(
   personId: string
 ): Promise<{
   media: number;
-  mediaCeiling: number;
+  /** `null` : rien ne refuse. Voir `borne` — l infini ne passe pas le JSON. */
+  mediaCeiling: number | null;
   decors: number;
-  decorCeiling: number;
+  decorCeiling: number | null;
   decorBytes: number;
-  decorBytesCeiling: number;
+  decorBytesCeiling: number | null;
   imports: number;
-  importCeiling: number;
+  importCeiling: number | null;
   plan: string;
+  /** L admin n a pas de palier : il passe au-dessus des deux. */
+  isAdmin: boolean;
 }> {
   /* LES BORNES SORTENT AVEC LES CHIFFRES, sans quoi l'écran devrait
      connaître les paliers pour savoir quoi comparer — et il les
@@ -3121,15 +3138,80 @@ export async function usageOf(
   );
   return {
     media: Number(m?.n ?? 0),
-    mediaCeiling: bornes.media,
+    mediaCeiling: borne(bornes.media),
     decors: Number(d?.n ?? 0),
-    decorCeiling: bornes.decors,
+    decorCeiling: borne(bornes.decors),
     decorBytes: Number(d?.poids ?? 0),
-    decorBytesCeiling: bornes.decorBytes,
+    decorBytesCeiling: borne(bornes.decorBytes),
     imports: await importsInWindow(db, personId),
-    importCeiling: bornes.imports,
+    importCeiling: borne(bornes.imports),
     plan: person?.plan === "plus" ? "plus" : "free",
+    /* LE PALIER NE DIT PAS TOUT. Un admin est `free` dans la colonne et
+       sans borne dans les faits : l ecran doit pouvoir dire lequel des
+       deux il regarde, sans jamais recalculer les bornes lui-meme. */
+    isAdmin: person?.is_admin === true,
   };
+}
+
+/**
+ * QUI PEUT STOCKER QUOI — la table de l administrateur.
+ *
+ * UNE SEULE REQUÊTE, ET LES BORNES CALCULÉES ICI. Appeler `usageOf` par
+ * ligne aurait fait trois requêtes par personne ; surtout, la tentation
+ * aurait été de rendre le seul `plan` et de laisser l écran en déduire
+ * les bornes. Ce serait précisément l oubli que `ceilingsFor` existe
+ * pour empêcher : elle prend la PERSONNE et non le palier, « pour que
+ * personne n ait à se souvenir de tester `is_admin` à côté ». Un écran
+ * qui déduirait de `plan` perdrait l infini de l admin le premier jour.
+ *
+ * Les plafonds sortent donc par `borne` — un nombre, ou `null` quand
+ * rien ne refuse.
+ */
+export async function peopleWithUsage(db: Db): Promise<
+  {
+    id: string;
+    pseudo: string;
+    plan: string;
+    isAdmin: boolean;
+    media: number;
+    mediaCeiling: number | null;
+    imports: number;
+    importCeiling: number | null;
+  }[]
+> {
+  const rows = await db.query<{
+    id: string;
+    pseudo: string;
+    plan: string | null;
+    is_admin: boolean | null;
+    medias: string;
+    imports: string;
+  }>(
+    `SELECT p.id,
+            p.pseudo,
+            p.plan,
+            p.is_admin,
+            (SELECT count(*) FROM media m WHERE m.person_id = p.id)::text AS medias,
+            (SELECT count(*) FROM import_run i
+              WHERE i.person_id = p.id
+                AND i.ran_at > now() - interval '${IMPORT_WINDOW}')::text AS imports
+       FROM person p
+      ORDER BY p.is_admin DESC, p.plan DESC, p.pseudo`
+  );
+
+  return rows.map((r) => {
+    const bornes = ceilingsFor({ plan: r.plan, is_admin: r.is_admin });
+    return {
+      id: r.id,
+      pseudo: r.pseudo,
+      plan: r.plan === "plus" ? "plus" : "free",
+      isAdmin: r.is_admin === true,
+      media: Number(r.medias),
+      mediaCeiling: borne(bornes.media),
+      imports: Number(r.imports),
+      importCeiling: borne(bornes.imports),
+    };
+  });
 }
 
 /** Only its author edits it — the `owner_id` in the clause says so. */

@@ -105,6 +105,87 @@ describe("le palier commande les plafonds", () => {
   });
 });
 
+/* ============================================================
+   L'INFINI TRAVERSE LE FIL
+
+   `ceilingsFor` était juste et l'écran mentait quand même : ces tests
+   manquaient, et c'est très exactement par là que c'est passé. L'admin
+   n'était éprouvé qu'au niveau de la FONCTION PURE — jamais à travers
+   `usageOf`, jamais à travers `noteMedia`.
+
+   Or `JSON.stringify(Infinity)` vaut `null`. Le tiroir d'un admin
+   affichait donc « 12 / null » et se teignait en rouge, puisque
+   `12 >= null` vaut `12 >= 0` : le serveur accordait l'infini et l'écran
+   annonçait le contraire.
+
+   ON ÉPROUVE DONC CE QUI SORT, et non ce qui se calcule.
+   ============================================================ */
+describe("ce que l'occupation met sur le fil", () => {
+  const admin = async (pseudo: string) => {
+    const p = await store.createPerson(db, pseudo);
+    await store.markAdmins(db, [pseudo]);
+    return p;
+  };
+
+  it("rend `null` et non `Infinity` pour un admin", async () => {
+    const boss = await admin("chef");
+    const u = await store.usageOf(db, boss.id);
+
+    /* `null` est une VALEUR — « rien ne refuse » — et non un accident de
+       sérialisation. `Infinity` ne serait pas seulement illisible : il
+       deviendrait `null` plus loin, sans que personne l'ait décidé. */
+    expect(u.mediaCeiling).toBeNull();
+    expect(u.decorCeiling).toBeNull();
+    expect(u.decorBytesCeiling).toBeNull();
+    expect(u.importCeiling).toBeNull();
+    expect(u.isAdmin).toBe(true);
+  });
+
+  /* CELUI-CI N'AURAIT RIEN ATTRAPÉ, ET IL RESTE. C'est le test du dessus
+     qui mord — il lit l'objet AVANT sérialisation, là où traînait
+     `Infinity`. Passé par JSON, le défaut se déguisait en la bonne
+     réponse : `Infinity` y devient `null` tout seul. Ce test-ci ne garde
+     donc pas la conversion, il garde le CONTRAT du fil — un plafond
+     absent vaut `null`, et rien d'autre ne doit s'y substituer un jour
+     (un `-1`, un `0`, un très grand nombre). */
+  it("survit à un aller-retour JSON", async () => {
+    const boss = await admin("chef");
+    const wire = JSON.parse(JSON.stringify(await store.usageOf(db, boss.id)));
+    expect(wire.mediaCeiling).toBeNull();
+    expect(wire.isAdmin).toBe(true);
+  });
+
+  it("garde des nombres pour qui a un palier", async () => {
+    const a = await store.createPerson(db, "anna");
+    const u = JSON.parse(JSON.stringify(await store.usageOf(db, a.id)));
+    expect(u.mediaCeiling).toBe(ceilingsFor({ plan: "free" }).media);
+    expect(u.importCeiling).toBe(ceilingsFor({ plan: "free" }).imports);
+    expect(u.isAdmin).toBe(false);
+  });
+
+  /* ET L'INFINI DOIT ÊTRE VRAI, pas seulement bien écrit : on dépasse le
+     plafond du gratuit et rien ne refuse. */
+  it("ne refuse jamais un média à l'admin", async () => {
+    const boss = await admin("chef");
+    const free = ceilingsFor({ plan: "free" });
+
+    for (let i = 0; i <= free.media; i += 1) {
+      expect(await store.noteMedia(db, boss.id, `p/${boss.id}/m${i}`)).toBe(true);
+    }
+    const u = await store.usageOf(db, boss.id);
+    expect(u.media).toBeGreaterThan(free.media);
+    expect(u.mediaCeiling).toBeNull();
+  });
+
+  it("ne compte pas les imports de l'admin", async () => {
+    const boss = await admin("chef");
+    for (let i = 0; i < 5; i += 1) {
+      expect(await store.noteImport(db, boss.id)).toBe(true);
+    }
+    expect(await store.importsInWindow(db, boss.id)).toBe(0);
+  });
+});
+
 describe("les imports", () => {
   it("en accorde un au gratuit, puis refuse", async () => {
     const a = await store.createPerson(db, "anna");

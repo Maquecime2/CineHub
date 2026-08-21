@@ -124,10 +124,18 @@ const en = {
       "Your posters and screenshots are not going out: the browser refuses the upload before even sending it. A CORS rule on the Azure container is almost always what is missing — allow the site's origin in PUT and GET. Your images stay whole on this device meanwhile.",
     mediaRefused:
       "The container refused the upload ({{detail}}). A 403 most often comes from a clock that has drifted: the signature is dated. Your images stay whole on this device.",
+    mediaFull:
+      "You are taking up all the room your tier allows: your latest posters and stills are no longer being copied over to us. Nothing is erased and nothing is lost — they are whole on this device, and they will go of their own accord as soon as there is room. What is missing is the copy that would follow you onto another computer.",
     mediaPullRefused:
       "The posters and screenshots made on your other devices could not be fetched back ({{detail}}). A 429 means the server refused the traffic, not that the images are lost: they are whole on the container, and the next opening will try again.",
     usage: "Space on our side",
+    plan: "your tier",
+    plan_free: "free",
+    plan_plus: "subscribed",
+    planAdmin: "no tier",
     usageMedia: "posters and stills mirrored",
+    usageImports: "imports over thirty days",
+    usageNoLimit: "no limit",
     usageDecors: "decoration objects filed",
     usageNote:
       "These ceilings bound the room you take up on our side, and nothing else: cards themselves are not counted. A subscription loosens them without opening anything more.",
@@ -1189,6 +1197,23 @@ const en = {
 
   /* The moderation desk. It never speaks of the person who reported: a
      content is judged, not a complainant. */
+  plate: {
+    title: "THE PLATE",
+    take: "the plate",
+    hint: "A plate of your images from the year, to take away.",
+    allMine: "Eight images, and every one of them is yours.",
+    someMine: "{{count}} of these images are yours; the rest come from TMDB.",
+    allBorrowed: "These images come from TMDB. Yours would take their place.",
+  },
+
+  tiers: {
+    title: "Who may store what",
+    trouble: "The table of accounts could not be read.",
+    nobody: "No accounts.",
+    granted: "{{pseudo}} moves to {{plan}}.",
+    refused: "The tier could not be changed.",
+  },
+
   moderation: {
     title: "WHAT HAS BEEN REPORTED",
     empty: "Nothing is waiting.",
@@ -2889,6 +2914,10 @@ const en = {
       plates: {
         title: "Four plates",
         body: "The count, the tastes, the people, then the subjects. The keyboard arrows leaf through. The last plate says what your films were about — keywords and motifs —, which cinematographers and composers you follow without knowing it, and on exactly which titles you are gentler or harsher than the crowd.",
+      },
+      plate: {
+        title: "Your images from the year",
+        body: "The box shows posters, which are the same for everybody. The plate shows the frames YOU captured on your cards — and, while you are short of them, a few images TMDB lends. An inked corner marks the ones that are yours.",
       },
       export: {
         title: "The year in a box",
