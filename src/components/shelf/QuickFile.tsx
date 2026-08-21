@@ -41,6 +41,15 @@
    de dépôt et l'attribut `data-dragging`. La liste des boîtes, elle,
    vient du rendu ordinaire : elle ne change pas pendant qu'on glisse.
 
+   IL LAISSE LE TIROIR ATTEIGNABLE, ET C'EST UNE CONTRAINTE ET NON UN
+   REGLAGE. Le tiroir des « mis de cote » est ancre AU MEME BORD et A LA
+   MEME HAUTEUR : son onglet est une cible de depot — le survoler en
+   glissant ouvre le tiroir — et ce panneau, plus haut dans la pile
+   (46 contre 41), se posait dessus. On croyait viser le tiroir, on
+   deposait dans une categorie. Il se decale donc de la bande de
+   l'onglet, et de TOUTE la largeur du tiroir quand celui-ci est ouvert :
+   sinon il couvrirait les rangees qu'on vient y deposer.
+
    IL PASSE PAR `<Layer>` : `position: fixed` rendu dans la colonne de
    vue s'ancrerait sur la colonne, qui porte une transformation pendant
    son animation d'entrée.
@@ -50,6 +59,7 @@ import { useTranslation } from "react-i18next";
 import { C, F, alpha } from "../../theme/tokens";
 import { catInk } from "../../theme/palette";
 import { Layer } from "../ui/Layer";
+import { DRAWER_W, DRAWER_TAB_W } from "./layout";
 
 /** Une boîte de l'étagère, prête à recevoir. */
 export interface QuickBox {
@@ -66,10 +76,12 @@ export const QuickFile = forwardRef<
   HTMLDivElement,
   {
     boxes: QuickBox[];
+    /** Le tiroir des mis de côté est-il ouvert : on lui laisse la place. */
+    drawerOpen?: boolean;
     /** Le lâcher : c'est l'appelant qui sait quelle fiche on tient. */
     onDrop: (box: QuickBox) => void;
   }
->(function QuickFile({ boxes, onDrop }, ref) {
+>(function QuickFile({ boxes, drawerOpen, onDrop }, ref) {
   const { t } = useTranslation();
 
   /* PAS DE BOÎTE, PAS DE PANNEAU. Une étagère sans catégorie n'a rien à
@@ -84,9 +96,10 @@ export const QuickFile = forwardRef<
         aria-hidden
         style={{
           position: "fixed",
-          right: 18,
+          right: drawerOpen ? DRAWER_W + 18 : DRAWER_TAB_W + 14,
           top: "50%",
           transform: "translateY(-50%)",
+          transition: "right var(--motion-slow) var(--motion-ease)",
           zIndex: 46,
           width: 190,
           maxHeight: "70vh",

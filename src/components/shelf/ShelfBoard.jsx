@@ -1037,7 +1037,7 @@ export function ShelfBoard({
             {t("shelf.addDecor")}
           </button>
         </Layer>
-        <QuickFile ref={quickRef} boxes={quickBoxes} onDrop={dropInBox} />
+        <QuickFile ref={quickRef} boxes={quickBoxes} drawerOpen={!!drawer} onDrop={dropInBox} />
         {cabinet && (
           <DecorCabinet
             placed={placed}

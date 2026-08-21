@@ -1001,7 +1001,16 @@ export function Shelf({
    pushed the collection upwards. On the side, it is reachable from
    anywhere and only takes room when one opens it. Closed, it stays a
    target: dragging a case onto its tab opens it by itself. */
-const DRAWER_W = 250;
+export const DRAWER_W = 250;
+
+/* LA LARGEUR DE L'ONGLET, ET POURQUOI ELLE EST EXPORTEE.
+
+   Le classeur rapide s'ancre au meme bord et a la meme hauteur que ce
+   tiroir : sans une bande reservee, son cadre se posait PAR-DESSUS
+   l'onglet « mis de cote », et la seule cible qui ouvre le tiroir en
+   glissant devenait injoignable. Elle se mesure ici — deux fois neuf de
+   marge, onze de texte vertical — parce que c'est ici qu'elle s'ecrit. */
+export const DRAWER_TAB_W = 9 + 11 + 9;
 
 export function ReserveDrawer({
   shelf,
