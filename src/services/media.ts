@@ -155,8 +155,16 @@ const usable = (): boolean => serverConfigured() && accountOpen();
    leave, at the exact moment the images were failing to arrive: a wrong
    sentence sends the reader looking in the wrong direction, which is
    worse than the silence it replaces. */
+/* `"full"` EST NOTRE PROPRE REFUS, et c'est ce qui le distingue des
+   trois autres. Les deux premiers disent qu'un dépôt n'a pas ABOUTI —
+   une règle manquante, une horloge décalée — et se règlent en
+   réparant quelque chose. Celui-ci dit que le dépôt a été REFUSÉ, en
+   connaissance de cause, par le plafond du palier : rien n'est cassé,
+   rien n'est perdu, et l'image attend sa place. Une phrase alarmante
+   serait donc fausse, et la ranger sous `refused` enverrait chercher
+   une panne qui n'existe pas. */
 export type MediaTrouble = {
-  kind: "cors" | "refused" | "read-refused" | "none";
+  kind: "cors" | "refused" | "read-refused" | "full" | "none";
   detail?: string;
 };
 
@@ -287,8 +295,18 @@ async function pushBatch(): Promise<BatchResult> {
   if (paths.size === 0) return none;
 
   let tickets: { path: string; url: string }[];
+  /* CE QUE LE PLAFOND A REFUSÉ. Un chemin sans ticket est un chemin qui
+     reste dans la file : il repartira le jour où de la place se libère,
+     donc rien n'est perdu — et c'est exactement ce que la phrase doit
+     dire.
+
+     Sans valeur de départ, comme `tickets` juste au-dessus : le `catch`
+     rend la main, donc une initialisation ne serait jamais lue. */
+  let full: boolean;
   try {
-    tickets = await mediaTickets([...paths.keys()]);
+    const answer = await mediaTickets([...paths.keys()]);
+    tickets = answer.tickets;
+    full = answer.full === true;
   } catch {
     /* No container, offline, or a refusal: the blobs stay here, which is
        where they were safe anyway. */
@@ -353,8 +371,16 @@ async function pushBatch(): Promise<BatchResult> {
      it names a container the browser will not talk to at all, where a
      403 names one blob's signature. So it is read first — and a batch
      where everything arrived says so, whatever came before. */
+  /* LE PLEIN PASSE APRÈS LES DEUX PANNES ET AVANT LE SILENCE. Une règle
+     manquante ou une horloge décalée empêchent TOUT de partir et se
+     réparent ; le plafond, lui, n'a rien cassé et ne retient que le
+     surplus. Mais il passe devant `none` : un lot où quarante-sept
+     images sur cinquante sont arrivées reste un lot où trois ne
+     partiront jamais, et se taire là-dessus est le silence qu'on vient
+     de retirer. */
   if (silent) lastTrouble = { kind: "cors" };
   else if (refused) lastTrouble = { kind: "refused", detail: refused };
+  else if (full) lastTrouble = { kind: "full" };
   else if (arrived.length) lastTrouble = { kind: "none" };
 
   settle(arrived, vanished);
@@ -450,7 +476,9 @@ function readTicket(path: string): Promise<string | null> {
       /* The route takes fifty at a time, and a screen can hold more. */
       for (let i = 0; i < asked.length; i += BATCH) {
         try {
-          for (const t of await mediaTickets(asked.slice(i, i + BATCH), "read")) {
+          /* LIRE NE PREND PAS DE PLACE, donc pas de `full` à guetter ici :
+             le serveur ne note le registre qu'en ÉCRITURE. */
+          for (const t of (await mediaTickets(asked.slice(i, i + BATCH), "read")).tickets) {
             found.set(t.path, t.url);
           }
         } catch (e) {

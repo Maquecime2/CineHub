@@ -886,7 +886,8 @@ function Drop({
     const key = `decor/${id}.${held.ext}`;
     setSending(true);
     try {
-      const [ticket] = await mediaTickets([`bank/${key}`], "write");
+      /* Stock commun (`bank/…`), hors du compte de qui que ce soit. */
+      const [ticket] = (await mediaTickets([`bank/${key}`], "write")).tickets;
       if (!ticket) throw new Error(t("counter.studio.noTicket"));
       const put = await fetch(ticket.url, {
         method: "PUT",

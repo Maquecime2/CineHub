@@ -83,7 +83,9 @@ export function CheerStudio({ onClose }: { onClose: () => void }) {
     setBusy(tier);
     setTrouble(null);
     try {
-      const [ticket] = await mediaTickets([`bank/cheer/${tier}`], "write");
+      /* `bank/…` n'est pas compté : le plafond ne garde que le préfixe
+         privé `p/…`, donc `full` ne peut pas venir d'ici. */
+      const [ticket] = (await mediaTickets([`bank/cheer/${tier}`], "write")).tickets;
       if (!ticket) throw new Error(t("counter.cheer.noTicket"));
       const put = await fetch(ticket.url, {
         method: "PUT",

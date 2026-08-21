@@ -35,7 +35,7 @@ vi.mock("../db", () => ({
 vi.mock("./server", () => ({
   accountOpen: () => false,
   serverConfigured: () => false,
-  mediaTickets: async () => [],
+  mediaTickets: async () => ({ tickets: [] }),
   mediaDeleteTicket: async () => null,
 }));
 

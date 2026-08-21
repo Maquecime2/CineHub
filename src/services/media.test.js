@@ -35,7 +35,13 @@ vi.mock("../db", () => ({
 const container = new Map();
 let signedOut = false;
 
-const grantTickets = async (paths) => paths.map((path) => ({ path, url: `ticket:${path}` }));
+/* L'ENVELOPPE ET NON LE TABLEAU NU. La route rend `{ tickets, full? }`
+   depuis toujours ; le client ne gardait que `tickets` et jetait le
+   refus du plafond avec. Ce faux-semblant a la forme de la vraie
+   réponse, `full` compris — voir `mediaFull.test.ts`. */
+const grantTickets = async (paths) => ({
+  tickets: paths.map((path) => ({ path, url: `ticket:${path}` })),
+});
 const tickets = vi.fn(grantTickets);
 
 /* `mediaTicket`, at the singular, is not mocked here any more: this
