@@ -52,6 +52,7 @@ import { CheerStudio } from "./counter/CheerStudio";
 import { usePurse, refreshPurse } from "../hooks/usePurse";
 import { stall } from "../hooks/useHall";
 import { Moderation } from "../components/play/Moderation";
+import { Tiers } from "../components/play/Tiers";
 import { HallWindow } from "../components/layout/HallWindow";
 import {
   buy,
@@ -319,6 +320,11 @@ export function CounterView({
       {iAmAdmin() && (
         <>
           <Moderation />
+          {/* QUI PEUT STOCKER QUOI. Sous la modération plutôt que
+              dessus : on vient d'abord au comptoir pour ce qui attend
+              d'être regardé, et un tableau de paliers ne bouge que
+              lorsqu'on décide de le faire bouger. */}
+          <Tiers />
           <div
             style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}
             data-tour="counter-studio"

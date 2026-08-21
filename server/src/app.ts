@@ -2643,6 +2643,46 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
     return store.usageOf(db, person.id);
   });
 
+  /* ------------------------------------------------------------
+     LES PALIERS — qui peut stocker quoi, et qui en décide
+     ------------------------------------------------------------
+
+     `requireAdmin` ET NON LA PORTE DE DÉVELOPPEMENT, contrairement à
+     `/dev/plan` qui vit plus bas. Accorder un palier à un abonné réel
+     ne peut pas dépendre d un drapeau fermé en production : c est la
+     seule façon d honorer un paiement le jour où il y en aura un.
+
+     Le critère est celui déjà écrit pour `/shop/sell` : on met sous le
+     rôle ce qui ne donne rien à quelqu un qui tient déjà la base. Un
+     admin peut écrire cette colonne au psql ; lui offrir un bouton ne
+     lui ouvre aucune porte.
+
+     ELLE N ÉCRIT QUE `plan`, ET C EST LA GARANTIE. `is_admin` reste
+     hors d atteinte de toute requête — « un rôle qu aucune requête ne
+     peut accorder est un rôle dans lequel personne ne peut monter » —
+     et rien ici ne s en approche. */
+  app.get("/people", async (req) => {
+    await requireAdmin(req);
+    return { people: await store.peopleWithUsage(db) };
+  });
+
+  app.put("/people/:pseudo/plan", async (req, reply) => {
+    await requireAdmin(req);
+    const { pseudo } = req.params as { pseudo: string };
+    const { plan } = (req.body ?? {}) as { plan?: string };
+    /* LA LISTE EST ICI ET DANS LE SCHÉMA. Le `CHECK` de la colonne est
+       ce qui tient vraiment ; ce refus-ci existe pour répondre 400
+       plutôt que de laisser remonter une violation de contrainte, que
+       l écran ne saurait pas mettre en mots. */
+    if (plan !== "free" && plan !== "plus") {
+      return reply.code(400).send({ error: "Un palier vaut « free » ou « plus »." });
+    }
+    const who = await store.findByPseudo(db, pseudo.toLowerCase());
+    if (!who) return reply.code(404).send({ error: "Personne de ce nom." });
+    await store.setPlan(db, who.id, plan);
+    return { pseudo: who.pseudo, plan };
+  });
+
   app.get("/my-data", async (req) => {
     const person = await requireAccount(req);
     /* Everything the server holds about somebody, in a single object:
@@ -2747,6 +2787,35 @@ export async function buildApp(settings: Settings): Promise<FastifyInstance> {
       const person = (await store.findByPseudo(db, name)) ?? (await store.createPerson(db, name));
       setCookie(reply, await store.openSession(db, person.id));
       return { person, warning: "porte de développement" };
+    });
+
+    /* LE PALIER, SANS PASSER PAR LE RÔLE.
+       ------------------------------------------------------------
+
+       `/dev/session` crée déjà la personne si elle n'existe pas : faire
+       un faux compte est donc un appel. Ce qui manquait était de lui
+       poser un palier, et c'est tout ce que fait cette route — de quoi
+       tenir la boucle « créer, basculer, essayer » sans être admin, et
+       sans ouvrir la moindre surface en ligne.
+
+       ELLE NE TOUCHE PAS `is_admin`. La porte de développement est une
+       porte dérobée assumée, mais elle ne distribue pas de rôle : le
+       rôle ne s'obtient QUE par l'environnement du déploiement, et
+       cette route-ci ne doit pas être l'exception qui le dément. */
+    app.post("/dev/plan", async (req, reply) => {
+      const { pseudo, plan } = (req.body ?? {}) as { pseudo?: string; plan?: string };
+      if (plan !== "free" && plan !== "plus") {
+        return reply.code(400).send({ error: "Un palier vaut « free » ou « plus »." });
+      }
+      const name = (pseudo || "").trim().toLowerCase();
+      const who = name ? await store.findByPseudo(db, name) : null;
+      if (!who) return reply.code(404).send({ error: "Personne de ce nom." });
+      await store.setPlan(db, who.id, plan);
+      return {
+        ...(await store.usageOf(db, who.id)),
+        pseudo: who.pseudo,
+        warning: "porte de développement",
+      };
     });
 
     /* LE COFFRE — de quoi tout racheter, autant de fois qu'on veut.
