@@ -393,18 +393,31 @@ EN PARTICULIER était le seul à ne pas le dire.
   toutes les deux et `normalizeBonds` en jetait une à la relecture — un lien qui
   disparaît tout seul. Et le compte des REFUSÉES se dit : un bouton qui annonce
   huit liens et en pose six sans un mot est le clic avalé déjà payé une fois.
-- **LA VISITE VISE LA PORTE.** `program-harvest` est sur le BOUTON, monté au même
-  endroit que `program-bond` et donc pas plus facultatif que lui ;
-  `program-hints` vit dans le panneau d'un nœud cliqué, donc `optional`.
+- **LA VISITE VISE LA PORTE, ET TROIS PAS SONT DEVENUS UN.** `program-bond`,
+  `program-harvest` et `program-hints` visaient des boutons qui vivent désormais
+  DANS la feuille de la carte. Or une visite ne peut pas ouvrir une modale, et
+  **une ancre sous un voile est une ancre morte que `steps.test.ts` ne voit pas
+  mourir** — il vérifie qu'elle est POSÉE quelque part, pas qu'on l'atteint. Le
+  seul `program-map` dit donc les trois choses qui sont derrière, `optional`
+  puisque la porte n'est montée que sous un fil de filiation. Le raisonnement
+  est écrit au complet dans `steps.ts`, au-dessus du pas.
 
-### Le second plan TMDB n'est pas fait
+### Le second plan TMDB est fait, et il reste une PISTE
 
-`personFilmography` existe et `/person/\d+/movie_credits` est déjà dans
-l'allowlist : un `Hint` de source `"tmdb"` ne demanderait aucun déploiement. Ce
-serait une PISTE et jamais un savoir — la nature proposée serait `affinity` et
-non `master`, car **« a croisé » n'est pas « a formé »**. `HintSource` porte déjà
-les deux valeurs pour que le jour où on l'écrit, l'écran puisse les dire
-autrement.
+`crossedHints` (`domain/hints.ts`) est la troisième source, câblée par
+`services/tmdbHints.ts` sur `personCrew`. Elle n'a demandé aucun déploiement :
+`/person/\d+/movie_credits` était déjà dans l'allowlist.
+
+**« A CROISÉ » N'EST PAS « A FORMÉ »**, et c'est toute la règle. La nature
+proposée est `affinity` et jamais `master` — deux personnes au même générique
+est un fait, en tirer un magistère est une lecture, et c'est la vôtre. Elle
+lit aussi l'ASSISTANAT (`CrossRole`), qui est le seul rôle du lot à dire
+quelque chose d'une filiation plutôt que d'une rencontre.
+
+Elle porte sa propre marque de provenance (`CROSS_MARK`), comme `HINT_MARK` et
+`CREDIT_MARK`, **donc le retrait en bloc l'emporte aussi** — une marque qui
+n'entre pas dans ce retrait est un lien qu'on ne peut plus reprendre. Et elle
+passe par `usefulHints` comme les deux autres, qui dédoublonne par `bondId`.
 
 ## Tout ce qu'on sait d'un film, sans quitter l'écran
 
@@ -1018,11 +1031,28 @@ ressemblent pas obligent à réapprendre chacune.
 - **`autoFocus` EST FAUX POUR TOUT LE MONDE** : on LIT une feuille avant d'agir
   dessus. La vue rapide posait le curseur sur sa première commande, ce qui fait
   sauter la lecture au lecteur d'écran comme à l'œil ; elle s'aligne.
-- **CE N'EST PAS ENCORE PARTOUT.** Une quinzaine d'autres écrans montent leur
-  propre `role="dialog"` — les tiroirs du rail, la lanterne des captures, le
-  studio du comptoir, la table du quizz. Ils marchent ; ils n'ont simplement pas
-  encore été rapatriés, et un popover ancré à son bouton n'a de toute façon rien
-  à faire ici (voir l'exception du budget de `z-index`).
+- **CE N'EST PAS ENCORE PARTOUT, ET TOUT N'EST PAS À RAPATRIER.** Trois tiroirs
+  du rail l'ont été — `AccountDrawer`, `NotebookDrawer`, `LegalPanel` : voile à
+  59, panneau à 60, plein droit, pleine hauteur, c'était `variant="drawer"` au
+  caractère près. `LegalPanel` n'avait **aucun piège à focus** ; ouvert au
+  clavier, le curseur restait derrière le voile.
+  Les autres restent, et **pour des raisons et non par retard** :
+  `LanguagePicker`, `SkinPicker` et `TmdbKeyPanel` sont posés à `right: 40;
+top: 90`, ancrés à leur bouton du rail — `Sheet` n'a pas cette forme, et les y
+  forcer changerait le produit, pas sa plomberie. `SearchDrawer` est une feuille
+  HAUTE et CENTRÉE avec ses propres mesures de téléphone (`100dvh`,
+  `var(--safe-top)`) : une troisième forme dans `Sheet` pour un seul appelant
+  inventerait du partage.
+- **`heading={false}` EST LE CAS NORMAL D'UN TIROIR QUI SE NOMME LUI-MÊME.** Le
+  compte porte un pseudonyme ET la mention qu'on porte, le carnet un tampon
+  d'angle et un sous-titre : `Sheet` ne sait dessiner ni l'un ni l'autre, et lui
+  coiffer son en-tête ferait lire deux fois le même nom. Le `title` reste passé
+  — il est l'`aria-label` du dialogue, donc **ce que le lecteur d'écran entend
+  doit être ce que l'œil lit**.
+- **ÉCHAP SE PREND PAR `useEscape`, JAMAIS PAR UN ÉCOUTEUR À LA MAIN.** La copie
+  écrite dans `TmdbKeyPanel` n'avait pas la garde `defaultPrevented` du crochet
+  et fermait sur TOUT `Escape` — dans un panneau qui est d'abord un CHAMP DE
+  SAISIE, annuler la clé qu'on tape emportait le panneau avec.
 - **ELLE NE SAIT RIEN DU CONTENU**, et n'impose aucun pied de boutons : un
   formulaire de création et un tableau de marque n'ont pas le même bas de page,
   et l'inventer là obligerait chacun à le contourner.
@@ -1089,6 +1119,19 @@ ressemblent pas obligent à réapprendre chacune.
   calculées à la main, comme le repère de dépôt de l'étagère.
   Exception assumée : un menu ancré à son bouton (`position: absolute` sous
   lui, avec son voile) reste dans la colonne — le sortir romprait l'ancrage.
+- **UN `z-index` NE DIT PAS OÙ UNE CHOSE EST POSÉE**, et c'est l'autre moitié du
+  budget. Deux panneaux bien classés peuvent occuper le même rectangle : le plus
+  haut gagne, en silence, et ce qu'il couvre n'est plus atteignable. **LA BANDE
+  DE DROITE APPARTIENT AU TIROIR DES MIS DE CÔTÉ** — quatre panneaux s'y
+  ancraient chacun avec sa valeur recopiée, tous plus haut que lui, et le
+  couvraient. `clearOfReserve` (`components/shelf/constants.tsx`) est la règle
+  unique ; tout panneau ancré à ce bord y passe.
+  Deux choses s'y jouent, et aucune n'est un réglage : **l'onglet VOYAGE AVEC LE
+  TIROIR**, donc réserver la seule largeur du tiroir laisse un recouvrement pile
+  sur la cible de dépôt — l'erreur a été faite deux fois ; et la borne d'écran
+  est un `clamp` CSS et non un `matchMedia`, parce que `QuickFile` **n'est pas
+  rendu par React pendant un glissement** et qu'un écouteur de redimensionnement
+  demanderait un état. `reserveGeometry.test.ts` tient l'arithmétique.
 
 ## Trois paliers, et ce que chacun ouvre
 
@@ -1279,7 +1322,7 @@ l'écran. Quatre erreurs de ce genre — `STRENGTHS[].valeur` et
 `SkyNode.couleur` — ont survécu à `npm test` et à `npm run build` avant
 que `tsc` ne les nomme.
 
-- Les 197 avertissements du lint sont tolérés ; ce sont les ERREURS qui
+- Les 129 avertissements du lint sont tolérés ; ce sont les ERREURS qui
   arrêtent tout. On écrit `import type { ReactNode } from "react"` et
   jamais le préfixe `React.` — c'est la convention du reste du projet.
 - `npm run format` réécrit, `--check` se contente de dire.
