@@ -15,7 +15,8 @@ import { Layer } from "../../components/ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
 import { tap } from "../../theme/styles";
-import { STUDIO_BOX, Title, OptionButton, SurfaceTab } from "../../components/ui/Swatches";
+import { Title, OptionButton, SurfaceTab } from "../../components/ui/Swatches";
+import { studioBox } from "../../components/shelf/constants";
 import { CARD_SIZES, SPREADS, MESSES, HANGS, DEFAULT_WALL_LOOK } from "./wallLook";
 
 const Row = ({ children }) => (
@@ -82,7 +83,7 @@ const TABS = [
   { key: "cards", label: "wallStudio.cardsTab" },
 ];
 
-export function WallStudio({ look, onChange, onReset, onClose }) {
+export function WallStudio({ look, onChange, onReset, onClose, drawerOpen }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("cards");
   // the decor is empty at the start: nothing is written until something is chosen
@@ -91,7 +92,7 @@ export function WallStudio({ look, onChange, onReset, onClose }) {
   return (
     <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
-      <div style={STUDIO_BOX}>
+      <div style={studioBox(drawerOpen)}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
           <div
             style={{

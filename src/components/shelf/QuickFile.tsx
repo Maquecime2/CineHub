@@ -46,9 +46,14 @@
    MEME HAUTEUR : son onglet est une cible de depot — le survoler en
    glissant ouvre le tiroir — et ce panneau, plus haut dans la pile
    (46 contre 41), se posait dessus. On croyait viser le tiroir, on
-   deposait dans une categorie. Il se decale donc de la bande de
-   l'onglet, et de TOUTE la largeur du tiroir quand celui-ci est ouvert :
-   sinon il couvrirait les rangees qu'on vient y deposer.
+   deposait dans une categorie.
+
+   La regle est `clearOfReserve` (`./constants`), et elle n'est pas ici
+   parce qu'elle sert aussi au cabinet, a la palette et au studio, qui
+   longent le meme bord. Le premier correctif l'avait ecrite ici, en ne
+   reservant que la largeur du TIROIR : l'onglet voyage avec lui, donc
+   onze pixels se recouvraient encore, pile sur la cible qu'on venait
+   degager.
 
    IL PASSE PAR `<Layer>` : `position: fixed` rendu dans la colonne de
    vue s'ancrerait sur la colonne, qui porte une transformation pendant
@@ -59,7 +64,7 @@ import { useTranslation } from "react-i18next";
 import { C, F, alpha } from "../../theme/tokens";
 import { catInk } from "../../theme/palette";
 import { Layer } from "../ui/Layer";
-import { DRAWER_W, DRAWER_TAB_W } from "./layout";
+import { clearOfReserve } from "./constants";
 
 /** Une boîte de l'étagère, prête à recevoir. */
 export interface QuickBox {
@@ -72,12 +77,14 @@ export interface QuickBox {
   count: number;
 }
 
+const PANEL_W = 190;
+
 export const QuickFile = forwardRef<
   HTMLDivElement,
   {
     boxes: QuickBox[];
     /** Le tiroir des mis de côté est-il ouvert : on lui laisse la place. */
-    drawerOpen?: boolean;
+    drawerOpen: boolean;
     /** Le lâcher : c'est l'appelant qui sait quelle fiche on tient. */
     onDrop: (box: QuickBox) => void;
   }
@@ -96,12 +103,12 @@ export const QuickFile = forwardRef<
         aria-hidden
         style={{
           position: "fixed",
-          right: drawerOpen ? DRAWER_W + 18 : DRAWER_TAB_W + 14,
+          right: clearOfReserve(drawerOpen, PANEL_W),
           top: "50%",
           transform: "translateY(-50%)",
           transition: "right var(--motion-slow) var(--motion-ease)",
           zIndex: 46,
-          width: 190,
+          width: PANEL_W,
           maxHeight: "70vh",
           overflowY: "auto",
           padding: "10px 12px 12px",

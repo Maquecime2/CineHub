@@ -24,6 +24,8 @@ import {
   decorLabel,
   shelfDecorTypes,
   wallDecorTypes,
+  DRAWER_W,
+  clearOfReserve,
 } from "./constants";
 import {
   listCustomDecor,
@@ -1001,17 +1003,6 @@ export function Shelf({
    pushed the collection upwards. On the side, it is reachable from
    anywhere and only takes room when one opens it. Closed, it stays a
    target: dragging a case onto its tab opens it by itself. */
-export const DRAWER_W = 250;
-
-/* LA LARGEUR DE L'ONGLET, ET POURQUOI ELLE EST EXPORTEE.
-
-   Le classeur rapide s'ancre au meme bord et a la meme hauteur que ce
-   tiroir : sans une bande reservee, son cadre se posait PAR-DESSUS
-   l'onglet « mis de cote », et la seule cible qui ouvre le tiroir en
-   glissant devenait injoignable. Elle se mesure ici — deux fois neuf de
-   marge, onze de texte vertical — parce que c'est ici qu'elle s'ecrit. */
-export const DRAWER_TAB_W = 9 + 11 + 9;
-
 export function ReserveDrawer({
   shelf,
   count,
@@ -1339,17 +1330,26 @@ const useHiddenDecor = () =>
    gagne un. Même forme que les deux du dessus. */
 const useWonDecor = () => useSyncExternalStore(subscribeWonDecor, listWonDecor, listWonDecor);
 
-const CABINET_BOX = {
+const CABINET_W = 240;
+
+/* IL LONGE LE TIROIR, DONC IL LE SAIT. Posé à `right: 40` sans rien
+   demander, ce panneau couvrait toute la largeur du tiroir des mis de
+   côté quand celui-ci était ouvert — et il est plus haut dans la pile
+   (45 contre 40), donc la liste et la cible de dépôt disparaissaient
+   dessous. `clearOfReserve` est la règle, et elle est écrite une fois
+   pour les quatre panneaux qui s'ancrent à ce bord. */
+const cabinetBox = (drawerOpen) => ({
   position: "fixed",
-  right: 40,
+  right: clearOfReserve(drawerOpen, CABINET_W),
   top: 120,
   zIndex: 45,
-  width: 240,
+  width: CABINET_W,
   padding: "12px 14px",
   background: C.card,
   border: `1px solid ${C.line}`,
   boxShadow: "2px 8px 20px rgba(30,20,10,0.34)",
-};
+  transition: "right var(--motion-slow) var(--motion-ease)",
+});
 
 const CabinetTitle = ({ children }) => (
   <div
@@ -1449,7 +1449,7 @@ function SharedShelf() {
   );
 }
 
-function DecorWorkshop({ onBack }) {
+function DecorWorkshop({ onBack, drawerOpen }) {
   const { t } = useTranslation();
   const custom = useCustomDecor();
   const hiddenKeys = useHiddenDecor();
@@ -1469,7 +1469,7 @@ function DecorWorkshop({ onBack }) {
      appareil qui n'a pas encore vu ce changement passe par elle. */
 
   return (
-    <div style={CABINET_BOX}>
+    <div style={cabinetBox(drawerOpen)}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <button
           onClick={onBack}
@@ -1684,7 +1684,7 @@ const DecorRow = ({ label, note, thumb, action, dim }) => {
   );
 };
 
-export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose }) {
+export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose, drawerOpen }) {
   const { t } = useTranslation();
   const [managing, setManaging] = useState(false);
   // the register moves under the cabinet as soon as one imports from the workshop
@@ -1712,9 +1712,9 @@ export function DecorCabinet({ placed, onDragStart, onDragEnd, onClose }) {
     <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
       {managing ? (
-        <DecorWorkshop onBack={() => setManaging(false)} />
+        <DecorWorkshop onBack={() => setManaging(false)} drawerOpen={drawerOpen} />
       ) : (
-        <div style={CABINET_BOX}>
+        <div style={cabinetBox(drawerOpen)}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
             <CabinetTitle>{t("shelf.cabinet")}</CabinetTitle>
             <div style={{ flex: 1 }} />
@@ -1870,7 +1870,10 @@ const OrientField = ({ angle, seeded, onChange }) => {
 /* The little panel of a laid object — colour, size, inset. Serves the
    categories as well as the decors: they are the shelf's only two things
    whose tint one chooses. */
+const PALETTE_W = 224;
+
 export function ItemPalette({
+  drawerOpen,
   title,
   color,
   size,
@@ -1907,14 +1910,16 @@ export function ItemPalette({
       <div
         style={{
           position: "fixed",
-          right: 40,
+          /* Même bord et même règle que le cabinet : voir `cabinetBox`. */
+          right: clearOfReserve(drawerOpen, PALETTE_W),
           top: 120,
           zIndex: 45,
-          width: 224,
+          width: PALETTE_W,
           padding: "12px 14px",
           background: C.card,
           border: `1px solid ${C.line}`,
           boxShadow: "2px 8px 20px rgba(30,20,10,0.34)",
+          transition: "right var(--motion-slow) var(--motion-ease)",
         }}
       >
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>

@@ -1002,6 +1002,7 @@ export function LibraryView({
             />
             {studio && shelfView && (
               <DecorStudio
+                drawerOpen={drawer}
                 view={shelfView}
                 onChange={(part, patch) => onShelfView(patchViewDecor(shelfView, part, patch))}
                 onReset={() => onShelfView(clearViewDecor(shelfView))}
@@ -1051,6 +1052,7 @@ export function LibraryView({
             </div>
             {wallStudio && (
               <WallStudio
+                drawerOpen={drawer}
                 look={look}
                 onChange={(patch) => set({ look: { ...look, ...patch } })}
                 onReset={() => set({ look: DEFAULT_WALL_LOOK })}

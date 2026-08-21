@@ -1023,7 +1023,13 @@ export function ShelfBoard({
               position: "fixed",
               right: 40,
               top: 84,
-              zIndex: 44,
+              /* 45 ET NON 44, ET C'EST UNE BASCULE QUI NE BASCULAIT PAS.
+                 Le voile du cabinet est aussi a 44 et il est monte APRES :
+                 a egalite, l'ordre du DOM gagne, donc le voile couvrait le
+                 bouton. Il portait `aria-expanded` et un gestionnaire qui
+                 ne pouvait jamais se declencher en position ouverte. Il ne
+                 recouvre aucun panneau — `top: 84` contre leur `top: 120`. */
+              zIndex: 45,
               fontFamily: F.mono,
               fontSize: 9.5,
               letterSpacing: 1,
@@ -1040,6 +1046,7 @@ export function ShelfBoard({
         <QuickFile ref={quickRef} boxes={quickBoxes} drawerOpen={!!drawer} onDrop={dropInBox} />
         {cabinet && (
           <DecorCabinet
+            drawerOpen={!!drawer}
             placed={placed}
             onClose={() => setCabinet(null)}
             onDragStart={onDecorDragStart}
@@ -1048,6 +1055,7 @@ export function ShelfBoard({
         )}
         {cat && (
           <ItemPalette
+            drawerOpen={!!drawer}
             title={t("shelf.category")}
             color={cat.color}
             removeLabel={t("shelf.undoCategory")}
@@ -1061,6 +1069,7 @@ export function ShelfBoard({
         )}
         {decor && (
           <ItemPalette
+            drawerOpen={!!drawer}
             title={t("shelf.objectStamp")}
             color={decor.color}
             size={decor.size}

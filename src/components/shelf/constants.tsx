@@ -414,3 +414,76 @@ export const MARK_INK: CSSProperties = {
   strokeLinecap: "round",
   strokeLinejoin: "round",
 };
+
+/* ============================================================
+   LA BANDE DE DROITE APPARTIENT AU TIROIR
+   ============================================================
+
+   ELLE A ÉTÉ PAYÉE DEUX FOIS, ET C'EST POURQUOI ELLE EST ICI ET NON
+   RECOPIÉE. Le tiroir des mis de côté tient le bord droit, et quatre
+   panneaux s'y ancraient chacun avec sa propre valeur : le classeur
+   rapide (`QuickFile`), le cabinet, la palette d'objets et le studio.
+   Les trois derniers sont PLUS HAUTS dans la pile que le tiroir (45
+   contre 40) — ouvrir le tiroir puis le cabinet couvrait toute sa
+   largeur, liste et cible de dépôt comprises.
+
+   L'ONGLET VOYAGE AVEC LE TIROIR, et c'est l'oubli du premier
+   correctif : il n'est pas collé au bord, il est posé à `DRAWER_W` dès
+   que le tiroir s'ouvre. Réserver la seule largeur du tiroir laissait
+   donc onze pixels de recouvrement, pile sur la cible qu'on venait
+   dégager. Les deux largeurs sont dans les DEUX branches.
+
+   LE `clamp` EST DU CSS ET NON UN `matchMedia`, délibérément. Tiroir
+   ouvert sur un écran de 360 px, l'offset seul poussait le panneau à
+   −98 px, hors champ. Un écouteur de redimensionnement aurait demandé
+   un état, donc un rendu — ce que `QuickFile` s'interdit, puisqu'il
+   n'est pas rendu par React pendant un glissement. Le navigateur, lui,
+   recalcule sans rien nous demander.
+   ============================================================ */
+
+/** La largeur du tiroir des mis de côté. */
+export const DRAWER_W = 250;
+
+/* Deux fois neuf de marge, onze de texte vertical : c'est l'onglet tel
+   qu'il s'écrit dans `ReserveDrawer`, et il se mesure une seule fois. */
+export const DRAWER_TAB_W = 9 + 11 + 9;
+
+/** Ce qu'on laisse entre un panneau et le tiroir qu'il longe. */
+const RESERVE_GAP = 14;
+
+/**
+ * Le `right` d'un panneau ancré à droite, qui laisse le tiroir ET son
+ * onglet atteignables — et qui reste dans l'écran quand il n'y a plus
+ * la place.
+ *
+ * @param open  le tiroir des mis de côté est-il ouvert
+ * @param width la largeur du panneau, pour qu'il ne sorte pas à gauche
+ */
+export const clearOfReserve = (open: boolean, width: number): string => {
+  const offset = (open ? DRAWER_W + DRAWER_TAB_W : DRAWER_TAB_W) + RESERVE_GAP;
+  return `clamp(0px, calc(100vw - ${width + 8}px), ${offset}px)`;
+};
+
+const STUDIO_W = 300;
+
+/** Le format d'un studio : posé à droite, il laisse la vue derrière lui.
+
+    IL VIT ICI ET NON DANS `ui/Swatches`, avec la règle dont il dépend.
+    Ce n'est pas qu'un rangement : `Swatches` n'exporte que des
+    composants, et une fonction de plus y casse le rechargement à chaud
+    (`react-refresh/only-export-components`). Deux studios s'en servent —
+    celui des décors d'étagère et celui du mur. */
+export const studioBox = (drawerOpen: boolean): CSSProperties => ({
+  position: "fixed",
+  right: clearOfReserve(drawerOpen, STUDIO_W),
+  top: 120,
+  zIndex: 45,
+  width: STUDIO_W,
+  maxHeight: "calc(100vh - 170px)",
+  overflowY: "auto",
+  padding: "12px 14px",
+  background: C.card,
+  border: `1px solid ${C.line}`,
+  boxShadow: "2px 8px 20px rgba(30,20,10,0.34)",
+  transition: "right var(--motion-slow) var(--motion-ease)",
+});

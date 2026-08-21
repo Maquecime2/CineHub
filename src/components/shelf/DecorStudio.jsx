@@ -23,16 +23,9 @@ import { useState } from "react";
 import { Layer } from "../ui/Layer";
 import { X, RotateCcw } from "lucide-react";
 import { C, F } from "../../theme/tokens";
+import { studioBox } from "./constants";
 import { MATERIALS, FINISHES, materialStyle } from "../../theme/surfaces";
-import {
-  STUDIO_BOX,
-  Title,
-  Grid,
-  Swatch,
-  NoneSwatch,
-  OptionButton,
-  SurfaceTab,
-} from "../ui/Swatches";
+import { Title, Grid, Swatch, NoneSwatch, OptionButton, SurfaceTab } from "../ui/Swatches";
 
 /* The materials, grouped by family. Twenty-one thumbnails in bulk would
    be a catalogue; by family, one looks for "something in metal" and has
@@ -104,7 +97,7 @@ const TABS = [
   { key: "plank", label: "PLANCHE" },
 ];
 
-export function DecorStudio({ view, onChange, onReset, onClose }) {
+export function DecorStudio({ view, onChange, onReset, onClose, drawerOpen }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("wall");
   const decor = view?.decor?.[tab === "wall" ? "wall" : "plank"] || null;
@@ -113,7 +106,7 @@ export function DecorStudio({ view, onChange, onReset, onClose }) {
   return (
     <Layer>
       <div onClick={onClose} data-veil style={{ position: "fixed", inset: 0, zIndex: 44 }} />
-      <div style={STUDIO_BOX}>
+      <div style={studioBox(drawerOpen)}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
           <div
             style={{
