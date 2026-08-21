@@ -2654,6 +2654,10 @@ const en = {
         title: "A row reads without being walked",
         body: "Above each row: how many cases, which years, which genre dominates, what the average is. The tab on the left opens its settings — its name, and how many cases fit on a board.",
       },
+      shelfQuickFile: {
+        title: "Filing without crossing the page",
+        body: "Pick up a case: the shelf's boxes gather on the right edge, always in the same place. Drop on one of them and the film goes there — no holding the button down six rows further. The drawer of things set aside sits right beside them, and opens by itself when you pass over it.",
+      },
       shelfCabinet: {
         title: "The cabinet of curiosities",
         body: "A plant, a cat, a divider, a frame on the wall: pull an object out of the cabinet and set it between two cases. A shelf is not just a grid of films.",
@@ -2734,6 +2738,14 @@ const en = {
         title: "In what capacity",
         body: "The sieves stack up, as on the wall. By default the directory shows only those you meet at least twice — the rest are one click away, under “passing through”.",
       },
+      sort: {
+        title: "The order is the question",
+        body: "“Who comes back most” and “who I rate best” do not give the same directory: the first tells your habits, the second your attachments. Seen recently shows who is running through your last few months.",
+      },
+      list: {
+        title: "Each name leads to what you hold",
+        body: "One line per person, with what your collection carries of them. Click: their folder opens, with their films in your house, your average score, and the names met on their cards.",
+      },
       page: {
         title: "What somebody is worth in your house",
         body: "Your average score on their films, their gap to your own average — above or below what you usually give — and your gap to the public score. Then their films, what keeps coming back in them, and since when.",
@@ -2761,6 +2773,10 @@ const en = {
       elsewhere: {
         title: "What is said elsewhere",
         body: "With an account open, the card shows what other public libraries say of the same film: their average — without yours — and their reviews. Each one can be reported, and its author silenced in one gesture — the account drawer lists those you have silenced, and gives them their voice back. With no server and no account, this section does not exist.",
+      },
+      fileInList: {
+        title: "Filing this card into a list",
+        body: "A list gathers films around an idea, and is kept by several hands. From here the card joins one without leaving the page — and that is also what makes it count towards the challenges built on that list.",
       },
       sharing: {
         title: "Taking it out of the sharing",
@@ -3044,6 +3060,14 @@ const en = {
       searchAll: {
         title: "Searching everywhere",
         body: "One question put to the whole binder at once: the films, the people in the credits, the motifs, the threads and the notebook pages. It searches right into your reviews, and shows you the passage. Ctrl+K opens it too.",
+      },
+      tabImport: {
+        title: "Bringing a collection in",
+        body: "The Import tab is the only way a binder comes in all at once: a Letterboxd or TMDB export, a backup, or the TMDB key that fills your cards in by itself. It is also where everything goes back out.",
+      },
+      purse: {
+        title: "The count, in plain sight",
+        body: "Merit and tokens are earned everywhere — a quiz finished, a challenge closed, a card filed — and could only be read at the counter, that is, once you already knew. Here they are, and one click opens the counter where tokens are spent.",
       },
       skin: {
         title: "The skin of the site",

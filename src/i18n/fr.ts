@@ -2773,6 +2773,10 @@ const fr = {
         title: "Une ligne se lit sans se parcourir",
         body: "Au-dessus de chaque ligne : combien de boîtiers, quelles années, quel genre domine, quelle moyenne. L'onglet à gauche ouvre ses réglages — son nom, et le nombre de boîtiers par planche.",
       },
+      shelfQuickFile: {
+        title: "Ranger sans traverser la page",
+        body: "Attrapez un boîtier : les boîtes de l'étagère se rassemblent sur le bord droit, toujours au même endroit. Lâchez sur l'une d'elles, et le film y va — sans descendre six rangées plus bas en tenant le bouton. Le tiroir des mis de côté est juste à côté, et s'ouvre tout seul quand on passe dessus.",
+      },
       shelfCabinet: {
         title: "Le cabinet de curiosités",
         body: "Une plante, un chat, un intercalaire, un cadre au mur : tirez un objet du cabinet et posez-le entre deux boîtiers. Une étagère n'est pas qu'une grille de films.",
@@ -2853,6 +2857,14 @@ const fr = {
         title: "À quel titre",
         body: "Les tamis se cumulent, comme sur le mur. Par défaut le répertoire ne montre que celles et ceux qu'on croise au moins deux fois — les autres sont à un clic, sous « de passage ».",
       },
+      sort: {
+        title: "L'ordre est la question",
+        body: "« Qui revient le plus » et « qui je note le mieux » ne rendent pas le même annuaire : le premier dit vos habitudes, le second vos attachements. Vu récemment montre qui traverse vos derniers mois.",
+      },
+      list: {
+        title: "Chaque nom mène à ce que vous en avez",
+        body: "Une ligne par personne, avec ce que votre collection porte d'elle. Cliquez : son dossier s'ouvre, avec ses films chez vous, votre note moyenne et les noms qu'on croise sur ses fiches.",
+      },
       page: {
         title: "Ce que quelqu'un vaut chez vous",
         body: "Votre note moyenne sur ses films, son écart à votre propre moyenne — au-dessus ou en dessous de ce que vous donnez d'habitude — et votre écart à la note publique. Puis ses films, ce qui revient chez lui, et depuis quand.",
@@ -2880,6 +2892,10 @@ const fr = {
       elsewhere: {
         title: "Ce qu'on en dit ailleurs",
         body: "Quand un compte est ouvert, la fiche montre ce que d'autres vidéothèques publiques disent du même film : leur moyenne — sans la vôtre — et leurs critiques. Chacune se signale, et son auteur se fait taire d'un geste — le tiroir du compte liste ceux que vous avez fait taire, et leur rend la parole. Sans serveur ni compte, cette section n'existe pas.",
+      },
+      fileInList: {
+        title: "Ranger cette fiche dans une liste",
+        body: "Une liste rassemble des films autour d'une idée, et se tient à plusieurs. Depuis ici, la fiche y entre sans quitter la page — et c'est aussi ce qui la fait compter dans les défis montés sur cette liste.",
       },
       sharing: {
         title: "La retirer du partage",
@@ -3163,6 +3179,14 @@ const fr = {
       searchAll: {
         title: "Chercher partout",
         body: "Une question posée à tout le classeur d'un coup : les films, les gens des génériques, les motifs, les fils et les pages du carnet. Elle cherche jusque dans vos critiques, et vous montre le passage. Ctrl+K l'ouvre aussi.",
+      },
+      tabImport: {
+        title: "Faire entrer une collection",
+        body: "L'onglet Import est le seul chemin par lequel un classeur entre d'un coup : un export Letterboxd ou TMDB, une sauvegarde, ou la clé TMDB qui complète vos fiches toutes seules. C'est aussi d'ici qu'on ressort tout.",
+      },
+      purse: {
+        title: "Le compte, sous les yeux",
+        body: "Le mérite et les jetons se gagnent partout — un quizz fini, un défi bouclé, une fiche rangée — et se lisaient seulement au comptoir, c'est-à-dire quand on savait déjà. Ils sont là, et un clic ouvre le comptoir où les jetons se dépensent.",
       },
       skin: {
         title: "La peau du site",
