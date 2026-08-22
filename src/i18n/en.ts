@@ -1206,6 +1206,29 @@ const en = {
     allBorrowed: "These images come from TMDB. Yours would take their place.",
   },
 
+  counterpoint: {
+    open: "the counterpoint",
+    hint: "What your collection does not look at.",
+    title: "THE COUNTERPOINT",
+    lede: "The recommendation offers from outside. This one only talks about you: what you hold and never put on.",
+    kindDecade: "era",
+    kindCountry: "gaze",
+    kindDirector: "attention",
+    decadeSaid_one: "The {{key}}s: {{count}} card in the binder, not one evening.",
+    decadeSaid_other: "The {{key}}s: {{count}} cards in the binder, not one evening.",
+    countryNever_one: "{{key}}: {{count}} card, never put on.",
+    countryNever_other: "{{key}}: {{count}} cards, never put on.",
+    countrySaid_one: "{{key}}: one film watched, out of {{count}} held.",
+    countrySaid_other: "{{key}}: one film watched, out of {{count}} held.",
+    directorSaid_one: "{{key}}: {{count}} card in the binder, one watched.",
+    directorSaid_other: "{{key}}: {{count}} cards in the binder, one watched.",
+    jumpDecade: "see that era",
+    jumpPerson: "in the credits",
+    jumpFilm: "the card",
+    thin: "It is too early: a binder of {{count}} dated evenings has no habits yet, so no gaps. Come back when the log has grown.",
+    even: "No clear gap over this period. What you hold, you watch.",
+  },
+
   tiers: {
     title: "Who may store what",
     trouble: "The table of accounts could not be read.",
@@ -2918,6 +2941,10 @@ const en = {
       plate: {
         title: "Your images from the year",
         body: "The box shows posters, which are the same for everybody. The plate shows the frames YOU captured on your cards — and, while you are short of them, a few images TMDB lends. An inked corner marks the ones that are yours.",
+      },
+      counterpoint: {
+        title: "What you do not watch",
+        body: "The other side of the recommendation: that one offers films from outside, this one only talks about the inside. It names the era you hold and never put on, the country visited once, the filmmaker whose three cards are waiting. Every gap leads to the tab that speaks of it.",
       },
       export: {
         title: "The year in a box",

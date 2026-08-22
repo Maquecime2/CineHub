@@ -1234,6 +1234,29 @@ const fr = {
     allBorrowed: "Ces images viennent de TMDB. Les vôtres prendraient leur place.",
   },
 
+  counterpoint: {
+    open: "le contrepoint",
+    hint: "Ce que votre collection ne regarde pas.",
+    title: "LE CONTREPOINT",
+    lede: "La reco propose du dehors. Ceci ne parle que de vous : ce que vous possédez et ne mettez jamais.",
+    kindDecade: "époque",
+    kindCountry: "regard",
+    kindDirector: "attention",
+    decadeSaid_one: "Les années {{key}} : {{count}} fiche au classeur, aucune séance.",
+    decadeSaid_other: "Les années {{key}} : {{count}} fiches au classeur, aucune séance.",
+    countryNever_one: "{{key}} : {{count}} fiche, jamais mise.",
+    countryNever_other: "{{key}} : {{count}} fiches, jamais mises.",
+    countrySaid_one: "{{key}} : un seul film vu, sur {{count}} au classeur.",
+    countrySaid_other: "{{key}} : un seul film vu, sur {{count}} au classeur.",
+    directorSaid_one: "{{key}} : {{count}} fiche au classeur, une seule vue.",
+    directorSaid_other: "{{key}} : {{count}} fiches au classeur, une seule vue.",
+    jumpDecade: "voir cette époque",
+    jumpPerson: "au générique",
+    jumpFilm: "la fiche",
+    thin: "Il est trop tôt : un classeur de {{count}} séances datées n'a pas encore d'habitudes, donc pas d'écarts. Revenez quand le journal aura grandi.",
+    even: "Aucun écart franc sur cette période. Ce que vous possédez, vous le regardez.",
+  },
+
   tiers: {
     title: "Qui peut stocker quoi",
     trouble: "La table des comptes n'a pas pu être lue.",
@@ -3037,6 +3060,10 @@ const fr = {
       plate: {
         title: "Vos images de l'année",
         body: "La boîte montre des affiches, qui sont les mêmes pour tout le monde. La planche montre les plans que VOUS avez capturés sur vos fiches — et, tant qu'il vous en manque, quelques images que TMDB prête. Un coin d'encre marque celles qui sont de vous.",
+      },
+      counterpoint: {
+        title: "Ce que vous ne regardez pas",
+        body: "L'envers de la reco : elle propose des films du dehors, celui-ci ne parle que du dedans. Il nomme l'époque que vous possédez sans jamais la mettre, le pays visité une seule fois, le cinéaste dont trois fiches attendent. Chaque écart mène à l'onglet qui en parle.",
       },
       export: {
         title: "L'année en boîte",

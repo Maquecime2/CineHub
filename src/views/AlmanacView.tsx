@@ -36,7 +36,7 @@
    see it coming. */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Download, Images } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Images, Scale } from "lucide-react";
 import { C, F, alpha } from "../theme/tokens";
 import { tap, tapSquare } from "../theme/styles";
 import {
@@ -56,6 +56,8 @@ import {
   PLATE_MAX,
   type BoxPalette,
 } from "../services/yearInBox";
+import { counterpointFor } from "../domain/counterpoint";
+import { CounterpointSheet } from "../components/almanac/Counterpoint";
 import { IDB_PREFIX } from "../db";
 import { FRAME_FULL } from "../tmdb";
 import { hash, seededRand, tiltOf } from "../domain/seeded";
@@ -1016,11 +1018,27 @@ const THRESHOLD_ALWAYS = 6;
 
 export function AlmanacView({
   films,
+  held,
+  onOpen,
   onOpenPerson,
+  onOpenDecade,
 }: {
   films: Film[];
+  /**
+   * LA COLLECTION ENTIÈRE, watchlist comprise, et pour le contrepoint
+   * SEUL. Les quatre planches lisent `films`, qui sont les vues, et rien
+   * ne change pour elles. Y passer les vues ferait valoir « possédé »
+   * égale « vu » partout, et l'écart d'un cinéaste ne sortirait JAMAIS,
+   * sans une erreur pour le dire. Absent : le contrepoint retombe sur
+   * `films` plutôt que de ne rien montrer.
+   */
+  held?: Film[];
+  /** Ouvre une fiche. */
+  onOpen?: (id: string) => void;
   /** Opens the folder of somebody in the credits. */
   onOpenPerson?: (name: string) => void;
+  /** Ouvre le mur sur une décennie. */
+  onOpenDecade?: (decade: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   const years = useMemo(() => yearsCovered(films), [films]);
@@ -1052,6 +1070,16 @@ export function AlmanacView({
     [films, period]
   );
   const drifts = useMemo(() => driftHighlights(films, 4), [films]);
+
+  /* LE CONTREPOINT. Calculé même feuille fermée : c'est le même ordre de
+     balayage qu'`almanacFor`, déjà refait à chaque changement de
+     période, et l'avoir sous la main évite de dessiner un bouton dont on
+     ne sait pas encore ce qu'il ouvre. */
+  const [counterpoint, setCounterpoint] = useState(false);
+  const gaps = useMemo(
+    () => (period == null ? null : counterpointFor(held ?? films, period)),
+    [held, films, period]
+  );
 
   /* THE KEYBOARD ARROWS TURN THE PAGE. It is a booklet's gesture, and
      it costs nothing to whoever does not know it. They do NOT change the
@@ -1352,6 +1380,41 @@ export function AlmanacView({
                   : t("plate.take")}
             </button>
           )}
+
+          {/* LE CONTREPOINT, ET IL EST MONTÉ SUR TOUTES LES PÉRIODES —
+              y compris « toujours », où il est le plus juste, alors que
+              la boîte et la planche sont bâties autour d'un millésime.
+              `marginLeft: "auto"` quand il se retrouve seul à droite :
+              sinon il viendrait se coller aux pastilles d'années.
+
+              EN SECOND CHOIX ET NON EN PAVÉ PLEIN : le bordeaux est
+              celui de l'export, qui est le geste qui SORT du
+              navigateur. */}
+          <button
+            onClick={() => setCounterpoint(true)}
+            data-tour="almanac-counterpoint"
+            title={t("counterpoint.hint")}
+            style={{
+              all: "unset",
+              ...tap,
+              cursor: "pointer",
+              marginLeft: always ? "auto" : 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "7px 13px",
+              fontFamily: F.mono,
+              fontSize: 11,
+              letterSpacing: "var(--tag-tracking)",
+              color: C.ink,
+              border: `1px solid ${C.line}`,
+              background: C.card,
+              borderRadius: "var(--tag-radius)",
+            }}
+          >
+            <Scale size={14} />
+            {t("counterpoint.open")}
+          </button>
         </div>
 
         {/* ---- LE FEUILLETAGE ---- */}
@@ -1404,6 +1467,20 @@ export function AlmanacView({
         {plate === 2 && <PlatePeople a={a} onOpenPerson={onOpenPerson} />}
         {plate === 3 && <PlateSubjects a={a} />}
       </div>
+
+      {/* `Layer` est DANS `Sheet` : la colonne de vue est un contexte
+          d'empilement et porte une transformation pendant son animation
+          d'entrée, donc une feuille rendue ici s'ancrerait sur elle. */}
+      {counterpoint && gaps && (
+        <CounterpointSheet
+          gaps={gaps}
+          aside={always ? t("almanac.always") : String(period)}
+          onClose={() => setCounterpoint(false)}
+          onOpen={onOpen}
+          onOpenPerson={onOpenPerson}
+          onOpenDecade={onOpenDecade}
+        />
+      )}
     </div>
   );
 }

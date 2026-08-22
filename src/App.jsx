@@ -983,6 +983,24 @@ export default function App() {
     },
     thread: () => setView("constellation"),
   };
+
+  /* SAUTER SUR UNE DÉCENNIE, depuis le contrepoint de l'almanach.
+
+     LE TAMIS NE FILTRE QUE SUR LE MUR : sur l'étagère il se contente de
+     TERNIR (`dimSet`, `LibraryView`), l'arrangement n'étant jamais
+     démonté — et l'étagère est le défaut. Poser `decadeFilter` sans
+     poser le mur déposerait donc quelqu'un devant une étagère où sa
+     décennie est seulement moins pâle que le reste : un clic qui paraît
+     avalé, le défaut exact que les motifs ont mis un chantier à perdre.
+
+     `setUiFor` PERSISTE le mode (son `keep`), donc ce saut change
+     durablement le mur. C'est déjà ce que fait tout réglage de mur, et
+     c'est le prix d'un tamis qui n'existe que là. */
+  const openDecade = (decade) => {
+    setSelectedId(null);
+    setUiFor("watched")({ ...wallUi.watched, mode: "wall", decadeFilter: [decade] });
+    setView("library");
+  };
   const updateFilm = (film) => commitFilms(films.map((f) => (f.id === film.id ? film : f)));
   /* CE QU'ON TAPE PASSE PAR ICI. Même geste, écriture groupée : voir
      `commitFilmsSoon`. La fiche s'en sert pour la critique, les notes
@@ -1819,7 +1837,18 @@ export default function App() {
               {/* The almanac reads the screening log: so it looks at the cards
             WATCHED, including those set aside in the reserve — having
             archived them does not make them unwatched. */}
-              {view === "almanac" && <AlmanacView films={watched} onOpenPerson={openPerson} />}
+              {view === "almanac" && (
+                <AlmanacView
+                  films={watched}
+                  /* LA COLLECTION ENTIÈRE, watchlist comprise : le
+                     contrepoint compare ce qu'on POSSÈDE à ce qu'on a
+                     VU, et `watched` en est déjà amputé. */
+                  held={films}
+                  onOpen={openFilm}
+                  onOpenPerson={openPerson}
+                  onOpenDecade={openDecade}
+                />
+              )}
               {view === "thread" && <ThreadView connected={!!synchro.person} />}
               {/* LES MÊMES PIÈCES QUE LES FILIATIONS. Remplir une liste et
                   bâtir un parcours posent la même question — « quel film ? » —

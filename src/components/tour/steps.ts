@@ -584,6 +584,22 @@ const almanac: Tour = {
       placement: "left",
       optional: true,
     },
+    /* LA VISITE VISE LA PORTE, JAMAIS LA FEUILLE. Une visite ne peut pas
+       ouvrir une modale, et une ancre posée SOUS un voile est une ancre
+       morte que ce fichier ne voit pas mourir : `steps.test.ts` vérifie
+       qu'elle est POSÉE quelque part, pas qu'on l'atteint. Ce pas dit
+       donc en une fois ce qui est derrière le bouton.
+
+       `optional` : le bouton est monté sur toutes les périodes, mais
+       l'en-tête entier ne l'est pas — un classeur sans une seule séance
+       datée n'a pas de période à feuilleter, et la visite doit se jouer
+       en entier sur un classeur neuf. */
+    {
+      target: at("almanac-counterpoint"),
+      ...says("almanac", "counterpoint"),
+      placement: "left",
+      optional: true,
+    },
   ],
 };
 
