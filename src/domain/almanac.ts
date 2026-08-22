@@ -19,7 +19,7 @@ import type { Film, Watch } from "../types";
 /* A screening tied back to its film — the shape the whole module works
    on, because counting years, directors and decades means knowing WHICH
    FILM each screening comes from. */
-interface Screening {
+export interface Screening {
   film: Film;
   watch: Watch;
 }
@@ -45,8 +45,15 @@ const yearOf = (date: string | null | undefined): number | null => {
    dealt with where it resists. */
 export type Period = number | "always";
 
+/* EXPORTED FOR `domain/counterpoint`, WHICH READS THE SAME EVENINGS.
+   Four decisions are settled here and in `screeningsOf` — what an
+   unreadable date is worth, that an archived card still counts, that a
+   watchlist card never does, that `migrate` has already seeded the log
+   from `watchedAt`. A second copy would drift from this one the day a
+   fifth status appears, and the two screens would no longer count the
+   same evenings. */
 /** Does the screening fall inside the period? An unreadable date, never. */
-const inPeriod = (date: string | null | undefined, p: Period): boolean => {
+export const inPeriod = (date: string | null | undefined, p: Period): boolean => {
   const year = yearOf(date);
   return year != null && (p === "always" || year === p);
 };
@@ -62,7 +69,7 @@ const inPeriod = (date: string | null | undefined, p: Period): boolean => {
    pre-log card from `watchedAt`. So we do NOT redo that work here: a film
    with no screening in its log is a film with no date, and it is right
    that it should weigh on no month at all. */
-const screeningsOf = (films: Film[]): Screening[] => {
+export const screeningsOf = (films: Film[]): Screening[] => {
   const out: Screening[] = [];
   for (const film of films) {
     if (film.status === "watchlist") continue;
@@ -250,8 +257,11 @@ export function newDirectors(films: Film[], period: Period): string[] {
     .sort((a, b) => a.localeCompare(b));
 }
 
+/* Exported for the same reason as `screeningsOf`: `domain/counterpoint`
+   counts filmmakers out of the very same field, and without this split
+   "Joel Coen, Ethan Coen" becomes one person nobody is called. */
 /** Coen, Coen or Powell & Pressburger — one field, several people. */
-const namesIn = (field: string): string[] =>
+export const namesIn = (field: string): string[] =>
   (field || "")
     .split(",")
     .map((n) => n.trim())
